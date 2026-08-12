@@ -22,6 +22,13 @@ Last updated: 2026-08-13
 | readiness | 已接入 | `production-readiness.sh CHECK_PUBLIC=1` 同步检查版本端点与 manifest，拒绝 404、HTML fallback、SHA 不一致和错误 release pin。 |
 | 验证 | 已通过 | 本地真实 HTTP fixture 全链路通过；现网只读运行 smoke 在 `/v1/version` 404 处按预期失败，证明旧部署会被捕获；未修改生产。 |
 
+## 2026-08-13 GitHub 仓库首页项目介绍
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| About/Description | 已更新 | GitHub 仓库描述已改为：`我和狗蛋儿的家（Goudaner World）｜以 Rust Gateway 为真源、H5 为主入口的单城即时通信与共建空间；配套 TUI/CLI、居民认证、私聊/群聊、治理后台与可追溯 Linux 发布链。` |
+| Homepage | 保持 | 仓库主页继续指向 `https://chat.ajw.cn`；描述不宣称跨城 Waku/标准 MLS 已完成，也不暴露内部主机、账号或凭据。 |
+
 ## 2026-08-13 Linux 发布制品可审计收口
 
 | 项目 | 状态 | 说明 |
