@@ -548,6 +548,10 @@ fn resident_scoped_shell_state_requires_matching_bearer_session() {
             .iter()
             .all(|room| !room["id"].as_str().unwrap_or_default().starts_with("dm:"))
     );
+    let (anonymous_events_status, _, anonymous_events_body) =
+        http_raw("GET", &server.base_url, "/v1/shell/events?wait_ms=0", None);
+    assert_eq!(anonymous_events_status, 200);
+    assert!(!anonymous_events_body.contains("\"id\":\"dm:"));
 
     let (mismatched_status, _) = http_json_with_headers(
         "GET",
