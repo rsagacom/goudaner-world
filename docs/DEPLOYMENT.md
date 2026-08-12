@@ -10,6 +10,8 @@
 - CLI：148 tests / 0 failed（119 unit + 24 integration + 5 额外测试）
 - 支撑 crates：`crypto-mls` 24、`ai-sidecar` 7、`chat-core` 20、`chat-storage` 18 tests，均 0 failed
 - 完整门禁：`RUN_PREFLIGHT=0 INCLUDE_PROVIDER_FEDERATION=1 scripts/smoke-release-gate.sh`
+- 当前可发布安全修复：GitHub `main` `7031f624645302df0e01a5872db7a8a8111a6197`；release run `31637554649` 的 verify、x86_64、aarch64 均通过
+- 当前制品目录：`/Volumes/AJW-Data/Projects/lobster-chat-release-7031f62.2tF0mH`；两个 target 的 `SHA256SUMS` 和 manifest 均已独立复核
 - H5 主入口：`index.html`（主城群聊）、`creative.html`（住宅/私聊）、`admin-ds.html`（管理后台）
 
 ## 2. 支持环境
@@ -216,7 +218,7 @@ EXPECT_RELEASE_GIT_SHA=<40-character-commit-sha> \
   scripts/smoke-public-ingress.sh
 ```
 
-该脚本检查首页、H5 住宅页 `creative.html`、管理后台 `admin-ds.html`、GET/HEAD `/health`、`/v1/provider`、`/v1/version` 与 JSON `release-manifest.json` 的 SHA 追溯、无 Bearer 访问管理摘要与 logout 的 `401` 边界；设置 `EXPECT_CORS_ORIGIN` 时还会校验 health 的 CORS 响应。`EXPECT_RELEASE_GIT_SHA` 应填写本次部署制品对应的完整 commit SHA；它不能替代 DNS、证书链、真实邮箱和登录后的浏览器验收。
+该脚本检查首页、H5 住宅页 `creative.html`、管理后台 `admin-ds.html`、GET/HEAD `/health`、`/v1/provider`、`/v1/version` 与 JSON `release-manifest.json` 的 SHA 追溯、无 Bearer 访问管理摘要与 logout 的 `401` 边界，以及匿名 `/v1/shell/state` 不暴露 `dm:` 私聊投影；设置 `EXPECT_CORS_ORIGIN` 时还会校验 health 的 CORS 响应。`EXPECT_RELEASE_GIT_SHA` 应填写本次部署制品对应的完整 commit SHA；它不能替代 DNS、证书链、真实邮箱和登录后的浏览器验收。
 
 ## 7. 必须完成的生产验收
 

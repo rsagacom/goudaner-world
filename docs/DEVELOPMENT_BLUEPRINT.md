@@ -304,10 +304,18 @@
 
 ### 生产切换前最后一公里复核（2026-08-13）
 
-- **公网现状复核**：只读请求再次确认 health 200，但 `/v1/version` 仍为 404，`/release-manifest.json` 仍被 SPA fallback 以 `text/html` 返回，当前线上没有新版本追溯证据。
+- **公网现状复核**：只读请求确认 health 200，但 `/v1/version` 仍为 404，`/release-manifest.json` 仍被 SPA fallback 以 `text/html` 返回；未带 Bearer 的 `/v1/shell/state` 还返回旧版私聊投影，当前线上没有新版本追溯证据。
 - **安装演练**：`scripts/smoke-install-layout.sh` 已在隔离临时目录中完成预构建 Gateway/Web artifact 安装流程，生成并检查双份 release manifest、systemd unit、Nginx site，以及 health/version/provider/manifest 探针；没有写入 `/opt`、`/var/lib`、`/etc` 或真实服务。
 - **门禁结果**：install-server、install-layout、production-readiness 定向单测与脚本语法检查通过；GitHub 主线 CI 和 Linux release CI 仍保持全绿。
 - **执行边界**：下一阶段只剩目标 Linux 主机的备份→安装→服务/公网追溯→真实邮箱 OTP→双居民 IM→回滚演练，必须在用户明确授权后执行；P5 native Waku/标准 MLS 仍是独立授权事项。
+
+### 匿名 shell 投影隐私收口（2026-08-13）
+
+- **现网发现**：只读访问 `https://chat.ajw.cn/v1/shell/state`（无 Bearer、无 `resident_id`）返回 200，响应含 `dm:` 会话 ID 和私聊投影；`/v1/admin/summary` 仍为 401。该现象证明旧公网版本的匿名 shell 投影边界不能作为已修复证据。
+- **根因**：Gateway `shell_visible_conversations_for_viewer(None)` 原先将非个人 Direct 会话当成匿名可见；个人房间已有过滤，但普通私聊没有同等 fail-closed 处理。
+- **修复**：`41eb6589f7ba37060a0823fd3ea6721dc9882a87` 让匿名投影只保留公共房间；居民 scoped 请求继续要求匹配 Bearer。公网 smoke 新增匿名响应不得出现 `"id":"dm:` 的门禁，Gateway 回归覆盖无 query 的 HTTP 路径。
+- **验证**：Gateway `323/323`、Gateway clippy `-D warnings`、脚本语法/合同通过；GitHub CI `31637255944` 全绿；release run `31637554649` 的 verify、x86_64 和 aarch64 全绿。两架构制品 SHA256、manifest、ELF 架构和敏感文件名扫描通过。
+- **新发布锚点**：GitHub `main` 为 `7031f624645302df0e01a5872db7a8a8111a6197`；制品目录为 `/Volumes/AJW-Data/Projects/lobster-chat-release-7031f62.2tF0mH`。尚未 SSH、重启或替换生产服务。
 
 ### admin-ds Gateway 会话失效闭环（2026-08-13）
 
@@ -397,9 +405,9 @@
 
 | 项目 | 值 |
 |------|-----|
-| `RELEASE_GIT_SHA` | `d0e80f54539241381f10f3e256ec065b52083f77` |
-| GitHub release run | `31632458159` |
-| 制品目录 | `/Volumes/AJW-Data/Projects/lobster-chat-release-d0e80f5.zjrdwG` |
+| `RELEASE_GIT_SHA` | `7031f624645302df0e01a5872db7a8a8111a6197` |
+| GitHub release run | `31637554649` |
+| 制品目录 | `/Volumes/AJW-Data/Projects/lobster-chat-release-7031f62.2tF0mH` |
 | x86_64 target | `x86_64-unknown-linux-gnu` |
 | ARM64 target | `aarch64-unknown-linux-gnu` |
 | 安装/公网合同 | `docs/DEPLOYMENT.md` §3–§9 |
@@ -450,7 +458,7 @@
 
 ```bash
 BASE_URL=https://chat.ajw.cn \
-EXPECT_RELEASE_GIT_SHA=d0e80f54539241381f10f3e256ec065b52083f77 \
+EXPECT_RELEASE_GIT_SHA=7031f624645302df0e01a5872db7a8a8111a6197 \
   scripts/smoke-public-ingress.sh
 ```
 

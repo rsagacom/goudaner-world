@@ -13,6 +13,17 @@ Last updated: 2026-08-13
 | P5 跨城/加密 | 暂缓 | 不把 HTTP federation/AES-GCM 骨架称为 native Waku/标准 MLS；开源调研、依赖选型和 Proposal/ADR 需另行授权。 |
 | 低价值 polish | 降级 | DMARC/empty-note 可单独排期，不插入生产切换主链。 |
 
+## 2026-08-13 匿名 shell 投影隐私收口
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 现网发现 | 已确认 | 无 Bearer、无 `resident_id` 访问公网 `/v1/shell/state` 返回 200，旧部署响应含 `dm:` 私聊投影；`/v1/admin/summary` 仍为 401。 |
+| 根因 | 已确认 | `shell_visible_conversations_for_viewer(None)` 对普通 Direct 会话错误返回可见，匿名路径没有沿用个人房间的 fail-closed 规则。 |
+| 修复 | 已完成 | Gateway 匿名投影只保留公共房间；居民 scoped 请求行为保持不变；公网 smoke 新增匿名响应不得出现 `"id":"dm:` 检查。 |
+| 本地验证 | 已通过 | Gateway 323/323、clippy `-D warnings`、脚本语法和 smoke 合同通过；无生产写入。 |
+| GitHub/制品 | 已完成 | 代码 `7031f624645302df0e01a5872db7a8a8111a6197`；CI `31637255944` 全绿；release `31637554649` 三 job 全绿；双架构制品已下载到外盘并完成 SHA/manifest/ELF/敏感文件名校验。 |
+| 生产状态 | 待授权 | 公网仍为旧版 `/v1/version` 404、manifest SPA fallback；未 SSH、未重启、未部署。生产切换必须先备份，再安装新 manifest，最后重跑公网 smoke 和真实 OTP/双居民验收。 |
+
 ## 2026-08-13 公网生产状态只读复核
 
 | 项目 | 状态 | 说明 |
