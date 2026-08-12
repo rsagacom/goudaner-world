@@ -259,28 +259,54 @@ async function expectRecalledMessage(page, { previousText, side }) {
   );
 }
 
-async function expectAdminSessionExpiry(page, forcedFailures) {
-  await page.waitForFunction(() => {
-    const toggle = document.querySelector("#hud-login-toggle");
-    const status = document.querySelector("#auth-status")?.textContent || "";
-    return (
-      localStorage.getItem("lobster-session-token") === "" &&
-      localStorage.getItem("lobster-identity") === "访客" &&
-      status.includes("登录已失效，请重新登录") &&
-      toggle?.textContent === "登录" &&
-      toggle?.getAttribute("aria-label") === "打开登录窗口" &&
-      !toggle?.classList.contains("shell-hidden")
-    );
-  }, null, { timeout: 10000 });
-  if (forcedFailures.count !== 1) {
-    throw new Error(`admin-ds auth failure route count=${forcedFailures.count}, expected 1`);
+async function expectSessionExpiry(page, forcedFailures, label) {
+  try {
+    await page.waitForFunction(() => {
+      const toggle = document.querySelector("#hud-login-toggle");
+      const status = document.querySelector("#auth-status")?.textContent || "";
+      const overlay = document.querySelector("#resident-login-overlay");
+      const overlayOpen = overlay?.getAttribute("aria-hidden") === "false" &&
+        !overlay.classList.contains("shell-hidden");
+      const hudLoginAvailable = toggle?.textContent === "登录" &&
+        toggle?.getAttribute("aria-label") === "打开登录窗口" &&
+        !toggle?.classList.contains("shell-hidden");
+      return (
+        localStorage.getItem("lobster-session-token") === "" &&
+        localStorage.getItem("lobster-identity") === "访客" &&
+        status.includes("登录已失效，请重新登录") &&
+        (hudLoginAvailable || overlayOpen)
+      );
+    }, null, { timeout: 10000 });
+  } catch (error) {
+    const debug = await page.evaluate(() => ({
+      href: window.location.href,
+      token: localStorage.getItem("lobster-session-token"),
+      identity: localStorage.getItem("lobster-identity"),
+      authStatus: document.querySelector("#auth-status")?.textContent || "",
+      loginToggle: document.querySelector("#hud-login-toggle")?.textContent || "",
+      loginToggleLabel: document.querySelector("#hud-login-toggle")?.getAttribute("aria-label") || "",
+      loginToggleHidden: document.querySelector("#hud-login-toggle")?.classList.contains("shell-hidden") ?? null,
+      overlayHidden: document.querySelector("#resident-login-overlay")?.classList.contains("shell-hidden") ?? null,
+      bodyText: document.body?.textContent?.slice(0, 500) || "",
+    }));
+    throw new Error(`${label} session expiry did not settle: ${JSON.stringify(debug)}`, { cause: error });
   }
-  await page.locator("#hud-login-toggle").click();
-  await page.waitForFunction(() => {
+  if (forcedFailures.count !== 1) {
+    throw new Error(`${label} auth failure route count=${forcedFailures.count}, expected 1`);
+  }
+  const overlayAlreadyOpen = await page.evaluate(() => {
     const overlay = document.querySelector("#resident-login-overlay");
     return overlay?.getAttribute("aria-hidden") === "false" &&
       !overlay?.classList.contains("shell-hidden");
-  }, null, { timeout: 5000 });
+  });
+  if (!overlayAlreadyOpen) {
+    await page.locator("#hud-login-toggle").click();
+    await page.waitForFunction(() => {
+      const overlay = document.querySelector("#resident-login-overlay");
+      return overlay?.getAttribute("aria-hidden") === "false" &&
+        !overlay?.classList.contains("shell-hidden");
+    }, null, { timeout: 5000 });
+  }
 }
 
 async function main() {
@@ -299,6 +325,7 @@ async function main() {
   let gateway = null;
   let web = null;
   let browser = null;
+  let h5Context = null;
   let adminContext = null;
 
   try {
@@ -327,6 +354,29 @@ async function main() {
     const context = await browser.newContext();
     const indexPage = await context.newPage();
     const creativePage = await context.newPage();
+    // H5 deliberately starts with an expired local session. Keep it in a
+    // separate origin context so its shell-state 401 cannot mutate the
+    // authenticated creative page used by the dual-user IM assertions.
+    h5Context = await browser.newContext();
+    const h5Page = await h5Context.newPage();
+    const h5AuthFailure = { count: 0 };
+    await h5Page.addInitScript(() => {
+      localStorage.setItem("lobster-session-token", "expired-h5-session-fixture");
+      localStorage.setItem("lobster-identity", "h5-browser");
+    });
+    await h5Page.route("**/v1/shell/state*", async (route, request) => {
+      if (request.method() === "GET" && h5AuthFailure.count === 0) {
+        h5AuthFailure.count += 1;
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await route.fulfill({
+          status: 401,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "invalid or expired session" }),
+        });
+        return;
+      }
+      await route.fallback();
+    });
     // admin-ds deliberately starts with an expired local session. Keep it in
     // a separate origin context so its auth reset cannot mutate the user-page
     // localStorage used by the dual-user IM assertions.
@@ -355,10 +405,10 @@ async function main() {
     });
     const browserDiagnostics = [];
     let expectedBrowser503s = 0;
-    for (const [label, page] of [["index", indexPage], ["creative", creativePage], ["admin-ds", adminPage]]) {
+    for (const [label, page] of [["index", indexPage], ["creative", creativePage], ["h5-auth", h5Page], ["admin-ds", adminPage]]) {
       page.on("console", (message) => {
         if (message.type() === "error" || message.type() === "warning") {
-          if (label === "admin-ds" && message.type() === "error" && message.text().includes("401")) {
+          if ((label === "h5-auth" || label === "admin-ds") && message.type() === "error" && message.text().includes("401")) {
             console.error(`[${label} expected auth error] ${message.text()}`);
             return;
           }
@@ -394,10 +444,12 @@ async function main() {
 
     await indexPage.goto(`${webUrl}/index.html?gateway=${encodeURIComponent(gatewayUrl)}&identity=qa-a&qa=browser`);
     await creativePage.goto(`${webUrl}/creative.html?gateway=${encodeURIComponent(gatewayUrl)}&identity=qa-b&qa=browser`);
+    await h5Page.goto(`${webUrl}/creative.html?gateway=${encodeURIComponent(gatewayUrl)}&identity=h5-browser&qa=browser`);
     await adminPage.goto(`${webUrl}/admin-ds.html?gateway=${encodeURIComponent(gatewayUrl)}`);
     await selectPublicRoom(indexPage);
     await selectPublicRoom(creativePage);
-    await expectAdminSessionExpiry(adminPage, adminAuthFailure);
+    await expectSessionExpiry(h5Page, h5AuthFailure, "h5");
+    await expectSessionExpiry(adminPage, adminAuthFailure, "admin-ds");
 
     await submitComposer(indexPage, textA);
     await expectMessageSide(indexPage, textA, "self");
@@ -429,9 +481,11 @@ async function main() {
     console.log("== web dual browser smoke passed ==");
     console.log(`gateway: ${gatewayUrl}`);
     console.log(`web: ${webUrl}`);
+    console.log("h5 auth expiry: 401 -> visitor/login surface -> overlay");
     console.log("admin-ds auth expiry: 401 -> visitor/login HUD -> overlay");
     console.log(`messages: ${textA}, ${editedTextA}, ${textB}, ${retryText}`);
   } finally {
+    await h5Context?.close().catch(() => {});
     await adminContext?.close().catch(() => {});
     await browser?.close().catch(() => {});
     await terminate(web);
