@@ -16,6 +16,7 @@ def main() -> int:
     assert 'ENV_FILE="${ENV_FILE:-/etc/lobster-chat/gateway.env}"' in text
     assert 'BASE_URL="${BASE_URL:-}"' in text
     assert 'CHECK_PUBLIC="${CHECK_PUBLIC:-0}"' in text
+    assert 'EXPECT_RELEASE_GIT_SHA="${EXPECT_RELEASE_GIT_SHA:-}"' in text
     assert 'LOBSTER_DEV_AUTH_BYPASS' in text
     assert 'LOBSTER_DEV_EMAIL_OTP_INLINE' in text
     assert 'LOBSTER_EMAIL_OTP_MAILER_URL' in text
@@ -31,6 +32,11 @@ def main() -> int:
     assert 'curl -fsS' in text
     assert '/health' in text
     assert '/v1/provider' in text
+    assert '/v1/version' in text
+    assert 'release-manifest.json' in text
+    assert 'content-type: application/json' in text
+    assert 'public runtime git_sha does not match release manifest git_sha' in text
+    assert 'EXPECT_RELEASE_GIT_SHA must be a 40-character hexadecimal Git SHA' in text
     assert 'Access-Control-Allow-Origin' in text
     assert 'Bearer' not in text or 'Authorization' not in text
     assert 'echo "$LOBSTER_EMAIL_OTP_MAILER_BEARER_TOKEN"' not in text

@@ -13,6 +13,15 @@ Last updated: 2026-08-13
 | 部署版本 | 存在漂移 | 公网 `/v1/version` 返回 404；`/release-manifest.json` 虽为 200 但 `Content-Type` 为 `text/html`，属于 SPA fallback，不是真实 manifest；`creative.html` / `admin-ds.html` 静态资源最后修改时间仍为 2026-08-02。 |
 | 结论 | 已登记 | 当前本地/ GitHub 主线的 H5 与 admin-ds 会话失效修复尚未由公网页面证明已部署；本次只读核验未 SSH、未重启、未改生产。 |
 
+## 2026-08-13 公网版本追溯 smoke 收口
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 旧缺口 | 已修复 | `smoke-public-ingress.sh` 原先只验证页面、health、provider 和 401，无法发现 `/v1/version` 缺失或 `release-manifest.json` 被 SPA fallback 吞掉。 |
+| 新合同 | 已实现 | 默认页面标记与当前 `index.html` / `creative.html` 对齐；新增运行时 `git_sha`、manifest `git_sha`、JSON `Content-Type` 和两者一致性校验；`EXPECT_RELEASE_GIT_SHA` 可锁定指定发布 commit。 |
+| readiness | 已接入 | `production-readiness.sh CHECK_PUBLIC=1` 同步检查版本端点与 manifest，拒绝 404、HTML fallback、SHA 不一致和错误 release pin。 |
+| 验证 | 已通过 | 本地真实 HTTP fixture 全链路通过；现网只读运行 smoke 在 `/v1/version` 404 处按预期失败，证明旧部署会被捕获；未修改生产。 |
+
 ## 2026-08-13 H5 会话失效真实浏览器回归
 
 | 项目 | 状态 | 说明 |
