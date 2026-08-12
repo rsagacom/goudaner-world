@@ -29,6 +29,7 @@ SKIP_BUILD = os.environ.get("LOBSTER_CHAT_SKIP_BUILD") == "1" or os.environ.get(
 GATEWAY_BIN = os.environ.get("GATEWAY_BIN", f"{ROOT}/target/debug/lobster-waku-gateway")
 CLI_BIN = os.environ.get("CLI_BIN", f"{ROOT}/target/debug/lobster-cli")
 TUI_BIN = os.environ.get("TUI_BIN", f"{ROOT}/target/debug/lobster-tui")
+WEB_GENERATED_DIR = os.environ.get("LOBSTER_WEB_GENERATED_DIR")
 SEEDED_TEXT = "TUI_SMOKE_预置消息"
 DIRECT_TEXT = "DIRECT_SMOKE_探针消息"
 DIRECT_PEER_ID = "guide"
@@ -61,6 +62,11 @@ def local_probe_env() -> dict[str, str]:
                 values.append(host)
         env[key] = ",".join(values)
     return env
+
+
+def isolate_tui_generated_output(env: dict[str, str]) -> None:
+    if WEB_GENERATED_DIR:
+        env["LOBSTER_WEB_GENERATED_DIR"] = WEB_GENERATED_DIR
 
 
 def fail(label: str, payload: str) -> None:
@@ -349,6 +355,7 @@ def run_smoke(
         env.pop("LOBSTER_WAKU_GATEWAY_URL", None)
     env["LOBSTER_TUI_SMOKE_DUMP"] = dump_format
     env["LOBSTER_TUI_STATE_DIR"] = state_dir
+    isolate_tui_generated_output(env)
     proc = subprocess.run(
         [TUI_BIN, "--mode", mode],
         cwd=ROOT,
@@ -385,6 +392,7 @@ class LiveTuiSession:
         env["TERM"] = "xterm-256color"
         env["LOBSTER_WAKU_GATEWAY_URL"] = GATEWAY_URL
         env["LOBSTER_TUI_STATE_DIR"] = state_dir
+        isolate_tui_generated_output(env)
         pid, fd = pty.fork()
         if pid == 0:
             os.chdir(ROOT)
@@ -471,6 +479,7 @@ def submit_sequence_via_tui(mode: str, state_dir: str, texts: list[str]) -> None
     env["LOBSTER_WAKU_GATEWAY_URL"] = GATEWAY_URL
     env["LOBSTER_TUI_STATE_DIR"] = state_dir
     env["LOBSTER_TUI_SMOKE_SCRIPT"] = "\n".join(texts)
+    isolate_tui_generated_output(env)
     subprocess.run(
         [TUI_BIN, "--mode", mode],
         cwd=ROOT,
@@ -487,11 +496,12 @@ def submit_via_tui(mode: str, state_dir: str, text: str) -> None:
 
 
 def main() -> int:
-    global PORT, GATEWAY_URL
+    global PORT, GATEWAY_URL, WEB_GENERATED_DIR
     PORT = reserve_port()
     GATEWAY_URL = f"http://{HOST}:{PORT}"
     ensure_binaries()
     state_root = tempfile.mkdtemp(prefix="lobster-tui-smoke.")
+    WEB_GENERATED_DIR = os.path.join(state_root, "web-generated")
     gateway_proc = start_gateway(state_root)
     global SESSION_TOKENS
     SESSION_TOKENS = {

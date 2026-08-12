@@ -26,7 +26,9 @@ where
         .unwrap_or_else(|| cwd.join(".lobster-chat-dev"));
     Ok(BootstrapPaths {
         state_dir,
-        web_generated_dir: cwd.join("apps/lobster-web-shell/generated"),
+        web_generated_dir: std::env::var_os("LOBSTER_WEB_GENERATED_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| cwd.join("apps/lobster-web-shell/generated")),
     })
 }
 
@@ -109,6 +111,32 @@ mod tests {
         assert_eq!(
             paths.web_generated_dir,
             PathBuf::from("/tmp/lobster-chat/apps/lobster-web-shell/generated")
+        );
+    }
+
+    #[test]
+    fn resolve_bootstrap_paths_prefers_web_generated_dir_env_override() {
+        let _guard = env_lock().lock().unwrap();
+        let previous = std::env::var_os("LOBSTER_WEB_GENERATED_DIR");
+        unsafe {
+            std::env::set_var("LOBSTER_WEB_GENERATED_DIR", "/tmp/lobster-web-generated");
+        }
+
+        let paths =
+            resolve_bootstrap_paths_with(|| Ok(PathBuf::from("/tmp/lobster-chat"))).unwrap();
+
+        match previous {
+            Some(value) => unsafe {
+                std::env::set_var("LOBSTER_WEB_GENERATED_DIR", value);
+            },
+            None => unsafe {
+                std::env::remove_var("LOBSTER_WEB_GENERATED_DIR");
+            },
+        }
+
+        assert_eq!(
+            paths.web_generated_dir,
+            PathBuf::from("/tmp/lobster-web-generated")
         );
     }
 

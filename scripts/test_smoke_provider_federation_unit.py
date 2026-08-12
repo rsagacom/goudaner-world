@@ -34,6 +34,8 @@ def main() -> int:
     assert '--upstream-gateway-url "http://$HOST:$UPSTREAM_PORT"' in text
     assert 'wait_for_health "upstream" "http://$HOST:$UPSTREAM_PORT/health"' in text
     assert 'wait_for_health "downstream" "http://$HOST:$DOWNSTREAM_PORT/health"' in text
+    assert text.index('wait_for_health "upstream"') < text.index('echo "== starting downstream gateway')
+    assert 'tail -n 80 "$DOWNSTREAM_LOG"' in text
     assert 'curl -fsS "http://$HOST:$DOWNSTREAM_PORT/v1/provider"' in text
     assert 'grep -q \'"mode":"remote-gateway"\'' in text
     assert 'grep -q \'"reachable":true\'' in text

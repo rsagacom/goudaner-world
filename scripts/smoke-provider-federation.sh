@@ -137,6 +137,11 @@ LOBSTER_DEV_AUTH_BYPASS=1 "$BIN_PATH" \
   >"$UPSTREAM_LOG" 2>&1 &
 UPSTREAM_PID="$!"
 
+# Downstream startup performs an eager upstream health check. Wait for the
+# upstream listener first so a normal cold start cannot be misclassified as a
+# federation failure.
+wait_for_health "upstream" "http://$HOST:$UPSTREAM_PORT/health"
+
 echo "== starting downstream gateway on :$DOWNSTREAM_PORT bridged to upstream =="
 LOBSTER_DEV_AUTH_BYPASS=1 "$BIN_PATH" \
   --host "$HOST" \
@@ -146,8 +151,11 @@ LOBSTER_DEV_AUTH_BYPASS=1 "$BIN_PATH" \
   >"$DOWNSTREAM_LOG" 2>&1 &
 DOWNSTREAM_PID="$!"
 
-wait_for_health "upstream" "http://$HOST:$UPSTREAM_PORT/health"
-wait_for_health "downstream" "http://$HOST:$DOWNSTREAM_PORT/health"
+if ! wait_for_health "downstream" "http://$HOST:$DOWNSTREAM_PORT/health"; then
+  echo "downstream log: $DOWNSTREAM_LOG" >&2
+  tail -n 80 "$DOWNSTREAM_LOG" >&2 || true
+  exit 1
+fi
 
 provider_json="$(curl -fsS "http://$HOST:$DOWNSTREAM_PORT/v1/provider")"
 printf '%s' "$provider_json" | grep -q '"mode":"remote-gateway"' || {

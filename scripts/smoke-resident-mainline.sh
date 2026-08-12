@@ -80,6 +80,7 @@ if [[ -z "$PORT" ]]; then
 fi
 
 STATE_ROOT="$(mktemp_dir)"
+export LOBSTER_WEB_GENERATED_DIR="$STATE_ROOT/web-generated"
 GATEWAY_LOG="$STATE_ROOT/gateway.log"
 GATEWAY_URL="http://$HOST:$PORT"
 RESIDENT_ID="novel-reader"

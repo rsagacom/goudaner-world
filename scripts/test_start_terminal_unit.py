@@ -35,6 +35,7 @@ class ResolveRootTests(unittest.TestCase):
 class SmokeDumpTests(unittest.TestCase):
     def test_run_smoke_json_requests_json_dump_and_parses_payload(self):
         target = load_target_module()
+        target.WEB_GENERATED_DIR = "/tmp/lobster-web-generated"
         completed = mock.Mock(stdout='{"surface_kind":"CityPublic","visible_panels":["status"]}')
 
         with mock.patch.object(target.subprocess, "run", return_value=completed) as run_mock:
@@ -44,6 +45,10 @@ class SmokeDumpTests(unittest.TestCase):
         _, kwargs = run_mock.call_args
         self.assertEqual(kwargs["env"]["LOBSTER_TUI_SMOKE_DUMP"], "json")
         self.assertEqual(kwargs["env"]["LOBSTER_TUI_STATE_DIR"], "/tmp/lobster-state")
+        self.assertEqual(
+            kwargs["env"]["LOBSTER_WEB_GENERATED_DIR"],
+            "/tmp/lobster-web-generated",
+        )
 
 
 class HealthProbeTests(unittest.TestCase):

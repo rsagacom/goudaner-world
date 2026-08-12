@@ -36,6 +36,7 @@ def main() -> int:
     assert 'echo "tui binary not found: $TUI_BIN" >&2' in text
     assert text.index('if [[ ! -x "$GATEWAY_BIN" ]]') > text.index('fi\n\nif [[ ! -x "$GATEWAY_BIN" ]]')
     assert text.index('STATE_ROOT="$(mktemp_dir)"') > text.index('if [[ ! -x "$TUI_BIN" ]]')
+    assert 'export LOBSTER_WEB_GENERATED_DIR="$STATE_ROOT/web-generated"' in text
     assert 'cargo build --manifest-path "$ROOT_DIR/Cargo.toml" -p lobster-waku-gateway -p lobster-cli -p lobster-tui' in text
     assert "cleanup()" in text
     assert 'kill "$GATEWAY_PID"' in text
