@@ -815,6 +815,161 @@
     return el('div', { class: 'ds-btn-group' });
   }
 
+  // ====== 共享热点列表编辑器（2026-08-02 去重） ======
+  // 房间详情内联版（layout:'blocks'，admin-hotspot-* 容器类）与场景模块页
+  // （layout:'flex'，内联 flex 行）共用同一套行渲染/收集/载荷逻辑。
+  var HOTSPOT_COORD_FIELDS = [
+    { key: 'x_permyriad', placeholder: 'X', def: 2500 },
+    { key: 'y_permyriad', placeholder: 'Y', def: 2500 },
+    { key: 'width_permyriad', placeholder: 'W', def: 800 },
+    { key: 'height_permyriad', placeholder: 'H', def: 600 }
+  ];
+
+  function newHotspotDefaults() {
+    return {
+      hotspot_id: 'hotspot-' + Date.now(),
+      label: '新热点',
+      interaction_hint: '',
+      sprite_hint: 'default',
+      x_permyriad: 2500,
+      y_permyriad: 2500,
+      width_permyriad: 800,
+      height_permyriad: 600
+    };
+  }
+
+  function createHotspotListEditor(existingHotspots, options) {
+    options = options || {};
+    var layout = options.layout === 'flex' ? 'flex' : 'blocks';
+    var onRowsRendered = typeof options.onRowsRendered === 'function' ? options.onRowsRendered : null;
+    var hotspotList = layout === 'flex'
+      ? el('div', { style: 'padding:0 1rem;' })
+      : el('div', { class: 'admin-hotspot-list' });
+
+    function renderRows() {
+      clear(hotspotList);
+      for (var hi = 0; hi < existingHotspots.length; hi++) {
+        (function (hs, idx) {
+          var row, fields;
+          if (layout === 'flex') {
+            row = el('div', { style: 'display:flex;gap:0.5rem;align-items:center;padding:0.5rem 0;border-bottom:1px solid var(--ds-border-light);flex-wrap:wrap;' });
+            fields = row;
+          } else {
+            row = el('div', { class: 'admin-hotspot-row' });
+            fields = el('div', { class: 'admin-hotspot-fields' });
+          }
+          var textWidths = layout === 'flex' ? ['width:100px;', 'width:100px;', 'width:140px;'] : [null, null, null];
+          var textClasses = layout === 'flex' ? ['ds-input', 'ds-input', 'ds-input'] : ['ds-input admin-hotspot-id', 'ds-input admin-hotspot-label', 'ds-input admin-hotspot-hint'];
+          var textDefs = [
+            { placeholder: 'ID', value: hs.hotspot_id || '' },
+            { placeholder: '标签', value: hs.label || '' },
+            { placeholder: '交互提示', value: hs.interaction_hint || '' }
+          ];
+          var textInputs = [];
+          for (var ti = 0; ti < textDefs.length; ti++) {
+            var textProps = { type: 'text', class: textClasses[ti], placeholder: textDefs[ti].placeholder, value: textDefs[ti].value };
+            if (textWidths[ti]) textProps.style = textWidths[ti];
+            var textInput = el('input', textProps);
+            textInputs.push(textInput);
+            fields.appendChild(textInput);
+          }
+
+          var coordsContainer = layout === 'flex' ? row : el('div', { class: 'admin-hotspot-coords' });
+          var coordRefs = [];
+          for (var ci = 0; ci < HOTSPOT_COORD_FIELDS.length; ci++) {
+            var coordField = HOTSPOT_COORD_FIELDS[ci];
+            var coordInput = el('input', {
+              type: 'number', class: layout === 'flex' ? 'ds-input' : 'ds-input admin-hotspot-coord',
+              placeholder: coordField.placeholder,
+              value: String(typeof hs[coordField.key] === 'number' ? hs[coordField.key] : coordField.def),
+              style: 'width:58px;'
+            });
+            coordRefs.push({ input: coordInput, key: coordField.key, def: coordField.def });
+            coordsContainer.appendChild(coordInput);
+          }
+          if (layout !== 'flex') fields.appendChild(coordsContainer);
+
+          var delBtn = makeBtn('删除', 'ds-btn-danger-text ds-btn-xs');
+          delBtn.addEventListener('click', function () {
+            existingHotspots.splice(idx, 1);
+            renderRows();
+          });
+          if (layout !== 'flex') row.appendChild(fields);
+          row.appendChild(delBtn);
+          hotspotList.appendChild(row);
+
+          row._coordInputs = coordRefs;
+          row._textInputs = textInputs;
+        })(existingHotspots[hi], hi);
+      }
+      if (!existingHotspots.length) {
+        hotspotList.appendChild(el('div', { class: 'admin-hotspot-empty', style: 'color:var(--ds-text-secondary);font-size:12px;padding:8px 0;' }, '暂无热点'));
+      }
+      if (onRowsRendered) onRowsRendered();
+    }
+
+    function collectHotspots() {
+      var hotspotsOut = [];
+      var allRows = hotspotList.children;
+      for (var ri = 0; ri < allRows.length; ri++) {
+        var r = allRows[ri];
+        if (!r._textInputs) continue;
+        var ids = r._textInputs;
+        var cs = r._coordInputs;
+        var h = {
+          hotspot_id: (ids && ids[0]) ? ids[0].value : ('hotspot-' + ri),
+          label: (ids && ids[1]) ? ids[1].value : '',
+          sprite_hint: 'default',
+          interaction_hint: (ids && ids[2]) ? ids[2].value : ''
+        };
+        for (var ci2 = 0; ci2 < (cs ? cs.length : 0); ci2++) {
+          var c = cs[ci2];
+          h[c.key] = parseInt(c.input.value, 10) || c.def;
+        }
+        if (!h.x_permyriad) h.x_permyriad = 2500;
+        if (!h.y_permyriad) h.y_permyriad = 2500;
+        if (!h.width_permyriad) h.width_permyriad = 800;
+        if (!h.height_permyriad) h.height_permyriad = 600;
+        hotspotsOut.push(h);
+      }
+      return hotspotsOut;
+    }
+
+    renderRows();
+    return {
+      listEl: hotspotList,
+      renderRows: renderRows,
+      collectHotspots: collectHotspots,
+      addHotspot: function () {
+        existingHotspots.push(newHotspotDefaults());
+        renderRows();
+      }
+    };
+  }
+
+  function buildHotspotLayerPayload(hotspotsOut) {
+    if (!hotspotsOut || !hotspotsOut.length) return null;
+    return {
+      layer_id: 'admin-hotspot-' + Date.now(),
+      coordinate_system: 'scene-permyriad',
+      owner_editable: true,
+      hotspots: hotspotsOut
+    };
+  }
+
+  function buildImageLayerPayload(selectedPreset, dayUrl, nightUrl, layerIdPrefix) {
+    if (!selectedPreset && !dayUrl && !nightUrl) return null;
+    return {
+      layer_id: layerIdPrefix + Date.now(),
+      preset: selectedPreset || 'custom',
+      asset_hint: selectedPreset || 'custom',
+      aspect_ratio_permyriad: 5625,
+      owner_editable: true,
+      day_image_url: dayUrl || null,
+      night_image_url: nightUrl || null
+    };
+  }
+
   function ensureAdminNotice() {
     var notice = document.getElementById('dsAdminNotice');
     if (notice) return notice;
@@ -1200,83 +1355,17 @@
                 nightUrlInput
               ]));
 
-              // --- 热点编辑器 ---
+              // --- 热点编辑器（共享 createHotspotListEditor，2026-08-02 去重） ---
               var hotspotSection = el('div', { class: 'admin-hotspot-editor' });
               var hotspotTitle = el('div', { class: 'admin-scene-subtitle' }, '热点配置');
               hotspotSection.appendChild(hotspotTitle);
 
               var existingHotspots = (hl && hl.hotspots && hl.hotspots.length) ? hl.hotspots : [];
-              var hotspotList = el('div', { class: 'admin-hotspot-list' });
-
-              function renderHotspotRows() {
-                clear(hotspotList);
-                for (var hi = 0; hi < existingHotspots.length; hi++) {
-                  (function (hs, idx) {
-                    var row = el('div', { class: 'admin-hotspot-row' });
-                    var fields = el('div', { class: 'admin-hotspot-fields' });
-                    var idInput = el('input', { type: 'text', class: 'ds-input admin-hotspot-id', placeholder: 'ID', value: hs.hotspot_id || '' });
-                    var labelInput = el('input', { type: 'text', class: 'ds-input admin-hotspot-label', placeholder: '标签', value: hs.label || '' });
-                    var hintInput = el('input', { type: 'text', class: 'ds-input admin-hotspot-hint', placeholder: '交互提示', value: hs.interaction_hint || '' });
-                    fields.appendChild(idInput);
-                    fields.appendChild(labelInput);
-                    fields.appendChild(hintInput);
-
-                    var coords = el('div', { class: 'admin-hotspot-coords' });
-                    var inputs = [
-                      { key: 'x_permyriad', placeholder: 'X', def: 2500 },
-                      { key: 'y_permyriad', placeholder: 'Y', def: 2500 },
-                      { key: 'width_permyriad', placeholder: 'W', def: 800 },
-                      { key: 'height_permyriad', placeholder: 'H', def: 600 }
-                    ];
-                    var coordInputs = [];
-                    for (var ci = 0; ci < inputs.length; ci++) {
-                      var inp = el('input', {
-                        type: 'number', class: 'ds-input admin-hotspot-coord',
-                        placeholder: inputs[ci].placeholder,
-                        value: String(typeof hs[inputs[ci].key] === 'number' ? hs[inputs[ci].key] : inputs[ci].def),
-                        style: 'width:58px;'
-                      });
-                      coordInputs.push({ input: inp, key: inputs[ci].key, def: inputs[ci].def });
-                      coords.appendChild(inp);
-                    }
-                    fields.appendChild(coords);
-
-                    var delBtn = makeBtn('删除', 'ds-btn-danger-text ds-btn-xs');
-                    delBtn.addEventListener('click', function () {
-                      existingHotspots.splice(idx, 1);
-                      renderHotspotRows();
-                    });
-
-                    row.appendChild(fields);
-                    row.appendChild(delBtn);
-                    hotspotList.appendChild(row);
-
-                    row._coordInputs = coordInputs;
-                    row._textInputs = [idInput, labelInput, hintInput];
-                  })(existingHotspots[hi], hi);
-                }
-
-                if (!existingHotspots.length) {
-                  hotspotList.appendChild(el('div', { class: 'admin-hotspot-empty', style: 'color:var(--ds-text-secondary);font-size:12px;padding:8px 0;' }, '暂无热点'));
-                }
-              }
-
-              renderHotspotRows();
-              hotspotSection.appendChild(hotspotList);
+              var hotspotEditor = createHotspotListEditor(existingHotspots, { layout: 'blocks' });
+              hotspotSection.appendChild(hotspotEditor.listEl);
 
               var addHotspotBtn = makeBtn('+ 添加热点', 'ds-btn-outline ds-btn-xs');
-              addHotspotBtn.addEventListener('click', function () {
-                existingHotspots.push({
-                  hotspot_id: 'hotspot-' + Date.now(),
-                  label: '新热点',
-                  interaction_hint: '',
-                  x_permyriad: 2500,
-                  y_permyriad: 2500,
-                  width_permyriad: 800,
-                  height_permyriad: 600
-                });
-                renderHotspotRows();
-              });
+              addHotspotBtn.addEventListener('click', hotspotEditor.addHotspot);
               hotspotSection.appendChild(el('div', { style: 'margin-top:6px;' }, addHotspotBtn));
               sceneConfig.appendChild(hotspotSection);
 
@@ -1287,53 +1376,14 @@
                 statusMsg.textContent = ''; statusMsg.style.color = '';
                 var selectedPreset = presetSelect.value;
 
-                var hlPayload = null;
-                if (existingHotspots.length) {
-                  var rows = Array.from(hotspotList.querySelectorAll('.admin-hotspot-row'));
-                  var hotspotsOut = [];
-                  for (var ri = 0; ri < rows.length; ri++) {
-                    var r = rows[ri];
-                    var ids = r._textInputs;
-                    var cs = r._coordInputs;
-                    var h = {
-                      hotspot_id: (ids && ids[0]) ? ids[0].value : ('hotspot-' + ri),
-                      label: (ids && ids[1]) ? ids[1].value : '',
-                      sprite_hint: 'default',
-                      interaction_hint: (ids && ids[2]) ? ids[2].value : ''
-                    };
-                    for (var ci2 = 0; ci2 < (cs ? cs.length : 0); ci2++) {
-                      var c = cs[ci2];
-                      h[c.key] = parseInt(c.input.value, 10) || c.def;
-                    }
-                    if (!h.x_permyriad) h.x_permyriad = 2500;
-                    if (!h.y_permyriad) h.y_permyriad = 2500;
-                    if (!h.width_permyriad) h.width_permyriad = 800;
-                    if (!h.height_permyriad) h.height_permyriad = 600;
-                    hotspotsOut.push(h);
-                  }
-                  hlPayload = {
-                    layer_id: 'admin-hotspot-' + Date.now(),
-                    coordinate_system: 'scene-permyriad',
-                    owner_editable: true,
-                    hotspots: hotspotsOut
-                  };
-                }
+                var hlPayload = existingHotspots.length
+                  ? buildHotspotLayerPayload(hotspotEditor.collectHotspots())
+                  : null;
 
                 try {
                   var dayUrl = dayUrlInput.value.trim();
                   var nightUrl = nightUrlInput.value.trim();
-                  var ilPayload = null;
-                  if (selectedPreset || dayUrl || nightUrl) {
-                    ilPayload = {
-                      layer_id: 'admin-custom-' + Date.now(),
-                      preset: selectedPreset || 'custom',
-                      asset_hint: selectedPreset || 'custom',
-                      aspect_ratio_permyriad: 5625,
-                      owner_editable: true,
-                      day_image_url: dayUrl || null,
-                      night_image_url: nightUrl || null
-                    };
-                  }
+                  var ilPayload = buildImageLayerPayload(selectedPreset, dayUrl, nightUrl, 'admin-custom-');
                   var res = await fetchGatewayJsonPost('/v1/admin/scene', {
                     room_id: room.id,
                     image_layer: ilPayload,
@@ -1991,6 +2041,28 @@
     var il = room.image_layer;
     var hl = room.hotspot_layer;
 
+    // 可视化编辑器入口：scene-editor.html 与 admin-ds.html 同目录，URL 合同与
+    // app.js sceneEditorUrlForCurrentState() 一致（gateway/room/token/identity）。
+    if (gatewayUrl && room && room.id) {
+      var visualEditorUrl = './scene-editor.html?gateway=' + encodeURIComponent(gatewayUrl) +
+        '&room=' + encodeURIComponent(room.id);
+      var editorSessionToken = safeLocalStorageGet('lobster-session-token');
+      if (editorSessionToken) {
+        visualEditorUrl += '&token=' + encodeURIComponent(editorSessionToken) +
+          '&identity=' + encodeURIComponent(currentGatewayIdentity());
+      }
+      var entryBar = el('div', { class: 'ds-card', style: 'margin-bottom:1rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;' });
+      var entryLink = el('a', {
+        class: 'ds-btn ds-btn-primary ds-btn-sm',
+        href: visualEditorUrl,
+        target: '_blank',
+        rel: 'noopener'
+      }, '打开可视化编辑器（拖拽/缩放热点）');
+      entryBar.appendChild(entryLink);
+      entryBar.appendChild(el('span', { style: 'font-size:12px;color:var(--ds-text-secondary);' }, '在 16:9 画布上可视化编辑背景与热点，新标签页打开'));
+      container.appendChild(entryBar);
+    }
+
     // Image layer section
     var imgSection = el('div', { class: 'ds-card', style: 'margin-bottom:1rem;' });
     imgSection.appendChild(el('div', { class: 'ds-card-header' },
@@ -2038,7 +2110,7 @@
     }
     container.appendChild(imgSection);
 
-    // Hotspot layer section
+    // Hotspot layer section（共享 createHotspotListEditor，2026-08-02 去重）
     var hsSection = el('div', { class: 'ds-card', style: 'margin-bottom:1rem;' });
     var hotspotTitle = el('span', { class: 'ds-card-title' }, '热点配置 (' + ((hl && hl.hotspots && hl.hotspots.length) || 0) + ' 个)');
     hsSection.appendChild(el('div', { class: 'ds-card-header' },
@@ -2046,74 +2118,17 @@
     ));
 
     var existingHotspots = (hl && hl.hotspots && hl.hotspots.length) ? hl.hotspots.slice() : [];
-    var hotspotList = el('div', { style: 'padding:0 1rem;' });
-
-    function renderHotspotRows() {
-      hotspotTitle.textContent = '热点配置 (' + existingHotspots.length + ' 个)';
-      clear(hotspotList);
-      for (var hi = 0; hi < existingHotspots.length; hi++) {
-        (function (hs, idx) {
-          var row = el('div', { style: 'display:flex;gap:0.5rem;align-items:center;padding:0.5rem 0;border-bottom:1px solid var(--ds-border-light);flex-wrap:wrap;' });
-          var idInput = el('input', { type: 'text', class: 'ds-input', placeholder: 'ID', value: hs.hotspot_id || '', style: 'width:100px;' });
-          var labelInput = el('input', { type: 'text', class: 'ds-input', placeholder: '标签', value: hs.label || '', style: 'width:100px;' });
-          var hintInput = el('input', { type: 'text', class: 'ds-input', placeholder: '交互提示', value: hs.interaction_hint || '', style: 'width:140px;' });
-          row.appendChild(idInput);
-          row.appendChild(labelInput);
-          row.appendChild(hintInput);
-
-          var coordInputs = [
-            { key: 'x_permyriad', placeholder: 'X', def: 2500 },
-            { key: 'y_permyriad', placeholder: 'Y', def: 2500 },
-            { key: 'width_permyriad', placeholder: 'W', def: 800 },
-            { key: 'height_permyriad', placeholder: 'H', def: 600 }
-          ];
-          var coordRefs = [];
-          for (var ci = 0; ci < coordInputs.length; ci++) {
-            var inp = el('input', {
-              type: 'number', class: 'ds-input',
-              placeholder: coordInputs[ci].placeholder,
-              value: String(typeof hs[coordInputs[ci].key] === 'number' ? hs[coordInputs[ci].key] : coordInputs[ci].def),
-              style: 'width:58px;'
-            });
-            coordRefs.push({ input: inp, key: coordInputs[ci].key, def: coordInputs[ci].def });
-            row.appendChild(inp);
-          }
-
-          var delBtn = makeBtn('删除', 'ds-btn-danger-text ds-btn-xs');
-          delBtn.addEventListener('click', function () {
-            existingHotspots.splice(idx, 1);
-            renderHotspotRows();
-          });
-          row.appendChild(delBtn);
-          hotspotList.appendChild(row);
-
-          row._coordInputs = coordRefs;
-          row._textInputs = [idInput, labelInput, hintInput];
-        })(existingHotspots[hi], hi);
+    var hotspotEditor = createHotspotListEditor(existingHotspots, {
+      layout: 'flex',
+      onRowsRendered: function () {
+        hotspotTitle.textContent = '热点配置 (' + existingHotspots.length + ' 个)';
       }
-      if (!existingHotspots.length) {
-        hotspotList.appendChild(el('div', { style: 'color:var(--ds-text-secondary);font-size:12px;padding:8px 0;' }, '暂无热点'));
-      }
-    }
-
-    renderHotspotRows();
-    hsSection.appendChild(hotspotList);
+    });
+    hsSection.appendChild(hotspotEditor.listEl);
 
     var addBtn = makeBtn('+ 添加热点', 'ds-btn-outline ds-btn-xs');
     addBtn.style.margin = '0.5rem 1rem';
-    addBtn.addEventListener('click', function () {
-      existingHotspots.push({
-        hotspot_id: 'hotspot-' + Date.now(),
-        label: '新热点',
-        interaction_hint: '',
-        sprite_hint: 'default',
-        x_permyriad: 2500,
-        y_permyriad: 2500,
-        width_permyriad: 800,
-        height_permyriad: 600
-      });
-      renderHotspotRows();
-    });
+    addBtn.addEventListener('click', hotspotEditor.addHotspot);
     hsSection.appendChild(el('div', { style: 'margin-top:6px;' }, addBtn));
     container.appendChild(hsSection);
 
@@ -2126,58 +2141,12 @@
       statusMsg.textContent = ''; statusMsg.style.color = '';
       var selectedPreset = presetSelect.value;
 
-      var hlPayload = null;
-      if (existingHotspots.length) {
-        var rows = Array.from(hotspotList.querySelectorAll('[data-no-clear]')).length ? [] : [];
-        // Re-collect from DOM
-        var allRows = hotspotList.children;
-        var hotspotsOut = [];
-        for (var ri = 0; ri < allRows.length; ri++) {
-          var r = allRows[ri];
-          if (!r._textInputs) continue;
-          var ids = r._textInputs;
-          var cs = r._coordInputs;
-          var h = {
-            hotspot_id: (ids && ids[0]) ? ids[0].value : ('hotspot-' + ri),
-            label: (ids && ids[1]) ? ids[1].value : '',
-            sprite_hint: 'default',
-            interaction_hint: (ids && ids[2]) ? ids[2].value : ''
-          };
-          for (var ci2 = 0; ci2 < (cs ? cs.length : 0); ci2++) {
-            var c = cs[ci2];
-            h[c.key] = parseInt(c.input.value, 10) || c.def;
-          }
-          if (!h.x_permyriad) h.x_permyriad = 2500;
-          if (!h.y_permyriad) h.y_permyriad = 2500;
-          if (!h.width_permyriad) h.width_permyriad = 800;
-          if (!h.height_permyriad) h.height_permyriad = 600;
-          hotspotsOut.push(h);
-        }
-        if (hotspotsOut.length) {
-          hlPayload = {
-            layer_id: 'admin-hotspot-' + Date.now(),
-            coordinate_system: 'scene-permyriad',
-            owner_editable: true,
-            hotspots: hotspotsOut
-          };
-        }
-      }
+      var hlPayload = buildHotspotLayerPayload(hotspotEditor.collectHotspots());
 
       try {
         var dayUrl = dayUrlInput.value.trim();
         var nightUrl = nightUrlInput.value.trim();
-        var ilPayload = null;
-        if (selectedPreset || dayUrl || nightUrl) {
-          ilPayload = {
-            layer_id: 'admin-scene-' + Date.now(),
-            preset: selectedPreset || 'custom',
-            asset_hint: selectedPreset || 'custom',
-            aspect_ratio_permyriad: 5625,
-            owner_editable: true,
-            day_image_url: dayUrl || null,
-            night_image_url: nightUrl || null
-          };
-        }
+        var ilPayload = buildImageLayerPayload(selectedPreset, dayUrl, nightUrl, 'admin-scene-');
         var res = await fetchGatewayJsonPost('/v1/admin/scene', {
           room_id: room.id,
           image_layer: ilPayload,

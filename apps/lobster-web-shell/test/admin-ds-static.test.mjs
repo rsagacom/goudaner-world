@@ -42,7 +42,7 @@ test("admin-ds.html 引用正确的 CSS 和 JS", async () => {
 
   assert.match(html, /href="\.\/styles\.admin-ds\.css(?:\?v=[^"]+)?"/, "应引用独立样式文件 styles.admin-ds.css");
   assert.match(html, /src="\.\/admin-ds-data\.js"/, "应引用数据文件 admin-ds-data.js");
-  assert.match(html, /src="\.\/admin-ds\.js"/, "应引用交互脚本 admin-ds.js");
+  assert.match(html, /src="\.\/admin-ds\.js(?:\?v=[^"]+)?"/, "应引用交互脚本 admin-ds.js（允许 ?v= 缓存升版）");
   assert.match(html, /import \{ initStandaloneAuthSurface \} from "\.\/shell-auth-standalone\.js";/, "注册登录应走共享 standalone auth 接线");
   assert.match(html, /initStandaloneAuthSurface\(\{[\s\S]*gatewayUrl/, "应初始化 standalone auth 并传入 gatewayUrl");
   assert.match(html, /onIdentityChanged:\s*\(\) => window\.__adminDsRefresh\?\.\(\)/, "登录状态变化后应刷新后台 Gateway 投影");
@@ -228,6 +228,20 @@ test("admin-ds.html 包含搜索和筛选 UI", async () => {
 });
 
 // ====== admin-ds.js 安全性：禁止 innerHTML 拼接 ======
+
+test("admin-ds 场景模块提供 scene-editor 可视化编辑器入口", async () => {
+  const js = await readShellModule("admin-ds.js");
+
+  // URL 合同与 app.js sceneEditorUrlForCurrentState() 一致：gateway/room/token/identity
+  assert.match(js, /'\.\/scene-editor\.html\?gateway=' \+ encodeURIComponent\(gatewayUrl\)/);
+  assert.match(js, /'&room=' \+ encodeURIComponent\(room\.id\)/);
+  assert.match(js, /'&token=' \+ encodeURIComponent\(editorSessionToken\)/);
+  assert.match(js, /'&identity=' \+ encodeURIComponent\(currentGatewayIdentity\(\)\)/);
+  assert.match(js, /打开可视化编辑器/);
+  // 新标签页打开且不带 opener
+  assert.match(js, /target:\s*'_blank'/);
+  assert.match(js, /rel:\s*'noopener'/);
+});
 
 test("admin-ds.js 不包含 innerHTML 数据拼接", async () => {
   const js = await readShellModule("admin-ds.js");
@@ -657,13 +671,19 @@ test("admin-ds scene editor posts paired day/night image URLs", async () => {
   assert.match(sceneEditor, /placeholder:\s*'夜晚背景图 URL（可选）'/, "正式场景编辑器应显示 night URL 输入");
   assert.match(sceneEditor, /var dayUrl = dayUrlInput\.value\.trim\(\);/, "保存时应读取 day URL");
   assert.match(sceneEditor, /var nightUrl = nightUrlInput\.value\.trim\(\);/, "保存时应读取 night URL");
-  assert.match(sceneEditor, /day_image_url:\s*dayUrl \|\| null/, "image_layer payload 应包含 day_image_url");
-  assert.match(sceneEditor, /night_image_url:\s*nightUrl \|\| null/, "image_layer payload 应包含 night_image_url");
-  assert.match(sceneEditor, /selectedPreset \|\| dayUrl \|\| nightUrl/, "只填自定义图片时也应提交 image_layer");
-  assert.match(sceneEditor, /var ilPayload = null;/, "清除预设和昼夜图片时应显式发送 image_layer:null");
-  assert.match(sceneEditor, /var hlPayload = null;/, "删除全部热点时应显式发送 hotspot_layer:null");
+  // 2026-08-02 去重：载荷构造收口到共享助手，两处调用点共用同一实现
+  assert.match(sceneEditor, /var ilPayload = buildImageLayerPayload\(selectedPreset, dayUrl, nightUrl, 'admin-scene-'\);/, "图像层载荷应走共享助手");
+  assert.match(sceneEditor, /var hlPayload = buildHotspotLayerPayload\(hotspotEditor\.collectHotspots\(\)\);/, "热点层载荷应走共享助手");
   assert.match(sceneEditor, /image_layer: ilPayload/, "场景保存应透传图像层清除语义");
   assert.match(sceneEditor, /hotspot_layer: hlPayload/, "场景保存应透传热点层清除语义");
+
+  // 共享助手本体：昼夜成对、空则显式 null（清除语义）
+  const helper = sliceBetween(js, "function buildImageLayerPayload", "  function ensureAdminNotice");
+  assert.match(helper, /if \(!selectedPreset && !dayUrl && !nightUrl\) return null;/, "清除预设和昼夜图片时应显式返回 null");
+  assert.match(helper, /day_image_url: dayUrl \|\| null/, "image_layer payload 应包含 day_image_url");
+  assert.match(helper, /night_image_url: nightUrl \|\| null/, "image_layer payload 应包含 night_image_url");
+  const hlHelper = sliceBetween(js, "function buildHotspotLayerPayload", "  function buildImageLayerPayload");
+  assert.match(hlHelper, /if \(!hotspotsOut \|\| !hotspotsOut\.length\) return null;/, "删除全部热点时应显式返回 null");
 });
 
 test("admin-ds scene editor keeps hotspot title count aligned with the editable list", async () => {
@@ -672,8 +692,11 @@ test("admin-ds scene editor keeps hotspot title count aligned with the editable 
 
   assert.match(sceneEditor, /var hotspotTitle = el\('span', \{ class: 'ds-card-title' \}/, "热点标题应保留可更新的 DOM 节点");
   assert.match(sceneEditor, /hotspotTitle\.textContent = '热点配置 \(' \+ existingHotspots\.length \+ ' 个\)'/, "重绘热点列表时应同步标题计数");
-  assert.match(sceneEditor, /existingHotspots\.push\(\{[\s\S]*?renderHotspotRows\(\);/, "添加热点后应触发列表和计数重绘");
-  assert.match(sceneEditor, /existingHotspots\.splice\(idx, 1\);[\s\S]*?renderHotspotRows\(\);/, "删除热点后应触发列表和计数重绘");
+  assert.match(sceneEditor, /addEventListener\('click', hotspotEditor\.addHotspot\)/, "添加热点应走共享编辑器入口");
+  // 共享编辑器内部：添加/删除都必须重绘，且重绘后触发 onRowsRendered 计数回调
+  assert.match(js, /existingHotspots\.push\(newHotspotDefaults\(\)\);\s*\n\s*renderRows\(\);/, "添加热点后应触发列表重绘");
+  assert.match(js, /existingHotspots\.splice\(idx, 1\);\s*\n\s*renderRows\(\);/, "删除热点后应触发列表重绘");
+  assert.match(js, /if \(onRowsRendered\) onRowsRendered\(\);/, "共享编辑器重绘后必须触发计数回调");
 });
 
 // ====== 写操作失败反馈（禁止假成功态）======
