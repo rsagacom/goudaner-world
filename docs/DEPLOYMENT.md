@@ -2,11 +2,13 @@
 
 本文是当前单城集中式 IM 的生产部署真值。跨城 Waku relay、MLS 和链上锚定仍按 `PRODUCT_CHARTER.md` 后置，不阻塞单城上线。
 
-## 1. 当前发布基线
+## 1. 当前发布基线（2026-08-13）
 
-- Gateway：312 tests / 0 failed / clippy 0 warning
-- Web Shell：1397 tests / 0 failed，layout 与 frontend realness 通过
-- TUI：233 tests / 0 failed；Gateway 配置下启动读取 `conversation_shell`/`scene_render`
+- Gateway：323 tests / 0 failed / clippy 0 warning
+- Web Shell：1419 tests / 0 failed，layout 与 frontend realness 通过
+- TUI：235 tests / 0 failed；Gateway 配置下启动读取 `conversation_shell`/`scene_render`
+- CLI：148 tests / 0 failed（119 unit + 24 integration + 5 额外测试）
+- 支撑 crates：`crypto-mls` 24、`ai-sidecar` 7、`chat-core` 20、`chat-storage` 18 tests，均 0 failed
 - 完整门禁：`RUN_PREFLIGHT=0 INCLUDE_PROVIDER_FEDERATION=1 scripts/smoke-release-gate.sh`
 - H5 主入口：`index.html`（主城群聊）、`creative.html`（住宅/私聊）、`admin-ds.html`（管理后台）
 
