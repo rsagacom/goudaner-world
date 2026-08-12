@@ -39,6 +39,7 @@ export NO_PROXY="${NO_PROXY:+$NO_PROXY,}127.0.0.1,localhost"
 export no_proxy="${no_proxy:+$no_proxy,}127.0.0.1,localhost"
 
 run_step "scripts quick unit coverage" python3 "$ROOT_DIR/scripts/test_scripts_quick_unit_coverage.py"
+run_step "backup state unit" python3 "$ROOT_DIR/scripts/test_backup_state_unit.py"
 run_step "smoke runtime contract unit" python3 "$ROOT_DIR/scripts/test_smoke_runtime_contract_unit.py"
 run_step "preflight unit" python3 "$ROOT_DIR/scripts/test_preflight_unit.py"
 

@@ -9,6 +9,7 @@ RELEASE_GATE = SCRIPTS_DIR / "smoke-release-gate.sh"
 
 SCRIPT_UNIT_MAP = {
     "audit-web-assets.sh": "test_audit_web_assets_unit.py",
+    "backup-state.sh": "test_backup_state_unit.py",
     "install-server.sh": "test_install_server_unit.py",
     "lobster-device-id.sh": "test_lobster_device_id_unit.py",
     "package-release.sh": "test_package_release_unit.py",
@@ -73,6 +74,7 @@ def main() -> int:
         "test_preview_server_unit.py",
         "test_lobster_device_id_unit.py",
         "test_audit_web_assets_unit.py",
+        "test_backup_state_unit.py",
         "test_verify_complete_unit.py",
     }
     missing_from_gate = [

@@ -227,7 +227,26 @@ curl -fsS https://chat.example.com/v1/provider
 
 ## 8. 备份、恢复与回滚
 
-状态目录是单城节点的核心资产。备份前停止 Gateway，保证多个 JSON 文件处于一致时间点：
+状态目录是单城节点的核心资产。备份前停止 Gateway，保证多个 JSON 文件处于一致时间点。
+
+**推荐：脚本化备份（2026-08-02 起）**
+
+```bash
+sudo bash /opt/lobster-chat/scripts/backup-state.sh
+```
+
+脚本（源码 `scripts/backup-state.sh`）固化本流程并附加：tarball 非空/含 timelines/可解压三重校验、磁盘水位检查、无论成败都拉起 Gateway（trap）、按 `KEEP=14` 轮转。定期化由 systemd timer 承担：
+
+```bash
+sudo install -m 0644 scripts/systemd/lobster-chat-backup.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now lobster-chat-backup.timer   # 每日 03:30 ±15min
+systemctl list-timers lobster-chat-backup.timer          # 查看下次触发
+sudo systemctl start lobster-chat-backup.service         # 手动触发一次
+journalctl -u lobster-chat-backup.service                # 查看备份日志
+```
+
+手动流程（脚本不可用时的兜底）：
 
 ```bash
 sudo systemctl stop lobster-waku-gateway

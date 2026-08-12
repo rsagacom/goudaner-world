@@ -1,0 +1,8 @@
+[Unit]
+Description=Goudaner World state backup (lobster-chat /var/lib/lobster-chat)
+After=lobster-waku-gateway.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/env bash /opt/lobster-chat/scripts/backup-state.sh
+NoNewPrivileges=true
