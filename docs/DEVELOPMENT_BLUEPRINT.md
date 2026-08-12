@@ -281,6 +281,13 @@
 - **防回归**：Web **1419/1419**、layout、realness；完整 release gate 退出码 0，含 Gateway 323、TUI/CLI、双 HTTP、真实双浏览器（H5/admin-ds 401）和 provider federation smoke。
 - **部署边界**：仅本地浏览器 smoke、代码和文档已验证，未 SSH、未部署生产。
 
+### 公网生产状态只读复核（2026-08-13）
+
+- **可达性**：`https://chat.ajw.cn/health` 返回 HTTP 200；`/v1/provider` 返回 `reachable=true`，但当前仍是 `local-memory` / `Disconnected`，不等于已接入真实 provider。
+- **鉴权**：未带会话访问 `/v1/shell/state` 与 `/v1/admin/summary` 均返回 HTTP 401，公网接口保持 fail-closed。
+- **版本证据**：公网 `/v1/version` 返回 404；`/release-manifest.json` 返回 HTML SPA fallback 而非 manifest；`creative.html` 与 `admin-ds.html` 的静态资源最后修改时间仍为 2026-08-02。
+- **真实进度修正**：本地 `0e6fc1b` 与 GitHub `main` 已包含 H5/admin-ds 过期会话闭环和真实浏览器回归，但当前不能声称这些修复已在公网生效；生产部署仍需单独授权和验收。
+
 ### admin-ds Gateway 会话失效闭环（2026-08-13）
 
 - **根因**：`admin-ds.js` 的 Gateway GET/POST helper 原先只返回 HTTP 失败，没有通知共享认证控制器；过期 Bearer 会让后台继续保留旧身份和登录 HUD。
