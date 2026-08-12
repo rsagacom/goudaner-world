@@ -8,6 +8,8 @@
 
 单城 IM 主线的 Gateway、TUI/CLI、H5 与 admin-ds 已完成会话失效闭环；H5 **1419/1419**、Gateway **323/323**、完整 release gate 和 GitHub CI 均已通过。公网入口可达且未登录接口正确返回 401；版本追溯 smoke 现在会拒绝缺失 `/v1/version`、HTML manifest 或 SHA 漂移，而当前公网仍在 `/v1/version` 处失败，尚未证明本轮会话失效修复已部署；P5 native Waku/标准 MLS 仍待单独的方案调研授权。
 
+当前已完成可审计的 Linux 发布链路：GitHub release workflow 已为 `x86_64-unknown-linux-gnu` 与 `aarch64-unknown-linux-gnu` 生成 source/web/Gateway 制品，`release-manifest.json` 与发布 commit 对齐，`SHA256SUMS` 可在下载目录直接校验；制品尚未部署生产。
+
 ## 内测入口说明（中文）
 
 入口口径统一为“先聊天，再展开共建入口”：H5 先承接主流程，TUI 作为消费同一套 gateway 合同的并行终端客户端，城主与居民共用同一套世界观，但在同窗里拥有不同权限，不把页面说成旧式工具页或工具墙。

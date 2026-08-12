@@ -294,6 +294,14 @@
 - **实现**：公网 smoke 现在校验运行时与 manifest 的 40 字符 `git_sha`、manifest `application/json` Content-Type 和两者一致性；`EXPECT_RELEASE_GIT_SHA` 可按发布 commit 精确锁定；`production-readiness.sh CHECK_PUBLIC=1` 同步执行版本追溯检查。
 - **验证**：本地真实 HTTP fixture 全链路通过；对 `https://chat.ajw.cn` 的只读 smoke 在 `/v1/version` 404 处失败，证明现网旧部署会被新合同拦截；生产未变更。
 
+### Linux 发布制品可审计收口（2026-08-13）
+
+- **发布基线**：GitHub `main` 的可发布代码 commit 为 `d0e80f54539241381f10f3e256ec065b52083f77`；release workflow run `31632458159` 的 verify、x86_64 和 aarch64 jobs 全部通过。
+- **制品覆盖**：已生成 `x86_64-unknown-linux-gnu` 与 `aarch64-unknown-linux-gnu` 两种架构的 source、web shell 和 Gateway 发布包；制品保存在外盘验收目录，尚未部署生产。
+- **校验合同**：修复 release workflow，使 `SHA256SUMS` 写入相对 tarball 路径；两种架构均在下载目录直接执行 `sha256sum -c SHA256SUMS` 通过，manifest 的 `git_sha` 与发布 commit 完全一致。
+- **内容边界**：`file` 已确认 Gateway ELF 架构正确；source/web archive 已扫描 `.env`、私钥/密钥文件、开发临时目录和高置信度 secret literal，未发现脱敏边界违规。
+- **后续边界**：公网版本追溯仍需目标主机部署后再验收；生产 SSH、重启、切换和 DNS/TLS 均未执行。P5 native Waku/标准 MLS 仍需用户单独批准方案调研后再进入选型。
+
 ### admin-ds Gateway 会话失效闭环（2026-08-13）
 
 - **根因**：`admin-ds.js` 的 Gateway GET/POST helper 原先只返回 HTTP 失败，没有通知共享认证控制器；过期 Bearer 会让后台继续保留旧身份和登录 HUD。

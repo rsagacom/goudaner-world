@@ -22,6 +22,16 @@ Last updated: 2026-08-13
 | readiness | 已接入 | `production-readiness.sh CHECK_PUBLIC=1` 同步检查版本端点与 manifest，拒绝 404、HTML fallback、SHA 不一致和错误 release pin。 |
 | 验证 | 已通过 | 本地真实 HTTP fixture 全链路通过；现网只读运行 smoke 在 `/v1/version` 404 处按预期失败，证明旧部署会被捕获；未修改生产。 |
 
+## 2026-08-13 Linux 发布制品可审计收口
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 发布 commit | 已确认 | GitHub `main` 的可发布代码 commit 为 `d0e80f54539241381f10f3e256ec065b52083f77`；对应 release workflow run `31632458159` 全部通过。 |
+| 架构制品 | 已生成 | 已生成 `x86_64-unknown-linux-gnu` 与 `aarch64-unknown-linux-gnu` 两份 source/web/Gateway 发布包，产物仅保存到外盘临时目录，未部署生产。 |
+| 可移动校验 | 已通过 | 两份制品目录中的 `SHA256SUMS` 均为相对路径；在下载目录直接执行 `sha256sum -c SHA256SUMS`，三份 tarball 全部通过；`release-manifest.json.git_sha` 与发布 commit 完全一致。 |
+| 架构与脱敏 | 已通过 | `file` 确认 Gateway 分别为 x86-64 与 ARM aarch64 ELF；source/web archive 未发现 `.env`、私钥/密钥文件、开发临时目录或高置信度 secret literal。 |
+| 生产边界 | 未变更 | 本轮只生成、下载和验收 release artifact，未 SSH、未重启、未切换公网服务；公网旧部署仍会在 `/v1/version` 追溯检查处失败。 |
+
 ## 2026-08-13 H5 会话失效真实浏览器回归
 
 | 项目 | 状态 | 说明 |
