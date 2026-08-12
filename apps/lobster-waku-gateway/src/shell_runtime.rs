@@ -1059,6 +1059,14 @@ impl GatewayRuntime {
         &self,
         viewer: Option<&IdentityId>,
     ) -> Vec<Conversation> {
+        self.shell_visible_conversations_for_viewer_with_mode(viewer, false)
+    }
+
+    fn shell_visible_conversations_for_viewer_with_mode(
+        &self,
+        viewer: Option<&IdentityId>,
+        include_unscoped_private: bool,
+    ) -> Vec<Conversation> {
         let mut conversations = self.timeline_store.active_conversations();
 
         conversations.retain(|conversation| match conversation.kind {
@@ -1067,7 +1075,11 @@ impl GatewayRuntime {
                     return self.personal_room_visible_to_viewer(conversation, viewer);
                 }
                 let Some(viewer) = viewer else {
-                    return true;
+                    // Anonymous shell state may expose public rooms, but a
+                    // direct conversation is always resident-scoped. Do not
+                    // let the absence of a resident_id turn private threads
+                    // into a public projection.
+                    return include_unscoped_private;
                 };
                 conversation
                     .participants
@@ -1090,12 +1102,20 @@ impl GatewayRuntime {
 
     #[cfg(test)]
     pub(crate) fn shell_state(&self) -> ShellState {
-        self.shell_state_for_viewer(None)
+        self.shell_state_for_viewer_with_mode(None, true)
     }
 
     pub(crate) fn shell_state_for_viewer(&self, viewer: Option<&IdentityId>) -> ShellState {
+        self.shell_state_for_viewer_with_mode(viewer, false)
+    }
+
+    fn shell_state_for_viewer_with_mode(
+        &self,
+        viewer: Option<&IdentityId>,
+        include_unscoped_private: bool,
+    ) -> ShellState {
         let mut rooms = self
-            .shell_visible_conversations_for_viewer(viewer)
+            .shell_visible_conversations_for_viewer_with_mode(viewer, include_unscoped_private)
             .into_iter()
             .map(|conversation| {
                 let messages_visible =
