@@ -305,11 +305,16 @@ def wait_for_dump_contains(
     required_markers: list[str],
     required_texts: list[str],
     timeout_secs: float = 12.0,
+    gateway_url: str | None | object = USE_DEFAULT_GATEWAY,
 ) -> str:
     deadline = time.time() + timeout_secs
     last_output = ""
     while time.time() < deadline:
-        last_output = run_smoke(mode, state_dir)
+        last_output = run_smoke(
+            mode,
+            state_dir,
+            gateway_url=gateway_url,
+        )
         if all(marker in last_output for marker in required_markers) and all(
             text in last_output for text in required_texts
         ):
@@ -740,8 +745,12 @@ def main() -> int:
 
             live_world_session.submit([RUNNING_WORLD_OFFLINE_SEND_TEXT])
             time.sleep(1.0)
-            local_world_offline_output = run_smoke(
-                "world", live_world_state_dir, gateway_url=None
+            local_world_offline_output = wait_for_dump_contains(
+                "world",
+                live_world_state_dir,
+                required_markers=[],
+                required_texts=[RUNNING_WORLD_OFFLINE_SEND_TEXT],
+                gateway_url=None,
             )
             if RUNNING_WORLD_OFFLINE_SEND_TEXT not in local_world_offline_output:
                 fail(
@@ -784,8 +793,12 @@ def main() -> int:
 
             gateway_proc.send_signal(signal.SIGTERM)
             gateway_proc.wait(timeout=5)
-            local_world_recovery_output = run_smoke(
-                "world", live_world_state_dir, gateway_url=None
+            local_world_recovery_output = wait_for_dump_contains(
+                "world",
+                live_world_state_dir,
+                required_markers=[],
+                required_texts=[RUNNING_WORLD_RECOVERY_TEXT],
+                gateway_url=None,
             )
             if RUNNING_WORLD_RECOVERY_TEXT not in local_world_recovery_output:
                 fail(
