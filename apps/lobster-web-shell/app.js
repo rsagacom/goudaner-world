@@ -576,6 +576,11 @@ const SAMPLE_STATE = {
   ],
 };
 
+// A configured Gateway is authoritative. If its shell projection is
+// unavailable, keep the H5 surface empty instead of presenting generated or
+// cached demo rooms as if they were live server state.
+const GATEWAY_EMPTY_STATE = Object.freeze({ rooms: [] });
+
 function roomStageSummary(room) {
   return roomStageSummaryForState({
     room,
@@ -1315,6 +1320,7 @@ let provider = {
   reachable: false,
 };
 let providerLoaded = false;
+let gatewayShellStateAvailable = false;
 let workspaceNavEl = null;
 let workspaceTabs = [];
 let roomSearchInputEl = document.querySelector("#room-search-input");
@@ -4044,6 +4050,7 @@ function renderThreadStatusRail(room) {
 
 function gatewayConnectionStatus() {
   if (!gatewayUrl) return "offline";
+  if (gatewayShellStateIsAuthoritative() && !gatewayShellStateAvailable) return "offline";
   const explicitGatewayUrl = Boolean(queryGatewayUrl());
   if (gatewaySyncController.lastErrorMessage() && (explicitGatewayUrl || providerLoaded)) return "offline";
   const providerState = normalizeProviderConnectionState(provider.connection_state);
@@ -4058,6 +4065,14 @@ function gatewayConnectionStatus() {
 
 function translateResidentLabel(residentId) {
   return residentId === currentIdentity() ? "你" : "居民";
+}
+
+function gatewayShellStateIsAuthoritative() {
+  return Boolean(
+    queryGatewayUrl() ||
+    safeLocalStorageGet("lobster-gateway-url") ||
+    window.location.protocol !== "file:",
+  );
 }
 
 function roomKind(room) { return _roomKind(room); }
@@ -4258,6 +4273,15 @@ async function loadShellState() {
   }
 }
 
+function clearGatewayShellState() {
+  state = structuredClone(GATEWAY_EMPTY_STATE);
+  activeRoomId = null;
+  lastShellStateVersion = null;
+  gatewayShellStateAvailable = false;
+  syncComposerDraft({ force: true });
+  return false;
+}
+
 async function loadGatewayState() {
   if (!gatewayUrl) return false;
   try {
@@ -4267,18 +4291,22 @@ async function loadGatewayState() {
     const response = await fetch(shellStateUrl, {
       headers: gatewayJsonHeaders(getSessionToken()),
     });
-    if (!response.ok) return false;
+    if (!response.ok) {
+      return gatewayShellStateIsAuthoritative() ? clearGatewayShellState() : false;
+    }
     const payload = await response.json();
     return applyGatewayShellStatePayload(payload, { persist: true });
   } catch {
-    // fallback to local/generated state
+    return gatewayShellStateIsAuthoritative() ? clearGatewayShellState() : false;
   }
-  return false;
 }
 
 async function applyGatewayShellStatePayload(payload, { persist = false } = {}) {
-  if (!hasAnyShellPayload(payload)) return false;
-  state = normalizeShellStateForState(payload, SAMPLE_STATE);
+  if (!hasAnyShellPayload(payload)) {
+    return gatewayShellStateIsAuthoritative() ? clearGatewayShellState() : false;
+  }
+  state = normalizeShellStateForState(payload, GATEWAY_EMPTY_STATE);
+  gatewayShellStateAvailable = true;
   const nextActiveRoomId = state.rooms.some((room) => room.id === activeRoomId)
     ? activeRoomId
     : defaultActiveRoomId(state.rooms);

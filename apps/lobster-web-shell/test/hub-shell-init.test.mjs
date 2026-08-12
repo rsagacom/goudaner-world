@@ -34,6 +34,24 @@ test("hub shell ignores generated bootstrap gateway during local preview", async
   }
 });
 
+test("hub shell fails closed instead of showing generated rooms when Gateway shell state fails", async () => {
+  const app = await loadHubShellApp({
+    useGeneratedFixtures: true,
+    locationSearch: "?gateway=http://127.0.0.1:50651",
+    gatewayBaseUrl: "http://127.0.0.1:50651",
+    gatewayShellStateShouldFail: true,
+  });
+
+  try {
+    const { document } = app;
+    assert.equal(document.querySelectorAll(".room-button").length, 0);
+    assert.equal(document.querySelectorAll(".message-row").length, 0);
+    assert.equal(document.body.dataset.gatewayConnection, "offline");
+  } finally {
+    app.cleanup();
+  }
+});
+
 test("hub shell scopes gateway state by current identity for viewer projection", serial, async () => {
   const app = await loadHubShellApp({
     useGeneratedFixtures: true,

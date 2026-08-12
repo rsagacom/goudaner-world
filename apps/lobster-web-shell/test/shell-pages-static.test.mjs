@@ -3509,7 +3509,12 @@ test("shell state normalization is delegated to shell-state-normalize", async ()
   assert.match(normalizeModule, /export function normalizeShellStateForState\(payload, fallbackState = \{\}\)/);
   assert.doesNotMatch(source, /function normalizeShellState\(payload\)/);
   assert.match(loadSource, /normalizeShellStateForState\(payload, SAMPLE_STATE\)/);
-  assert.match(gatewayApplySource, /normalizeShellStateForState\(payload, SAMPLE_STATE\)/);
+  assert.match(source, /const GATEWAY_EMPTY_STATE = Object\.freeze\(\{ rooms: \[\] \}\)/);
+  assert.match(source, /function clearGatewayShellState\(\)/);
+  assert.match(source, /let gatewayShellStateAvailable = false/);
+  assert.match(source, /function gatewayShellStateIsAuthoritative\(\)/);
+  assert.match(source, /gatewayShellStateIsAuthoritative\(\) && !gatewayShellStateAvailable/);
+  assert.match(gatewayApplySource, /normalizeShellStateForState\(payload, GATEWAY_EMPTY_STATE\)/);
   assert.match(cachedSource, /normalizeShellStateForState\(cached, SAMPLE_STATE\)/);
   assert.doesNotMatch(loadSource, /contractConversationMap\(/);
   assert.doesNotMatch(gatewayApplySource, /mergeRoomWithContract\(/);

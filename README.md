@@ -114,29 +114,31 @@ BASE_URL=https://<node>.<tailnet>.ts.net ./scripts/smoke-public-ingress.sh
 - 保持会话上下文可见：输入区下方会提示同步状态、共建记忆和访客提醒；网关慢时会先显示本地待同步消息。
 
 
-## 📊 当前开发进度 (2026-07-30)
+## 📊 当前开发进度 (2026-08-13)
 
 | 模块 | 测试数 | Clippy | 状态 |
 |------|--------|--------|------|
-| Gateway (Rust) | 312 | ✅ | 私宅访问确权+好友关系流, 设备管理, 场景权限, 审核持久化, 38+ HTTP 端点 |
+| Gateway (Rust) | 323 | ✅ | 私宅访问确权+好友关系流, 设备管理, 场景权限, URL 安全合同, 审核持久化, 38+ HTTP 端点 |
 | TUI (Rust/ratatui) | 233 | ✅ | 用户端/城主端/世界广场/私聊终端 |
 | CLI (Rust) | 50 | ✅ | login/nickname/directory/snapshot/moderate/admin 命令 |
-| H5 Web Shell (JS) | 1404 | — | 7 页面, 场景交互, admin-ds 写操作护栏, Gateway 真源投影, app.js 表面职责下沉至 7,481 行 |
+| H5 Web Shell (JS) | 1413 | — | 7 页面, 场景交互, admin-ds 写操作护栏, Gateway 真源投影, Gateway fail-closed, app.js 7,524 行 |
 | crypto-mls | 20 | ✅ | AES-256-GCM + HKDF 前向安全 |
 | ai-sidecar | 7 | ✅ | HTTP AI 助手 + 流式 |
 | chat-core | 20 | ✅ | 合同定义, SceneImageLayer day/night |
 | chat-storage | 17 | ✅ | 文件存储, 原子写 |
 | **总计** | **~2,063** | **零警告** | 全模块通过；完整 release gate 已包含 provider federation |
 
-最近更新（7-30）：
+最近更新（8-13）：
+- 🛡️ H5 Gateway shell state fail-closed：Gateway 失败不再展示 sample/cache，provider 可达不再掩盖 IM shell offline；Web 1413、Gateway 323、完整 release gate 全绿
+- 🔐 provider/mirror URL 安全合同已收口：远端 HTTPS、开发 loopback HTTP、非法持久化配置 fail-closed；native Waku/标准 MLS 仍未引入
 - 🎨 H5 UI refresh P0/P1/P2 已完成并通过 Web 1404、layout、realness 与完整 release gate；生产三形态视觉复核已记录
-- 🧩 H5 世界/治理/居民/房间/会话摘要/线程状态表面职责下沉；Gateway 312、TUI 233 与完整 release gate 全绿
+- 🧩 H5 世界/治理/居民/房间/会话摘要/线程状态表面职责下沉；Gateway 323、TUI 233 与完整 release gate 全绿
 - 🚀 Atlas 生产记录显示 `deployment.lobster-chat-production` active/verified；真实健康检查、13/13 双端 IM 验收和 UI refresh 复核均已记录
 - 🏠 私宅主客访问确权：registered_all/friends_only 策略 + 房主确权端点 + 防消息泄漏
 - 🤝 好友关系流：request/accept 两步流 + 居民目录按 viewer 投影 relationship_state
 - 🔐 注册登录共享接线：shell-auth-standalone.js 统一 world-square/admin-ds OTP 流程
 - 🛡️ admin-ds 写操作护栏：9 处 .then 假成功态修复 + 设备/场景/邀请码真实端点闭环
-- 📉 app.js 当前约 7,481 行，DOM surface 持续拆分；Gateway 仍是聊天和场景状态唯一真源
+- 📉 app.js 当前约 7,524 行，DOM surface 持续拆分；Gateway 仍是聊天和场景状态唯一真源
 - 🎨 美术护栏：day 资产去蜡黄 + 热点层透明化 + CSS 拆分防回归
 
 完整审计: [docs/TECH_AUDIT_REPORT_20260604.md](docs/TECH_AUDIT_REPORT_20260604.md)

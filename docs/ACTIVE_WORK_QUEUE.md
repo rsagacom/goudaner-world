@@ -4,6 +4,17 @@ Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-13 H5 Gateway shell state fail-closed
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 根因 | 已确认 | 配置 Gateway 的 H5 在 shell state HTTP/网络失败时可能保留生成态或 IndexedDB 旧投影，provider 成功还可能把连接 badge 标成 online |
+| 状态投影 | 已实现 | Gateway 配置下读取失败、空/畸形 payload 统一清空房间/消息投影、取消活动房间和 state version，不回退到 sample/cache；有效 Gateway payload 恢复后重新标记可用 |
+| 连接状态 | 已实现 | 独立 `gatewayShellStateAvailable` 纳入连接状态聚合，provider 可达不再掩盖 IM shell 不可用 |
+| 本地预览 | 保持 | 纯 `file:` 生成 fixture 继续走本地预览，不把 bootstrap 中的 loopback 开发地址误当正式 Gateway |
+| 防回归 | 已通过 | Web 1413/1413；完整 `scripts/smoke-release-gate.sh` 退出码 0，含 Gateway 323、真实双浏览器、HTTP 双端和 provider federation smoke |
+| 生产状态 | 未变更 | 仅本地代码、测试和文档验证，未 SSH、未部署 |
+
 ## 2026-08-13 P5 mirror source URL 安全合同
 
 | 项目 | 状态 | 说明 |

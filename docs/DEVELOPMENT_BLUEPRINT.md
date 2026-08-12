@@ -257,6 +257,15 @@
 - Web Shell: **1412 tests / 0 fail**(unit + layout + realness);完整 release gate 退出码 0
 - 生产与仓库代码完全对齐(全部批次已上线);缓存纪律:改动 CSS/JS 必须同步升版 `?v=`
 
+### H5 Gateway shell state fail-closed（2026-08-13）
+
+- **根因**：配置 Gateway 的 H5 在 shell state HTTP/网络失败时可能继续展示生成态或 IndexedDB 旧投影；provider 请求成功时连接 badge 还可能掩盖 IM shell 失败。
+- **实现**：Gateway 配置下 shell state 读取失败、空/畸形载荷统一清空房间/消息投影、活动房间和 state version，禁止回退到 sample/cache；有效 Gateway 载荷恢复后重新标记 shell 可用。
+- **连接状态**：新增独立 `gatewayShellStateAvailable`，provider 可达不再单独宣称 IM online。
+- **预览边界**：无显式 Gateway 的 `file:` 生成预览保持原有 fixture 行为；bootstrap 内 loopback 开发地址不被误判为正式 Gateway。
+- **防回归**：Web **1413/1413**；完整 `scripts/smoke-release-gate.sh` 通过，含 Gateway **323**、真实双浏览器、HTTP 双端和 provider federation smoke。
+- **部署边界**：仅本地代码、测试和文档已验证，未 SSH、未部署生产。
+
 ### P5 mirror source URL 安全合同（2026-08-13）
 
 - **根因**：enabled world mirror 会被 federation read 主动抓取，但原先只做字符串归一化，可能把任意 HTTP 源写入活动配置。
@@ -294,7 +303,7 @@
 | P0 单城 IM 闭环 | 100% | 私宅确权、好友流、认证、消息与双浏览器 smoke 已验证；生产主机/域名/邮件链路 2026-08-01 全部复验通过（真实 OTP 双邮箱投递、双居民私聊 8/8） |
 | P1 空间交互 | 98% | 16:9 坐标画布 + 场景编辑器 UX/移动端触控/空态卡片/cqh 基准和个人房间场景房主权限已收口；剩余仅 empty-note 视觉统一（低价值，已降级） |
 | P2 后台运维 | 100% | admin-ds 写操作护栏和注册账号审计投影完成；LOBSTER_SUPER_ADMINS 补齐后 ban/unban 恢复演练与审计留痕 2026-08-01 生产实操通过；备份/恢复演练通过；备份 2026-08-02 起脚本化+每日 timer |
-| P3 技术债 | ~95% | app.js 当前 7496 行；admin-ds 热点编辑器 2026-08-02 去重合一；剩余候选 3/4/5 各 15-28 行且耦合运行时状态，蓝图维持"不做机械搬运"结论 |
+| P3 技术债 | ~95% | app.js 当前 7524 行；admin-ds 热点编辑器 2026-08-02 去重合一；本轮补齐 Gateway shell fail-closed；剩余候选 3/4/5 各 15-28 行且耦合运行时状态，蓝图维持"不做机械搬运"结论 |
 | P4 TUI/CLI parity | 100% | CLI/TUI、居民主链、terminal 与 provider federation 已纳入完整 release gate；2026-08-02 完整门禁复验通过 |
 | P5 跨城/加密 | 15% | 后置（PRODUCT_CHARTER 延后） |
 

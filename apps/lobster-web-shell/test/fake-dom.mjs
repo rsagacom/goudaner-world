@@ -1459,6 +1459,7 @@ async function loadShellApp(shellPage, options = {}) {
     exportResponse = null,
     gatewayMessageShouldFail = false,
     gatewayMessageFailuresBeforeSuccess = 0,
+    gatewayShellStateShouldFail = false,
     gatewayProviderState = null,
   } = options;
   const previous = captureGlobals();
@@ -1747,6 +1748,9 @@ async function loadShellApp(shellPage, options = {}) {
         );
       }
       if (url === `${gatewayBaseUrl}/v1/shell/state` || url.startsWith(`${gatewayBaseUrl}/v1/shell/state?`)) {
+        if (gatewayShellStateShouldFail) {
+          return responseFromJson({ Error: { message: "模拟 Gateway shell state 失败" } }, { status: 503 });
+        }
         return responseFromJson(await readGatewayShellState());
       }
       if (url === `${gatewayBaseUrl}/v1/shell/message`) {
