@@ -184,6 +184,13 @@ if grep -Eq '"id"[[:space:]]*:[[:space:]]*"dm:' "$BODY_FILE"; then
   exit 1
 fi
 
+echo "== anonymous shell events privacy =="
+fetch_body "$BASE_URL/v1/shell/events?wait_ms=0" "$BODY_FILE"
+if grep -Eq '"id"[[:space:]]*:[[:space:]]*"dm:' "$BODY_FILE"; then
+  echo "anonymous shell events exposed a direct conversation" >&2
+  exit 1
+fi
+
 if [[ -n "$EXPECT_CORS_ORIGIN" ]]; then
   echo "== CORS origin =="
   headers="$($CURL_BIN -fsS -D - -o /dev/null -H "Origin: ${EXPECT_CORS_ORIGIN}" "$BASE_URL/health")"
