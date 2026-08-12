@@ -286,7 +286,7 @@
 - **可达性**：`https://chat.ajw.cn/health` 返回 HTTP 200；`/v1/provider` 返回 `reachable=true`，但当前仍是 `local-memory` / `Disconnected`，不等于已接入真实 provider。
 - **鉴权**：未带会话访问 `/v1/admin/summary` 返回 HTTP 401；匿名 `/v1/shell/state` 与 `/v1/shell/events?wait_ms=0` 返回 200，但旧部署仍暴露 `dm:` 私聊投影，不能视为隐私边界已收口。
 - **版本证据**：公网 `/v1/version` 返回 404；`/release-manifest.json` 返回 HTML SPA fallback 而非 manifest；`creative.html` 与 `admin-ds.html` 的静态资源最后修改时间仍为 2026-08-02。
-- **真实进度修正**：当前 GitHub `main` `008483d43d8309e650dc3fc4528794d39a19bae8` 已包含 H5/admin-ds 过期会话闭环和真实浏览器回归，但当前不能声称这些修复已在公网生效；生产部署仍需单独授权和验收。
+- **真实进度修正**：本次 release 输入 `6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d` 已包含 H5/admin-ds 过期会话闭环和真实浏览器回归，但当前不能声称这些修复已在公网生效；生产部署仍需单独授权和验收。
 
 ### 公网版本追溯 smoke 收口（2026-08-13）
 
@@ -314,8 +314,8 @@
 - **现网发现**：只读访问 `https://chat.ajw.cn/v1/shell/state` 与 `https://chat.ajw.cn/v1/shell/events?wait_ms=0`（无 Bearer、无 `resident_id`）均返回 200，响应含 `dm:` 会话 ID 和私聊投影；`/v1/admin/summary` 仍为 401。该现象证明旧公网版本的匿名 shell 投影边界不能作为已修复证据。
 - **根因**：Gateway `shell_visible_conversations_for_viewer(None)` 原先将非个人 Direct 会话当成匿名可见；个人房间已有过滤，但普通私聊没有同等 fail-closed 处理。
 - **修复**：`41eb6589f7ba37060a0823fd3ea6721dc9882a87` 让匿名投影只保留公共房间；居民 scoped 请求继续要求匹配 Bearer。公网 smoke 新增匿名 `/v1/shell/state` 与 `/v1/shell/events?wait_ms=0` 响应不得出现 `"id":"dm:` 的门禁，Gateway 回归覆盖两个无 query 的 HTTP 路径。
-- **验证**：Gateway `323/323`、Gateway clippy `-D warnings`、脚本语法/合同通过；GitHub CI `31637255944` 全绿；release run `31637554649` 的 verify、x86_64 和 aarch64 全绿。两架构制品 SHA256、manifest、ELF 架构和敏感文件名扫描通过。
-- **新发布锚点**：已验证可部署制品为 `7031f624645302df0e01a5872db7a8a8111a6197`，制品目录为 `/Volumes/AJW-Data/Projects/lobster-chat-release-7031f62.2tF0mH`；当前 GitHub `main` 为 `008483d43d8309e650dc3fc4528794d39a19bae8`，后续仅有测试/文档提交，尚未重新生成制品；尚未 SSH、重启或替换生产服务。
+- **验证**：Gateway `323/323`、Gateway clippy `-D warnings`、脚本语法/合同通过；release run `31640540602` 的 verify、x86_64 和 aarch64 全绿。两架构制品 SHA256、manifest、ELF 架构、敏感文件名和 source smoke 内容扫描通过。
+- **新发布锚点**：已验证可部署制品为 `6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d`，制品目录为 `/Volumes/AJW-Data/Projects/lobster-chat-release-6c0dc6a-run31640540602`；该制品之后仅做部署资料更新，尚未 SSH、重启或替换生产服务。
 
 ### admin-ds Gateway 会话失效闭环（2026-08-13）
 
@@ -405,10 +405,10 @@
 
 | 项目 | 值 |
 |------|-----|
-| `RELEASE_GIT_SHA` | `7031f624645302df0e01a5872db7a8a8111a6197` |
-| GitHub release run | `31637554649` |
-| 制品目录 | `/Volumes/AJW-Data/Projects/lobster-chat-release-7031f62.2tF0mH` |
-| 当前 GitHub `main` | `008483d43d8309e650dc3fc4528794d39a19bae8`（后续仅测试/文档提交，未重新生成制品） |
+| `RELEASE_GIT_SHA` | `6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d` |
+| GitHub release run | `31640540602` |
+| 制品目录 | `/Volumes/AJW-Data/Projects/lobster-chat-release-6c0dc6a-run31640540602` |
+| release 输入 GitHub `main` | `6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d`；该制品之后仅做部署资料更新 |
 | x86_64 target | `x86_64-unknown-linux-gnu` |
 | ARM64 target | `aarch64-unknown-linux-gnu` |
 | 安装/公网合同 | `docs/DEPLOYMENT.md` §3–§9 |
@@ -459,7 +459,7 @@
 
 ```bash
 BASE_URL=https://chat.ajw.cn \
-EXPECT_RELEASE_GIT_SHA=7031f624645302df0e01a5872db7a8a8111a6197 \
+EXPECT_RELEASE_GIT_SHA=6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d \
   scripts/smoke-public-ingress.sh
 ```
 

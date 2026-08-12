@@ -10,8 +10,8 @@
 - CLI：148 tests / 0 failed（119 unit + 24 integration + 5 额外测试）
 - 支撑 crates：`crypto-mls` 24、`ai-sidecar` 7、`chat-core` 20、`chat-storage` 18 tests，均 0 failed
 - 完整门禁：`RUN_PREFLIGHT=0 INCLUDE_PROVIDER_FEDERATION=1 scripts/smoke-release-gate.sh`
-- 当前可部署安全修复制品：release run `31637554649` 产出的 `7031f624645302df0e01a5872db7a8a8111a6197`；GitHub `main` 当前为 `008483d43d8309e650dc3fc4528794d39a19bae8`，其后仅有测试/文档提交，未重新生成 Gateway 制品
-- 当前制品目录：`/Volumes/AJW-Data/Projects/lobster-chat-release-7031f62.2tF0mH`；两个 target 的 `SHA256SUMS` 和 manifest 均已独立复核
+- 当前可部署安全修复制品：release run `31640540602` 产出的 `6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d`；该 run 的 verify、x86_64、aarch64 三个 job 均通过
+- 当前制品目录：`/Volumes/AJW-Data/Projects/lobster-chat-release-6c0dc6a-run31640540602`；两个 target 的 `SHA256SUMS`、manifest、ELF 架构和脱敏边界均已独立复核
 - H5 主入口：`index.html`（主城群聊）、`creative.html`（住宅/私聊）、`admin-ds.html`（管理后台）
 
 ## 2. 支持环境
