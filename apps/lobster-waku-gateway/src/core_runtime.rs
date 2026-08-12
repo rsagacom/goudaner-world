@@ -77,6 +77,7 @@ impl GatewayRuntime {
             audit_events: Vec::new(),
             audit_counter: 0,
             agent_token_hashes: Self::agent_token_hashes_default(),
+            federation_token_hash: Self::federation_token_hash_default(),
             dev_auth_bypass: Self::dev_auth_bypass_default(),
             started_at_ms: Self::now_ms(),
             app_config: HashMap::new(),
@@ -751,6 +752,26 @@ impl GatewayRuntime {
             })
     }
 
+    fn federation_token_hash_default() -> Option<String> {
+        std::env::var("LOBSTER_GATEWAY_FEDERATION_TOKEN")
+            .ok()
+            .and_then(|token| {
+                let token = token.trim();
+                (!token.is_empty())
+                    .then(|| Self::hash_registration_handle("gateway-federation-token", token))
+            })
+    }
+
+    pub(crate) fn validate_federation_token(&self, token: &str) -> bool {
+        let token = token.trim();
+        if token.is_empty() {
+            return false;
+        }
+        self.federation_token_hash.as_ref().is_some_and(|expected| {
+            Self::hash_registration_handle("gateway-federation-token", token) == *expected
+        })
+    }
+
     #[cfg(test)]
     pub(crate) fn set_dev_auth_bypass_for_tests(&mut self, enabled: bool) {
         self.dev_auth_bypass = enabled;
@@ -762,6 +783,14 @@ impl GatewayRuntime {
             agent_id.trim().to_owned(),
             Self::hash_registration_handle("agent-token", token.trim()),
         );
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_federation_token_for_tests(&mut self, token: &str) {
+        self.federation_token_hash = Some(Self::hash_registration_handle(
+            "gateway-federation-token",
+            token.trim(),
+        ));
     }
 
     // ── Audit Log ──

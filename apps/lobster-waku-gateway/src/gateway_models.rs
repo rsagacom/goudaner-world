@@ -1663,6 +1663,9 @@ pub(crate) struct GatewayRuntime {
     /// Hashes for explicitly provisioned `agent:<id>` sidecar credentials.
     /// Raw tokens never enter runtime state or logs.
     pub(crate) agent_token_hashes: HashMap<String, String>,
+    /// Hash of the inbound gateway-to-gateway federation credential. The raw
+    /// token is read from the environment only and is never persisted.
+    pub(crate) federation_token_hash: Option<String>,
     pub(crate) dev_auth_bypass: bool,
 }
 

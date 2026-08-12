@@ -4,6 +4,26 @@ Last updated: 2026-08-12
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-12 P5 federation 鉴权前置闭环
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 真实边界 | 已厘清 | 当前跨节点能力是 HTTP gateway federation + local-memory backend，不是 native Waku；`crypto-mls` 仍是自研 AES-GCM 会话骨架，不是标准 MLS/E2EE，文档禁止混称 |
+| 入站门禁 | 已实现 | 生产模式 `POST /v1/waku` 的 connect/subscribe/publish/recover/poll 全部要求专用 `LOBSTER_GATEWAY_FEDERATION_TOKEN`；缺失或错误 token 返回 401，runtime 仅保留域分离哈希 |
+| 出站凭据 | 已实现 | 下游通过 `LOBSTER_WAKU_UPSTREAM_TOKEN` 在 Authorization header 携带凭据；TUI 直连协议面使用 `LOBSTER_WAKU_GATEWAY_TOKEN`；raw token 不写 provider config，客户端 Debug 固定脱敏 |
+| 生产 readiness | 已收口 | 配置远程 `LOBSTER_WAKU_UPSTREAM_URL` 时必须同时配置 token，远程 URL 仅允许 HTTPS，loopback HTTP 仅供同机 sidecar/测试 |
+| 验证 | 已通过 | 红测确认旧路由无门禁；实现后 production-mode 401/合法 token、client header+Debug 脱敏、transport 10/10、Gateway 315/315、TUI token 合同与真实双 gateway token federation smoke 全绿 |
+| 下一步 | 待用户选择 | Atlas reuse gate 要求先确认是否允许限时开源调研，再决定 native Waku provider 与标准 MLS 库；未获确认前不引入依赖、不把骨架包装成正式实现 |
+
+## 2026-08-12 S2 可追溯生产恢复准备
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| Linux CI | 已恢复 | 新 manifest 硬门禁暴露 Linux install-layout fixture 仍按旧合同安装；已修复并由 GitHub CI run 31609808497 全绿验证 |
+| Release 制品 | 已生成 | GitHub release run 31610144716 的 verify、x86_64 Linux、aarch64 Linux 三个 job 全绿；制品绑定 `ee5039b975257dd5f0a245a266a152d1566092b8` |
+| 公网基线 | 旧版健康 | `chat.ajw.cn` health/provider 与首页、creative、scene-editor、admin-ds 均 200；`/v1/version` 404，`/release-manifest.json` 仍 SPA fallback，证明尚未部署新追溯版本 |
+| 执行边界 | 等待授权 | Atlas `host.aws-ec2-beijing` 明确 `agent_execution_allowed=false`；未 SSH、未修改生产。获得用户明确授权后再做备份、部署、版本/manifest、公网主链和回滚验收 |
+
 ## 2026-08-12 S1 发布可追溯性
 
 | 项目 | 状态 | 说明 |

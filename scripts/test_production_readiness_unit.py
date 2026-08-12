@@ -20,6 +20,8 @@ def main() -> int:
     assert 'LOBSTER_DEV_EMAIL_OTP_INLINE' in text
     assert 'LOBSTER_EMAIL_OTP_MAILER_URL' in text
     assert 'LOBSTER_EMAIL_OTP_MAILER_BEARER_TOKEN' in text
+    assert 'LOBSTER_WAKU_UPSTREAM_URL' in text
+    assert 'LOBSTER_WAKU_UPSTREAM_TOKEN' in text
     assert 'LOBSTER_CORS_ORIGIN' in text
     assert 'https://' in text
     assert '[[ "$cors_origin" =~ ^https://[^[:space:]]+$ ]]' in text
@@ -85,6 +87,24 @@ def main() -> int:
         )
         loopback_mailer = subprocess.run(["bash", str(SCRIPT)], env=base_env, capture_output=True, text=True)
         assert loopback_mailer.returncode == 0, loopback_mailer.stderr
+
+        with_upstream = env_file.read_text(encoding="utf-8") + (
+            "LOBSTER_WAKU_UPSTREAM_URL=https://upstream.example.com\n"
+        )
+        env_file.write_text(with_upstream, encoding="utf-8")
+        missing_upstream_token = subprocess.run(
+            ["bash", str(SCRIPT)], env=base_env, capture_output=True, text=True
+        )
+        assert missing_upstream_token.returncode != 0
+
+        env_file.write_text(
+            with_upstream + "LOBSTER_WAKU_UPSTREAM_TOKEN=test-federation-token\n",
+            encoding="utf-8",
+        )
+        authenticated_upstream = subprocess.run(
+            ["bash", str(SCRIPT)], env=base_env, capture_output=True, text=True
+        )
+        assert authenticated_upstream.returncode == 0, authenticated_upstream.stderr
 
         # 非 loopback 的明文 http 仍然拒绝
         env_file.write_text(

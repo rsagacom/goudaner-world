@@ -9,6 +9,7 @@ UPSTREAM_PORT="${UPSTREAM_PORT:-}"
 DOWNSTREAM_PORT="${DOWNSTREAM_PORT:-}"
 KEEP_STATE="${KEEP_STATE:-0}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
+FEDERATION_TOKEN="${FEDERATION_TOKEN:-lobster-federation-smoke-token}"
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -129,8 +130,11 @@ cleanup() {
 trap cleanup EXIT
 
 echo "== starting upstream gateway on :$UPSTREAM_PORT =="
-# This fixture uses synthetic smoke-bot identities; keep the dev bypass explicit.
-LOBSTER_DEV_AUTH_BYPASS=1 "$BIN_PATH" \
+# This fixture uses synthetic smoke-bot identities, so keep the resident auth
+# bypass explicit. Federation itself still uses a dedicated inbound token.
+LOBSTER_DEV_AUTH_BYPASS=1 \
+LOBSTER_GATEWAY_FEDERATION_TOKEN="$FEDERATION_TOKEN" \
+"$BIN_PATH" \
   --host "$HOST" \
   --port "$UPSTREAM_PORT" \
   --state-dir "$STATE_ROOT/upstream" \
@@ -143,7 +147,9 @@ UPSTREAM_PID="$!"
 wait_for_health "upstream" "http://$HOST:$UPSTREAM_PORT/health"
 
 echo "== starting downstream gateway on :$DOWNSTREAM_PORT bridged to upstream =="
-LOBSTER_DEV_AUTH_BYPASS=1 "$BIN_PATH" \
+LOBSTER_DEV_AUTH_BYPASS=1 \
+LOBSTER_WAKU_UPSTREAM_TOKEN="$FEDERATION_TOKEN" \
+"$BIN_PATH" \
   --host "$HOST" \
   --port "$DOWNSTREAM_PORT" \
   --state-dir "$STATE_ROOT/downstream" \

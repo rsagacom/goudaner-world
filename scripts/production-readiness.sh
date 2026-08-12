@@ -32,6 +32,16 @@ if [[ ! "$mailer_url" =~ ^https://[^[:space:]]+$ ]]; then
 fi
 [[ -n "${LOBSTER_EMAIL_OTP_MAILER_BEARER_TOKEN:-}" ]] || fail "LOBSTER_EMAIL_OTP_MAILER_BEARER_TOKEN is empty"
 
+upstream_url="${LOBSTER_WAKU_UPSTREAM_URL:-}"
+if [[ -n "$upstream_url" ]]; then
+  if [[ ! "$upstream_url" =~ ^https://[^[:space:]]+$ ]]; then
+    [[ "$upstream_url" =~ ^http://(127\.0\.0\.1|localhost|\[::1\])[:/][^[:space:]]*$ ]] \
+      || fail "LOBSTER_WAKU_UPSTREAM_URL must use https (loopback http allowed)"
+  fi
+  [[ -n "${LOBSTER_WAKU_UPSTREAM_TOKEN:-}" ]] \
+    || fail "LOBSTER_WAKU_UPSTREAM_TOKEN is required when an upstream gateway is configured"
+fi
+
 if [[ "$CHECK_PUBLIC" == "1" ]]; then
   [[ "$BASE_URL" =~ ^https://[^/]+/?$ ]] || fail "BASE_URL must be an https origin"
   base="${BASE_URL%/}"

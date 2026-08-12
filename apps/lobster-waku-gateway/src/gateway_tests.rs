@@ -24,6 +24,7 @@ use crate::http_read_routes::{
 use crate::http_write_routes::handle_post_provider_disconnect;
 use tempfile::tempdir;
 use tiny_http::{Header, StatusCode, TestRequest};
+use transport_waku::WakuGatewayClient;
 
 use crate::email_otp_mailer::{EmailOtpDelivery, EmailOtpMailerConfig, deliver_email_otp};
 
@@ -380,6 +381,76 @@ fn waku_http_route_roundtrips_connect_subscribe_publish_and_poll_contract() {
             .expect("encoded frame payload")
             .is_empty()
     );
+}
+
+#[test]
+fn waku_http_route_requires_dedicated_federation_bearer_in_production_mode() {
+    let temp = tempdir().expect("temp dir");
+    let mut runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
+    runtime.set_dev_auth_bypass_for_tests(false);
+    runtime.set_federation_token_for_tests("federation-test-token");
+    let server = start_local_gateway_http_server(runtime);
+    let request = serde_json::to_value(WakuGatewayRequest::Connect {
+        endpoint: WakuEndpointConfig {
+            peer_mode: WakuPeerMode::DesktopLight,
+            relay_urls: vec![server.base_url.clone()],
+            use_filter: true,
+            use_store: true,
+            use_light_push: true,
+        },
+    })
+    .expect("encode connect request");
+
+    let (missing_status, missing) = http_json("POST", &server.base_url, "/v1/waku", Some(&request));
+    assert_eq!(missing_status, 401);
+    assert!(
+        missing["Error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("federation Bearer token"))
+    );
+
+    let (invalid_status, _) = http_json_with_headers(
+        "POST",
+        &server.base_url,
+        "/v1/waku",
+        &[("Authorization", "Bearer wrong-token")],
+        Some(&request),
+    );
+    assert_eq!(invalid_status, 401);
+
+    let (valid_status, valid) = http_json_with_headers(
+        "POST",
+        &server.base_url,
+        "/v1/waku",
+        &[("Authorization", "Bearer federation-test-token")],
+        Some(&request),
+    );
+    assert_eq!(valid_status, 200);
+    assert_eq!(valid, serde_json::json!("Connected"));
+}
+
+#[test]
+fn http_waku_gateway_client_sends_federation_bearer_without_exposing_it_in_debug() {
+    let temp = tempdir().expect("temp dir");
+    let mut runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
+    runtime.set_dev_auth_bypass_for_tests(false);
+    runtime.set_federation_token_for_tests("federation-client-token");
+    let server = start_local_gateway_http_server(runtime);
+    let mut client = HttpWakuGatewayClient::with_bearer_token(
+        server.base_url.clone(),
+        "federation-client-token",
+    );
+
+    assert!(!format!("{client:?}").contains("federation-client-token"));
+    client
+        .connect_gateway(&WakuEndpointConfig {
+            peer_mode: WakuPeerMode::DesktopLight,
+            relay_urls: vec![server.base_url.clone()],
+            use_filter: true,
+            use_store: true,
+            use_light_push: true,
+        })
+        .expect("authenticated gateway connect");
 }
 
 #[test]

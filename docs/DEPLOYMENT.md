@@ -120,6 +120,21 @@ LOBSTER_EMAIL_OTP_FROM="我和狗蛋儿的家 <no-reply@chat.ajw.cn>"
 > scripts/production-readiness.sh 用 bash source,不加引号会导致 bash 语法错误。
 ```
 
+启用 gateway-to-gateway 上游桥接时，接收端和发起端必须分别配置专用凭据；不要复用居民 session、管理员 token 或邮件 token：
+
+```dotenv
+# 上游接收端：校验 /v1/waku 的 Authorization: Bearer
+LOBSTER_GATEWAY_FEDERATION_TOKEN=replace-with-dedicated-secret
+
+# 下游发起端：仅随 /v1/waku 请求发送，不写入 provider-config.json
+LOBSTER_WAKU_UPSTREAM_TOKEN=replace-with-the-upstream-secret
+
+# TUI 等受信客户端直连 Gateway 协议时使用；应匹配接收端 federation token
+LOBSTER_WAKU_GATEWAY_TOKEN=replace-with-the-gateway-secret
+```
+
+生产模式下 `/v1/waku` 缺失或携带错误 federation token 一律返回 401；原始 token 只从环境读取，runtime 仅保留哈希，Debug 和持久化状态均不得出现明文。
+
 `LOBSTER_EMAIL_OTP_MAILER_URL` 指向同机部署的 `apps/lobster-mailer`（推荐，
 loopback HTTP 是 Gateway 唯一放行的非 HTTPS 情形）；使用外部邮件 Webhook
 时必须为 HTTPS。

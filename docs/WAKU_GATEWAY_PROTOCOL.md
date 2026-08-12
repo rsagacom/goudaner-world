@@ -2,6 +2,17 @@
 
 This document describes the adapter shape that sits between `lobster-chat` clients and a future real Waku relay or light gateway.
 
+## Current truth boundary
+
+The production-capable implementation today is an HTTP gateway-to-gateway federation bridge backed by the local timeline store. It is **not** a native Waku relay/light-push/filter/store implementation. Likewise, `crypto-mls` is a non-standard secure-session skeleton and must not be described as interoperable MLS or production end-to-end encryption.
+
+The remaining P5 work therefore has two separate tracks:
+
+1. replace the HTTP bridge's in-memory transport backend with a reviewed native Waku provider while preserving this client contract;
+2. replace the skeleton crypto backend with a standards-compliant MLS implementation and move plaintext ownership to authenticated clients.
+
+Component selection for either track requires the Atlas reuse review before adding a new dependency.
+
 ## Why this layer exists
 
 We want the same chat core to work across:
@@ -110,6 +121,18 @@ Current gateway startup supports:
 - or `LOBSTER_WAKU_UPSTREAM_URL=<url>`
 
 This is not the final native Waku provider integration, but it is the first real multi-node step and keeps the client surfaces unchanged.
+
+### Federation authentication
+
+`POST /v1/waku` is a privileged gateway protocol surface, not a resident messaging endpoint. Production mode requires a dedicated Bearer credential for every request, including connect, subscribe, publish, recover, and poll:
+
+- receiving gateway: `LOBSTER_GATEWAY_FEDERATION_TOKEN`
+- downstream gateway calling its upstream: `LOBSTER_WAKU_UPSTREAM_TOKEN`
+- trusted TUI/sidecar calling a gateway protocol endpoint directly: `LOBSTER_WAKU_GATEWAY_TOKEN`
+
+The inbound runtime keeps only a domain-separated token hash. The outbound raw token is read from the process environment, attached as `Authorization: Bearer ...`, redacted from `Debug`, and never written to `provider-config.json`. Remote upstream URLs must use HTTPS; loopback HTTP remains available for co-located development and sidecars.
+
+Resident H5 and ordinary CLI message writes continue to use their existing session/agent authentication routes. They must not receive or reuse the federation credential.
 
 ## Recommended next step
 

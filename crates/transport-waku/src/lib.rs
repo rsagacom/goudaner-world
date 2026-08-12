@@ -133,15 +133,43 @@ pub trait WakuGatewayClient {
     ) -> Result<Vec<EncodedFrame>, String>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct HttpWakuGatewayClient {
     base_url: String,
+    bearer_token: Option<String>,
+}
+
+impl std::fmt::Debug for HttpWakuGatewayClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HttpWakuGatewayClient")
+            .field("base_url", &self.base_url)
+            .field(
+                "bearer_token",
+                &self.bearer_token.as_ref().map(|_| "[REDACTED]"),
+            )
+            .finish()
+    }
 }
 
 impl HttpWakuGatewayClient {
     pub fn new(base_url: impl Into<String>) -> Self {
+        Self::with_optional_bearer_token(base_url, None)
+    }
+
+    pub fn with_bearer_token(base_url: impl Into<String>, bearer_token: impl Into<String>) -> Self {
+        Self::with_optional_bearer_token(base_url, Some(bearer_token.into()))
+    }
+
+    pub fn with_optional_bearer_token(
+        base_url: impl Into<String>,
+        bearer_token: Option<String>,
+    ) -> Self {
         Self {
             base_url: base_url.into().trim_end_matches('/').to_string(),
+            bearer_token: bearer_token.and_then(|token| {
+                let token = token.trim().to_string();
+                (!token.is_empty()).then_some(token)
+            }),
         }
     }
 
@@ -163,8 +191,12 @@ impl HttpWakuGatewayClient {
 
     fn send_request(&self, request: &WakuGatewayRequest) -> Result<WakuGatewayResponse, String> {
         let url = format!("{}/v1/waku", self.base_url);
-        let response = http_agent()
-            .post(&url)
+        let agent = http_agent();
+        let mut request_builder = agent.post(&url);
+        if let Some(token) = self.bearer_token.as_deref() {
+            request_builder = request_builder.set("Authorization", &format!("Bearer {token}"));
+        }
+        let response = request_builder
             .send_json(
                 serde_json::to_value(request)
                     .map_err(|error| format!("serialize gateway request failed: {error}"))?,

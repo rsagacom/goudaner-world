@@ -15,6 +15,7 @@ def main() -> int:
     assert 'SKIP_BUILD="${SKIP_BUILD:-0}"' in text
     assert 'UPSTREAM_PORT="${UPSTREAM_PORT:-}"' in text
     assert 'DOWNSTREAM_PORT="${DOWNSTREAM_PORT:-}"' in text
+    assert 'FEDERATION_TOKEN="${FEDERATION_TOKEN:-lobster-federation-smoke-token}"' in text
     assert 'reserve_port() {' in text
     assert 'need_cmd curl\nneed_cmd grep\nneed_cmd mktemp\nneed_cmd tar\nneed_cmd python3' in text
     assert 'export NO_PROXY="${NO_PROXY:+$NO_PROXY,}127.0.0.1,localhost"' in text
@@ -28,9 +29,9 @@ def main() -> int:
     assert text.index('if [[ ! -x "$BIN_PATH" ]]') < text.index('STATE_ROOT="$(mktemp_dir)"')
     assert 'cargo build --manifest-path "$ROOT_DIR/Cargo.toml" --release -p lobster-waku-gateway' in text
     assert '"$BIN_PATH" \\' in text
-    assert text.count('LOBSTER_DEV_AUTH_BYPASS=1 "$BIN_PATH"') == 2, (
-        "provider federation fixture must explicitly enable dev auth bypass for both synthetic gateways"
-    )
+    assert text.count("LOBSTER_DEV_AUTH_BYPASS=1") == 2
+    assert 'LOBSTER_GATEWAY_FEDERATION_TOKEN="$FEDERATION_TOKEN"' in text
+    assert 'LOBSTER_WAKU_UPSTREAM_TOKEN="$FEDERATION_TOKEN"' in text
     assert '--upstream-gateway-url "http://$HOST:$UPSTREAM_PORT"' in text
     assert 'wait_for_health "upstream" "http://$HOST:$UPSTREAM_PORT/health"' in text
     assert 'wait_for_health "downstream" "http://$HOST:$DOWNSTREAM_PORT/health"' in text

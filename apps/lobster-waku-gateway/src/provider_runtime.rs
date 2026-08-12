@@ -1,6 +1,22 @@
 use super::*;
 
 impl GatewayRuntime {
+    fn upstream_federation_token() -> Option<String> {
+        std::env::var("LOBSTER_WAKU_UPSTREAM_TOKEN")
+            .ok()
+            .and_then(|token| {
+                let token = token.trim().to_string();
+                (!token.is_empty()).then_some(token)
+            })
+    }
+
+    fn upstream_client(url: &str) -> HttpWakuGatewayClient {
+        HttpWakuGatewayClient::with_optional_bearer_token(
+            url.to_string(),
+            Self::upstream_federation_token(),
+        )
+    }
+
     pub(crate) fn upstream_status(&self) -> Option<String> {
         self.upstream_base_url
             .as_ref()
@@ -38,9 +54,7 @@ impl GatewayRuntime {
                 Some(trimmed)
             }
         });
-        self.upstream_gateway = normalized
-            .as_ref()
-            .map(|url| HttpWakuGatewayClient::new(url.clone()));
+        self.upstream_gateway = normalized.as_ref().map(|url| Self::upstream_client(url));
         self.upstream_base_url = normalized;
     }
 
@@ -174,7 +188,7 @@ impl GatewayRuntime {
         if provider_url.is_empty() {
             return Err("provider url required".into());
         }
-        let client = HttpWakuGatewayClient::new(provider_url.to_string());
+        let client = Self::upstream_client(provider_url);
         client.healthcheck()?;
         self.upstream_gateway = Some(client);
         self.upstream_base_url = Some(provider_url.trim_end_matches('/').to_string());

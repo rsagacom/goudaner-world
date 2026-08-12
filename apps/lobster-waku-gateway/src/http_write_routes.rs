@@ -659,6 +659,9 @@ pub(crate) fn handle_post_waku(
     runtime: &Arc<Mutex<GatewayRuntime>>,
     request: &mut Request,
 ) -> HttpResponse {
+    if let Some(response) = require_federation_auth(runtime, request) {
+        return response;
+    }
     let mut body = Vec::new();
     if let Err(error) = request.as_reader().read_to_end(&mut body) {
         return Response::from_string(
@@ -698,6 +701,36 @@ pub(crate) fn handle_post_waku(
         .with_status_code(StatusCode(400))
         .with_optional_header(json_header()),
     }
+}
+
+fn require_federation_auth(
+    runtime: &Arc<Mutex<GatewayRuntime>>,
+    request: &tiny_http::Request,
+) -> Option<HttpResponse> {
+    let token = authorization_bearer_token(request);
+    let runtime = match runtime.lock() {
+        Ok(runtime) => runtime,
+        Err(_) => return Some(runtime_unavailable()),
+    };
+    if runtime.dev_auth_bypass_enabled() && token.is_none() {
+        return None;
+    }
+    if token
+        .as_deref()
+        .is_some_and(|token| runtime.validate_federation_token(token))
+    {
+        return None;
+    }
+    Some(
+        Response::from_string(
+            serde_json::to_string(&WakuGatewayResponse::Error {
+                message: "gateway federation Bearer token required or invalid".into(),
+            })
+            .unwrap_or_else(|_| "{\"Error\":{\"message\":\"unauthorized\"}}".into()),
+        )
+        .with_status_code(StatusCode(401))
+        .with_optional_header(json_header()),
+    )
 }
 
 pub(crate) fn handle_post_shell_message(

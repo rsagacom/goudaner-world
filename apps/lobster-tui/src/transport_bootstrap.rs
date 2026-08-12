@@ -34,7 +34,8 @@ pub(crate) fn build_transport(
     history_limit: usize,
 ) -> Result<(Box<dyn TransportAdapter>, String), String> {
     if let Ok(base_url) = env::var("LOBSTER_WAKU_GATEWAY_URL") {
-        let client = HttpWakuGatewayClient::new(base_url.clone());
+        let token = env::var("LOBSTER_WAKU_GATEWAY_TOKEN").ok();
+        let client = HttpWakuGatewayClient::with_optional_bearer_token(base_url.clone(), token);
         client.healthcheck()?;
         let mut transport = GatewayBackedWakuAdapter::new(client, history_limit);
         transport.connect(endpoint)?;
@@ -134,5 +135,12 @@ mod tests {
                 .iter()
                 .all(|subscription| subscription.recover_history)
         );
+    }
+
+    #[test]
+    fn external_gateway_transport_uses_dedicated_token_environment_contract() {
+        let source = include_str!("transport_bootstrap.rs");
+        assert!(source.contains("LOBSTER_WAKU_GATEWAY_TOKEN"));
+        assert!(source.contains("with_optional_bearer_token"));
     }
 }
