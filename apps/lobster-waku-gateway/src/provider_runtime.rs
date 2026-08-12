@@ -1,6 +1,84 @@
 use super::*;
 
 impl GatewayRuntime {
+    fn provider_url_authority(url: &str) -> Option<&str> {
+        let (_, rest) = url.split_once("://")?;
+        let end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+        let authority = &rest[..end];
+        (!authority.is_empty()).then_some(authority)
+    }
+
+    fn provider_authority_is_valid(authority: &str) -> bool {
+        if authority.is_empty()
+            || authority.contains('@')
+            || authority.chars().any(char::is_whitespace)
+        {
+            return false;
+        }
+
+        if authority.starts_with('[') {
+            let Some(end) = authority.find(']') else {
+                return false;
+            };
+            let suffix = &authority[end + 1..];
+            return suffix.is_empty()
+                || suffix.strip_prefix(':').is_some_and(|port| {
+                    !port.is_empty() && port.chars().all(|c| c.is_ascii_digit())
+                });
+        }
+
+        if let Some((host, port)) = authority.split_once(':') {
+            !host.is_empty() && !port.is_empty() && port.chars().all(|c| c.is_ascii_digit())
+        } else {
+            !authority.is_empty()
+        }
+    }
+
+    fn provider_authority_is_loopback(authority: &str) -> bool {
+        let host = if authority.starts_with('[') {
+            let Some(end) = authority.find(']') else {
+                return false;
+            };
+            &authority[..=end]
+        } else {
+            authority.split(':').next().unwrap_or_default()
+        };
+
+        host.eq_ignore_ascii_case("localhost") || host == "127.0.0.1" || host == "[::1]"
+    }
+
+    fn normalize_provider_url(&self, raw_url: &str) -> Result<Option<String>, String> {
+        let trimmed = raw_url.trim().trim_end_matches('/').to_string();
+        if trimmed.is_empty() {
+            return Ok(None);
+        }
+
+        let Some((scheme, _)) = trimmed.split_once("://") else {
+            return Err("provider URL must include an http or https scheme".into());
+        };
+        let scheme = scheme.to_ascii_lowercase();
+        if scheme != "http" && scheme != "https" {
+            return Err("provider URL must use http or https".into());
+        }
+
+        let authority = Self::provider_url_authority(&trimmed)
+            .ok_or_else(|| "provider URL must include a host".to_string())?;
+        if !Self::provider_authority_is_valid(authority) {
+            return Err("provider URL has an invalid host or port".into());
+        }
+
+        if scheme == "http"
+            && !(self.dev_auth_bypass && Self::provider_authority_is_loopback(authority))
+        {
+            return Err(
+                "provider URL must use HTTPS; HTTP is only allowed for loopback dev/test providers"
+                    .into(),
+            );
+        }
+
+        Ok(Some(trimmed))
+    }
+
     fn upstream_federation_token() -> Option<String> {
         std::env::var("LOBSTER_WAKU_UPSTREAM_TOKEN")
             .ok()
@@ -45,17 +123,17 @@ impl GatewayRuntime {
         }
     }
 
-    pub(crate) fn apply_upstream_provider_url(&mut self, upstream_base_url: Option<String>) {
-        let normalized = upstream_base_url.and_then(|url| {
-            let trimmed = url.trim().trim_end_matches('/').to_string();
-            if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed)
-            }
-        });
+    pub(crate) fn apply_upstream_provider_url(
+        &mut self,
+        upstream_base_url: Option<String>,
+    ) -> Result<(), String> {
+        let normalized = upstream_base_url
+            .map(|url| self.normalize_provider_url(&url))
+            .transpose()?
+            .flatten();
         self.upstream_gateway = normalized.as_ref().map(|url| Self::upstream_client(url));
         self.upstream_base_url = normalized;
+        Ok(())
     }
 
     pub(crate) fn provider_config_snapshot(&self) -> PersistedProviderConfig {
@@ -83,7 +161,7 @@ impl GatewayRuntime {
         }
         let config: PersistedProviderConfig = serde_json::from_slice(&bytes)
             .map_err(|error| format!("decode provider config failed: {error}"))?;
-        self.apply_upstream_provider_url(config.upstream_gateway_url);
+        self.apply_upstream_provider_url(config.upstream_gateway_url)?;
         self.apply_mirror_sources(config.mirror_sources);
         Ok(())
     }
@@ -124,7 +202,7 @@ impl GatewayRuntime {
         &mut self,
         upstream_base_url: Option<String>,
     ) -> Result<(), String> {
-        self.apply_upstream_provider_url(upstream_base_url);
+        self.apply_upstream_provider_url(upstream_base_url)?;
         self.persist_provider_config()
     }
 
@@ -184,20 +262,19 @@ impl GatewayRuntime {
         &mut self,
         request: ConnectProviderRequest,
     ) -> Result<ProviderStatusResponse, String> {
-        let provider_url = request.provider_url.trim();
-        if provider_url.is_empty() {
-            return Err("provider url required".into());
-        }
-        let client = Self::upstream_client(provider_url);
+        let provider_url = self
+            .normalize_provider_url(&request.provider_url)?
+            .ok_or_else(|| "provider url required".to_string())?;
+        let client = Self::upstream_client(&provider_url);
         client.healthcheck()?;
         self.upstream_gateway = Some(client);
-        self.upstream_base_url = Some(provider_url.trim_end_matches('/').to_string());
+        self.upstream_base_url = Some(provider_url);
         self.persist_provider_config()?;
         Ok(self.provider_status())
     }
 
     pub(crate) fn disconnect_provider(&mut self) -> Result<ProviderStatusResponse, String> {
-        self.apply_upstream_provider_url(None);
+        self.apply_upstream_provider_url(None)?;
         self.persist_provider_config()?;
         Ok(self.provider_status())
     }

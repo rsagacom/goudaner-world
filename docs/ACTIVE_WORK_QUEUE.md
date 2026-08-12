@@ -4,6 +4,17 @@ Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-13 P5 provider URL 安全合同
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 根因 | 已确认 | `/v1/provider/connect` 原先直接接受 URL，未复用 readiness 的 HTTPS/loopback 约束；持久化 `provider-config.json` 也没有启动时安全校验 |
+| URL 合同 | 已实现 | 远端只允许 HTTPS；dev/test 仅允许 `localhost`、`127.0.0.1`、`[::1]` 的 HTTP；拒绝凭据、空 host、非法端口和未知 scheme |
+| fail-closed | 已实现 | provider connect、CLI/env 初始化和持久化配置载入统一走同一校验；非法持久化配置使 Gateway 启动失败，不静默连接 |
+| 防回归 | 已实现 | 新增三组 URL/模式/持久化配置测试；`cargo test -p lobster-waku-gateway --quiet` 322/322 |
+| 范围边界 | 保持 | 这只是 native transport 接入口的安全合同，不等于 native Waku；标准 MLS/Waku 组件仍需用户批准开源调研后选型 |
+| 生产状态 | 未变更 | 仅本地代码、测试和文档验证，未 SSH、未部署 |
+
 ## 2026-08-13 P1 个人房间场景权限收口
 
 | 项目 | 状态 | 说明 |
@@ -22,7 +33,7 @@ Last updated: 2026-08-13
 | API 投影 | 已实现 | `POST /v1/direct/open` 改为只返回 `MlsGroupView` 元数据，响应不再包含 `group_key` |
 | at-rest 存储 | 已实现 | `secure-sessions.json` 使用 `LOBSTER_SECURE_SESSION_MASTER_KEY` 派生密钥并以 AES-256-GCM 封装；旧明文快照仅一次性启动迁移并原子替换 |
 | 生产门禁 | 已实现 | readiness 要求 master key 至少 32 字符且不打印值；未配置时生产持久化/读取 secure session 会失败关闭 |
-| 验证 | 进行中 | `crypto-mls` 24/24、Gateway 316/316、readiness unit 已通过；待完整 release gate、GitHub CI 和 Atlas 收口 |
+| 验证 | 已通过 | `crypto-mls` 24/24、Gateway 316/316、完整 release gate、GitHub CI 和 Atlas 均已收口 |
 | 边界 | 保持 | 这只保护当前 skeleton 的 API/磁盘暴露面；`crypto-mls` 仍非标准 MLS/E2EE，native Waku/MLS 选型仍待用户批准开源调研 |
 
 ## 2026-08-12 P5 federation 鉴权前置闭环

@@ -257,6 +257,13 @@
 - Web Shell: **1412 tests / 0 fail**(unit + layout + realness);完整 release gate 退出码 0
 - 生产与仓库代码完全对齐(全部批次已上线);缓存纪律:改动 CSS/JS 必须同步升版 `?v=`
 
+### P5 provider URL 安全合同（2026-08-13）
+
+- **根因**：`/v1/provider/connect` 原先未复用 production readiness 对远端 URL 的 HTTPS 约束，持久化 provider 配置载入也可能绕过该边界。
+- **实现**：远端 provider 只接受 HTTPS；dev/test 仅接受 loopback HTTP；URL 校验覆盖 scheme、host、port、userinfo，并在启动载入非法配置时 fail-closed。
+- **验证**：Gateway 322/322；现有 provider federation、CLI/env 初始化和生产 readiness 合同保持通过。
+- **范围**：这是 native transport 接入前的安全合同，不代表已接入 native Waku，也不代表现有 `crypto-mls` 已成为标准 MLS/E2EE；组件选型须在用户批准开源调研后进行。
+
 ### P1 个人房间场景权限收口（2026-08-13）
 
 - **权限根因**：`home:<resident>` 个人房间已由 `personal_room_owner()` 建模，但 shell 场景写入只检查参与者；admin 私宅检查原先只覆盖 `dm:*`，没有兑现“房主编辑”边界。

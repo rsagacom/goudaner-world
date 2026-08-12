@@ -5620,6 +5620,55 @@ fn disconnect_provider_returns_local_mode() {
 }
 
 #[test]
+fn provider_url_contract_allows_loopback_dev_http_but_rejects_remote_http() {
+    let temp = tempdir().expect("temp dir");
+    let mut runtime =
+        GatewayRuntime::open(temp.path().join("gateway"), 8, None).expect("open runtime");
+
+    runtime
+        .set_upstream_provider_url(Some("http://127.0.0.1:9999/".into()))
+        .expect("loopback HTTP should be allowed in dev/test mode");
+    assert_eq!(
+        runtime.upstream_base_url.as_deref(),
+        Some("http://127.0.0.1:9999")
+    );
+
+    let error = runtime
+        .set_upstream_provider_url(Some("http://provider.example".into()))
+        .expect_err("remote HTTP should be rejected");
+    assert!(error.contains("must use HTTPS"));
+}
+
+#[test]
+fn provider_url_contract_rejects_loopback_http_in_production_mode() {
+    let temp = tempdir().expect("temp dir");
+    let mut runtime =
+        GatewayRuntime::open(temp.path().join("gateway"), 8, None).expect("open runtime");
+    runtime.set_dev_auth_bypass_for_tests(false);
+
+    let error = runtime
+        .set_upstream_provider_url(Some("http://127.0.0.1:9999".into()))
+        .expect_err("production mode should reject loopback HTTP");
+    assert!(error.contains("must use HTTPS"));
+}
+
+#[test]
+fn provider_config_load_fails_closed_for_remote_http() {
+    let temp = tempdir().expect("temp dir");
+    let storage_root = temp.path().join("gateway");
+    std::fs::create_dir_all(&storage_root).expect("create gateway state dir");
+    std::fs::write(
+        storage_root.join("provider-config.json"),
+        r#"{"upstream_gateway_url":"http://provider.example","mirror_sources":[]}"#,
+    )
+    .expect("write invalid provider config");
+
+    let error = GatewayRuntime::open(&storage_root, 8, None)
+        .expect_err("invalid persisted provider URL should fail closed");
+    assert!(error.contains("must use HTTPS"));
+}
+
+#[test]
 fn provider_direct_and_mirror_http_routes_roundtrip_gateway_contract() {
     let temp = tempdir().expect("temp dir");
     let runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
