@@ -4,6 +4,17 @@ Last updated: 2026-08-12
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-12 S1 发布可追溯性
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 运行版本 | 已实现 | Gateway 新增 `GET /v1/version`，返回 schema、Cargo 包版本和编译时完整 Git SHA；CI 通过 `LOBSTER_BUILD_GIT_SHA=${{ github.sha }}` 固化构建来源 |
+| 发布清单 | 已实现 | `package-release.sh` 生成 `release-manifest.json`，记录 Git SHA、构建时间、target 以及 source/web/gateway 各制品文件名和 SHA-256 |
+| 防误发 | 已实现 | 本地脏工作区默认拒绝打包；仅显式 `ALLOW_DIRTY_RELEASE=1` 可做本地验证。安装脚本在替换文件前校验 manifest Git SHA 和制品哈希 |
+| 安装后关联 | 已实现 | 安装脚本保留 manifest，并检查本机 `/v1/version` 与公网 `/release-manifest.json`；部署文档已补齐查询方法 |
+| 验证 | 全绿 | 脏工作区拒绝行为通过；显式本地打包后三类制品哈希复算一致；完整 release gate 通过（含 Rust、Web 1412、双浏览器、TUI、provider federation、安装/发布脚本与 panic 扫描） |
+| 生产状态 | 未变更 | 本阶段只完成代码、CI 和本地制品验证，尚未部署；下一步需用已同步 GitHub 的确定 commit 构建制品，再执行生产备份、安装、版本/manifest/公网功能核验和回滚演练 |
+
 ## 2026-08-12 S0 源控救援
 
 | 项目 | 状态 | 说明 |

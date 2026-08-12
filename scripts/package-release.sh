@@ -6,6 +6,9 @@ DIST_DIR="${DIST_DIR:-$ROOT_DIR/dist}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 HOST_TARGET_OVERRIDE="${HOST_TARGET_OVERRIDE:-}"
 GATEWAY_BINARY_PATH="${GATEWAY_BINARY_PATH:-$ROOT_DIR/target/release/lobster-waku-gateway}"
+ALLOW_DIRTY_RELEASE="${ALLOW_DIRTY_RELEASE:-0}"
+RELEASE_GIT_SHA="${RELEASE_GIT_SHA:-}"
+RELEASE_BUILT_AT="${RELEASE_BUILT_AT:-}"
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -15,6 +18,32 @@ need_cmd() {
 }
 
 need_cmd tar
+need_cmd git
+
+if [[ "$ALLOW_DIRTY_RELEASE" != "1" && -n "$(git -C "$ROOT_DIR" status --porcelain --untracked-files=normal)" ]]; then
+  echo "refusing release package from dirty worktree; commit/stash changes or set ALLOW_DIRTY_RELEASE=1 for an explicit local-only build" >&2
+  exit 1
+fi
+
+if [[ -z "$RELEASE_GIT_SHA" ]]; then
+  RELEASE_GIT_SHA="$(git -C "$ROOT_DIR" rev-parse HEAD)"
+fi
+if [[ ! "$RELEASE_GIT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+  echo "invalid RELEASE_GIT_SHA: expected a full 40-character commit id" >&2
+  exit 1
+fi
+if [[ -z "$RELEASE_BUILT_AT" ]]; then
+  RELEASE_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+fi
+
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{ print $1 }'
+  else
+    need_cmd shasum
+    shasum -a 256 "$1" | awk '{ print $1 }'
+  fi
+}
 
 mkdir -p "$DIST_DIR"
 
@@ -78,5 +107,19 @@ if [[ -x "$binary_path" ]]; then
 else
   echo "warning: release gateway binary not found at $binary_path" >&2
 fi
+
+source_sha="$(sha256_file "$DIST_DIR/lobster-chat-source.tar.gz")"
+web_sha="$(sha256_file "$DIST_DIR/lobster-web-shell.tar.gz")"
+gateway_file="${bin_name}.tar.gz"
+gateway_sha=""
+gateway_json="null"
+if [[ -f "$DIST_DIR/$gateway_file" ]]; then
+  gateway_sha="$(sha256_file "$DIST_DIR/$gateway_file")"
+  gateway_json="{\"file\":\"$gateway_file\",\"sha256\":\"$gateway_sha\"}"
+fi
+
+printf '%s\n' \
+  "{\"schema_version\":1,\"git_sha\":\"$RELEASE_GIT_SHA\",\"built_at\":\"$RELEASE_BUILT_AT\",\"target\":\"$host_target\",\"artifacts\":{\"source\":{\"file\":\"lobster-chat-source.tar.gz\",\"sha256\":\"$source_sha\"},\"web\":{\"file\":\"lobster-web-shell.tar.gz\",\"sha256\":\"$web_sha\"},\"gateway\":$gateway_json}}" \
+  > "$DIST_DIR/release-manifest.json"
 
 echo "artifacts written to $DIST_DIR"

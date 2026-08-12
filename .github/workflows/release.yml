@@ -64,6 +64,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build release gateway
+        env:
+          LOBSTER_BUILD_GIT_SHA: ${{ github.sha }}
         run: cargo build --release --target "${{ matrix.target }}" -p lobster-waku-gateway
 
       - name: Package target-matched release artifacts
@@ -71,6 +73,7 @@ jobs:
           DIST_DIR: ${{ runner.temp }}/lobster-dist
           HOST_TARGET_OVERRIDE: ${{ matrix.target }}
           GATEWAY_BINARY_PATH: ${{ github.workspace }}/target/${{ matrix.target }}/release/lobster-waku-gateway
+          RELEASE_GIT_SHA: ${{ github.sha }}
           SKIP_BUILD: "1"
         run: scripts/package-release.sh
 
@@ -81,6 +84,8 @@ jobs:
           test -f "$RUNNER_TEMP/lobster-dist/lobster-chat-source.tar.gz"
           test -f "$RUNNER_TEMP/lobster-dist/lobster-web-shell.tar.gz"
           test -f "$RUNNER_TEMP/lobster-dist/lobster-waku-gateway-${{ matrix.target }}.tar.gz"
+          test -f "$RUNNER_TEMP/lobster-dist/release-manifest.json"
+          test "$(jq -r .git_sha "$RUNNER_TEMP/lobster-dist/release-manifest.json")" = "${{ github.sha }}"
           tar -tzf "$RUNNER_TEMP/lobster-dist/lobster-waku-gateway-${{ matrix.target }}.tar.gz" | grep -qx lobster-waku-gateway
           sha256sum "$RUNNER_TEMP"/lobster-dist/*.tar.gz | tee "$RUNNER_TEMP/lobster-dist/SHA256SUMS"
 

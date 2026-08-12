@@ -15,6 +15,12 @@ def main() -> int:
     assert 'SKIP_BUILD="${SKIP_BUILD:-0}"' in text
     assert 'HOST_TARGET_OVERRIDE="${HOST_TARGET_OVERRIDE:-}"' in text
     assert 'GATEWAY_BINARY_PATH="${GATEWAY_BINARY_PATH:-$ROOT_DIR/target/release/lobster-waku-gateway}"' in text
+    assert 'ALLOW_DIRTY_RELEASE="${ALLOW_DIRTY_RELEASE:-0}"' in text
+    assert 'RELEASE_GIT_SHA="${RELEASE_GIT_SHA:-}"' in text
+    assert 'git -C "$ROOT_DIR" status --porcelain --untracked-files=normal' in text
+    assert "refusing release package from dirty worktree" in text
+    assert 'git -C "$ROOT_DIR" rev-parse HEAD' in text
+    assert "sha256_file()" in text
     assert "need_cmd tar" in text
     assert 'if [[ -z "$HOST_TARGET_OVERRIDE" ]]; then' in text
     assert text.index('if [[ -z "$HOST_TARGET_OVERRIDE" ]]; then') < text.index("need_cmd rustc")
@@ -50,6 +56,10 @@ def main() -> int:
     assert 'if [[ -x "$binary_path" ]]; then' in text
     assert 'tar -czf "$DIST_DIR/${bin_name}.tar.gz" -C "$(dirname "$binary_path")" lobster-waku-gateway' in text
     assert 'warning: release gateway binary not found at $binary_path' in text
+    assert '> "$DIST_DIR/release-manifest.json"' in text
+    assert '"schema_version\\":1' in text
+    assert '"git_sha\\":\\"$RELEASE_GIT_SHA' in text
+    assert '"sha256\\":\\"$source_sha' in text
     return 0
 
 

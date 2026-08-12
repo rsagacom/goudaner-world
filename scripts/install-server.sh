@@ -11,6 +11,7 @@ CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$BUILD_DIR/target}"
 SERVICE_NAME="${SERVICE_NAME:-lobster-waku-gateway}"
 GATEWAY_ARTIFACT="${GATEWAY_ARTIFACT:-}"
 WEB_ARTIFACT="${WEB_ARTIFACT:-}"
+RELEASE_MANIFEST="${RELEASE_MANIFEST:-}"
 LISTEN_HOST="${LISTEN_HOST:-127.0.0.1}"
 LISTEN_PORT="${LISTEN_PORT:-8787}"
 PUBLIC_PORT="${PUBLIC_PORT:-80}"
@@ -108,6 +109,53 @@ install_web_from_artifact() {
   rm -rf "$tmp_dir"
 }
 
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{ print $1 }'
+  else
+    need_cmd shasum
+    shasum -a 256 "$1" | awk '{ print $1 }'
+  fi
+}
+
+manifest_value() {
+  python3 - "$RELEASE_MANIFEST" "$1" <<'PY'
+import json
+import sys
+
+payload = json.loads(open(sys.argv[1], encoding="utf-8").read())
+value = payload
+for part in sys.argv[2].split("."):
+    value = value[part]
+print(value)
+PY
+}
+
+validate_release_manifest() {
+  [[ -f "$RELEASE_MANIFEST" ]] || {
+    echo "release manifest not found: $RELEASE_MANIFEST" >&2
+    exit 1
+  }
+  local manifest_git_sha
+  manifest_git_sha="$(manifest_value git_sha)"
+  [[ "$manifest_git_sha" =~ ^[0-9a-fA-F]{40}$ ]] || {
+    echo "release manifest has invalid git_sha" >&2
+    exit 1
+  }
+  if [[ -n "$GATEWAY_ARTIFACT" ]]; then
+    [[ "$(sha256_file "$GATEWAY_ARTIFACT")" == "$(manifest_value artifacts.gateway.sha256)" ]] || {
+      echo "gateway artifact checksum does not match release manifest" >&2
+      exit 1
+    }
+  fi
+  if [[ -n "$WEB_ARTIFACT" ]]; then
+    [[ "$(sha256_file "$WEB_ARTIFACT")" == "$(manifest_value artifacts.web.sha256)" ]] || {
+      echo "web artifact checksum does not match release manifest" >&2
+      exit 1
+    }
+  fi
+}
+
 configure_rust_mirrors() {
   local cargo_home="${CARGO_HOME:-$HOME/.cargo}"
   mkdir -p "$cargo_home"
@@ -173,6 +221,7 @@ need_cmd nginx
 need_cmd tar
 need_cmd uname
 need_cmd curl
+need_cmd python3
 
 stop_conflicting_gateway_processes() {
   if ! command -v pgrep >/dev/null 2>&1; then
@@ -221,6 +270,15 @@ if [[ -n "$WEB_ARTIFACT" && ! -f "$WEB_ARTIFACT" ]]; then
   exit 1
 fi
 
+if [[ -n "$GATEWAY_ARTIFACT$WEB_ARTIFACT" && -z "$RELEASE_MANIFEST" ]]; then
+  echo "RELEASE_MANIFEST is required when installing prebuilt artifacts" >&2
+  exit 1
+fi
+
+if [[ -n "$RELEASE_MANIFEST" ]]; then
+  validate_release_manifest
+fi
+
 resolve_nginx_site_path() {
   local debian_site_dir debian_link_dir rhel_dir
   debian_site_dir="$(dirname "$NGINX_SITE_DEBIAN")"
@@ -256,6 +314,10 @@ if [[ -n "$WEB_ARTIFACT" ]]; then
 else
   echo "== installing web shell from workspace =="
   cp -R "$ROOT_DIR/apps/lobster-web-shell/." "$WEB_DIR/"
+fi
+if [[ -n "$RELEASE_MANIFEST" ]]; then
+  install -m 0644 "$RELEASE_MANIFEST" "$INSTALL_ROOT/release-manifest.json"
+  install -m 0644 "$RELEASE_MANIFEST" "$WEB_DIR/release-manifest.json"
 fi
 
 echo "== writing systemd unit =="
@@ -341,7 +403,18 @@ fi
 
 echo "== health checks =="
 curl -fsS "http://$LISTEN_HOST:$LISTEN_PORT/health" && echo
+version_json="$(curl -fsS "http://$LISTEN_HOST:$LISTEN_PORT/v1/version")"
+printf '%s\n' "$version_json"
 curl -fsS "http://$LISTEN_HOST:$LISTEN_PORT/v1/provider" && echo
+if [[ -n "$RELEASE_MANIFEST" ]]; then
+  runtime_git_sha="$(printf '%s' "$version_json" | python3 -c 'import json, sys; print(json.load(sys.stdin)["git_sha"])')"
+  manifest_git_sha="$(manifest_value git_sha)"
+  if [[ "$runtime_git_sha" != "$manifest_git_sha" ]]; then
+    echo "running gateway git_sha does not match release manifest" >&2
+    exit 1
+  fi
+  curl -fsS "http://127.0.0.1:$PUBLIC_PORT/release-manifest.json" && echo
+fi
 
 echo "install complete"
 echo "gateway: http://$LISTEN_HOST:$LISTEN_PORT"

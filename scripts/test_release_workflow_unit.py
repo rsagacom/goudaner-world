@@ -18,6 +18,8 @@ def main() -> int:
     assert "HOST_TARGET_OVERRIDE: ${{ matrix.target }}" in text
     assert "GATEWAY_BINARY_PATH: ${{ github.workspace }}/target/${{ matrix.target }}/release/lobster-waku-gateway" in text
     assert 'cargo build --release --target "${{ matrix.target }}" -p lobster-waku-gateway' in text
+    assert "LOBSTER_BUILD_GIT_SHA: ${{ github.sha }}" in text
+    assert "RELEASE_GIT_SHA: ${{ github.sha }}" in text
     assert 'test "$(uname -m)" = "${{ matrix.machine }}"' in text
     assert 'test "$(rustc -vV | awk \'/host:/ { print $2 }\')" = "${{ matrix.target }}"' in text
     assert "target: aarch64-unknown-linux-gnu" in text
@@ -29,6 +31,8 @@ def main() -> int:
     assert "lobster-waku-gateway-${{ matrix.target }}.tar.gz" in text
     assert "lobster-web-shell.tar.gz" in text
     assert "lobster-chat-source.tar.gz" in text
+    assert "release-manifest.json" in text
+    assert "jq -r .git_sha" in text
     assert "sha256sum" in text
     assert "LOBSTER_DEV_EMAIL_OTP_INLINE" not in text
     assert "LOBSTER_EMAIL_OTP_MAILER_BEARER_TOKEN" not in text

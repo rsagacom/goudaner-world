@@ -21,6 +21,7 @@ def main() -> int:
     assert 'SERVICE_NAME="${SERVICE_NAME:-lobster-waku-gateway}"' in text
     assert 'GATEWAY_ARTIFACT="${GATEWAY_ARTIFACT:-}"' in text
     assert 'WEB_ARTIFACT="${WEB_ARTIFACT:-}"' in text
+    assert 'RELEASE_MANIFEST="${RELEASE_MANIFEST:-}"' in text
     assert 'LISTEN_HOST="${LISTEN_HOST:-127.0.0.1}"' in text
     assert 'LISTEN_PORT="${LISTEN_PORT:-8787}"' in text
     assert 'PUBLIC_PORT="${PUBLIC_PORT:-80}"' in text
@@ -33,6 +34,7 @@ def main() -> int:
     assert "need_cmd nginx" in text
     assert "need_cmd tar" in text
     assert "need_cmd curl" in text
+    assert "need_cmd python3" in text
     assert "detect_target_triple()" in text
     assert 'Linux:x86_64) echo "x86_64-unknown-linux-gnu"' in text
     assert 'Darwin:arm64|Darwin:aarch64) echo "aarch64-apple-darwin"' in text
@@ -44,6 +46,11 @@ def main() -> int:
     assert 'install -m 0755 "$tmp_dir/lobster-waku-gateway" "$BIN_DIR/lobster-waku-gateway"' in text
     assert "install_web_from_artifact()" in text
     assert 'cp -R "$tmp_dir/." "$WEB_DIR/"' in text
+    assert "validate_release_manifest()" in text
+    assert "gateway artifact checksum does not match release manifest" in text
+    assert "web artifact checksum does not match release manifest" in text
+    assert "RELEASE_MANIFEST is required when installing prebuilt artifacts" in text
+    assert 'install -m 0644 "$RELEASE_MANIFEST" "$WEB_DIR/release-manifest.json"' in text
     assert "configure_rust_mirrors()" in text
     assert 'registry = "sparse+https://rsproxy.cn/index/"' in text
     assert "ensure_modern_rust()" in text
@@ -88,6 +95,10 @@ def main() -> int:
     assert "systemctl reload nginx" in text
     assert "systemctl enable --now nginx" in text
     assert 'curl -fsS "http://$LISTEN_HOST:$LISTEN_PORT/health"' in text
+    assert 'version_json="$(curl -fsS "http://$LISTEN_HOST:$LISTEN_PORT/v1/version")"' in text
+    assert 'runtime_git_sha="$(printf \'%s\' "$version_json"' in text
+    assert "running gateway git_sha does not match release manifest" in text
+    assert 'curl -fsS "http://127.0.0.1:$PUBLIC_PORT/release-manifest.json"' in text
     assert 'curl -fsS "http://$LISTEN_HOST:$LISTEN_PORT/v1/provider"' in text
     assert 'echo "install complete"' in text
     return 0

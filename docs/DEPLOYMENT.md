@@ -40,12 +40,24 @@ RUN_PREFLIGHT=0 INCLUDE_PROVIDER_FEDERATION=1 scripts/smoke-release-gate.sh
 scripts/package-release.sh
 ```
 
+发布脚本默认拒绝 dirty worktree，并在 `dist/release-manifest.json` 写入完整 Git SHA、构建时间、目标平台以及 source/web/gateway 三类产物的 SHA-256。使用预构建产物安装时同时传入 manifest，安装器会在替换文件前核对 checksum：
+
+```bash
+sudo GATEWAY_ARTIFACT=/path/lobster-waku-gateway-<target>.tar.gz \
+  WEB_ARTIFACT=/path/lobster-web-shell.tar.gz \
+  RELEASE_MANIFEST=/path/release-manifest.json \
+  bash scripts/install-server.sh
+```
+
+只要传入预构建制品，`RELEASE_MANIFEST` 就是必填项。部署后安装器会以 `/v1/version` 核对 Gateway 编译 commit，并通过 `/release-manifest.json` 暴露部署 artifact；运行版本与 manifest 的 `git_sha` 不一致时安装失败。
+
 标准产物：
 
 ```text
 dist/lobster-chat-source.tar.gz
 dist/lobster-web-shell.tar.gz
 dist/lobster-waku-gateway-<target-triple>.tar.gz
+dist/release-manifest.json
 ```
 
 在 macOS 开发机无法直接生成 Linux Gateway 时，可手动触发 GitHub Actions 的
