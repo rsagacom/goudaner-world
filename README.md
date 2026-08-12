@@ -121,7 +121,7 @@ BASE_URL=https://<node>.<tailnet>.ts.net ./scripts/smoke-public-ingress.sh
 | Gateway (Rust) | 323 | ✅ | 私宅访问确权+好友关系流, 设备管理, 场景权限, URL 安全合同, 审核持久化, 38+ HTTP 端点 |
 | TUI (Rust/ratatui) | 233 | ✅ | 用户端/城主端/世界广场/私聊终端 |
 | CLI (Rust) | 50 | ✅ | login/nickname/directory/snapshot/moderate/admin 命令 |
-| H5 Web Shell (JS) | 1413 | — | 7 页面, 场景交互, admin-ds 写操作护栏, Gateway 真源投影, Gateway fail-closed, app.js 7,524 行 |
+| H5 Web Shell (JS) | 1416 | — | 7 页面, 场景交互, admin-ds 写操作护栏, Gateway 真源投影, Gateway fail-closed/合法空投影在线, app.js 7,524 行 |
 | crypto-mls | 20 | ✅ | AES-256-GCM + HKDF 前向安全 |
 | ai-sidecar | 7 | ✅ | HTTP AI 助手 + 流式 |
 | chat-core | 20 | ✅ | 合同定义, SceneImageLayer day/night |
@@ -129,6 +129,7 @@ BASE_URL=https://<node>.<tailnet>.ts.net ./scripts/smoke-public-ingress.sh
 | **总计** | **~2,063** | **零警告** | 全模块通过；完整 release gate 已包含 provider federation |
 
 最近更新（8-13）：
+- 🟢 H5 合法空 Gateway 投影保持在线：新居民/无可见会话时显示真实空态但不误报 offline；不完整载荷继续 fail-closed；Web 1416、Gateway 323、完整 release gate 全绿
 - 🛡️ H5 Gateway shell state fail-closed：Gateway 失败不再展示 sample/cache，provider 可达不再掩盖 IM shell offline；Web 1413、Gateway 323、完整 release gate 全绿
 - 🔐 provider/mirror URL 安全合同已收口：远端 HTTPS、开发 loopback HTTP、非法持久化配置 fail-closed；native Waku/标准 MLS 仍未引入
 - 🎨 H5 UI refresh P0/P1/P2 已完成并通过 Web 1404、layout、realness 与完整 release gate；生产三形态视觉复核已记录

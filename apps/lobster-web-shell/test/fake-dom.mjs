@@ -1460,6 +1460,7 @@ async function loadShellApp(shellPage, options = {}) {
     gatewayMessageShouldFail = false,
     gatewayMessageFailuresBeforeSuccess = 0,
     gatewayShellStateShouldFail = false,
+    gatewayShellStateFixture = null,
     gatewayProviderState = null,
   } = options;
   const previous = captureGlobals();
@@ -1527,7 +1528,15 @@ async function loadShellApp(shellPage, options = {}) {
 
   async function readGatewayShellState() {
     if (!shellStateFixture) {
-      shellStateFixture = await readJsonFixture(generatedShellFixture);
+      shellStateFixture = gatewayShellStateFixture
+        ? structuredClone(gatewayShellStateFixture)
+        : await readJsonFixture(generatedShellFixture);
+      // generated/state.json is a legacy local preview snapshot. When the
+      // fixture is served as a fake Gateway response, fill the cursor that
+      // the real /v1/shell/state contract always includes.
+      if (typeof shellStateFixture?.state_version !== "string") {
+        shellStateFixture.state_version = "shell:v1:test-fixture";
+      }
     }
     return shellStateFixture;
   }

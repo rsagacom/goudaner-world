@@ -13,6 +13,7 @@ async function flushAsyncWork() {
 
 function makePayloadWithMessages(messages) {
   return {
+    state_version: "shell:v1:test-message",
     conversation_shell: {
       active_conversation_id: "room:test:lobby",
       conversations: [

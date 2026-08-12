@@ -4,6 +4,16 @@ Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-13 H5 合法空 Gateway 投影保持在线
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 根因 | 已确认 | Gateway `ShellState` 即使经过居民可见性过滤后没有任何会话，仍会返回带 `state_version` 和空数组的合法完整投影；H5 原先沿用本地 fixture 的“必须有非空房间”判定，会把新居民/无权限居民误报为 offline |
+| 载荷合同 | 已实现 | 新增 Gateway 专用完整投影校验：要求非空 `state_version` 且至少存在 `rooms`、`conversation_shell.conversations` 或 `scene_render.scenes` 数组；空数组是合法状态，不回退 sample/cache |
+| 状态标准化 | 已实现 | 共享 `normalizeShellStateForState` 保留合法空 Gateway 投影，H5 展示空会话态但维持 `gatewayConnection=online`；不完整/非对象投影继续 fail-closed |
+| 防回归 | 已通过 | Web 1416/1416、layout、realness；完整 `scripts/smoke-release-gate.sh` 退出码 0，含 Gateway 323、真实双浏览器、双 HTTP、TUI/CLI 和 provider federation smoke |
+| 生产状态 | 未变更 | 仅本地代码、测试和文档验证，未 SSH、未部署 |
+
 ## 2026-08-13 H5 Gateway shell state fail-closed
 
 | 项目 | 状态 | 说明 |

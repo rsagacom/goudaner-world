@@ -218,6 +218,7 @@ import { createQuickActionReaders } from "./shell-quick-action-reader.js";
 import {
   hasAnyShellPayload,
   hasConversationShellPayload,
+  hasGatewayShellStatePayload,
   humanMembership,
   joinOrFallback,
   normalizeShellMessages,
@@ -4302,7 +4303,7 @@ async function loadGatewayState() {
 }
 
 async function applyGatewayShellStatePayload(payload, { persist = false } = {}) {
-  if (!hasAnyShellPayload(payload)) {
+  if (!hasGatewayShellStatePayload(payload)) {
     return gatewayShellStateIsAuthoritative() ? clearGatewayShellState() : false;
   }
   state = normalizeShellStateForState(payload, GATEWAY_EMPTY_STATE);

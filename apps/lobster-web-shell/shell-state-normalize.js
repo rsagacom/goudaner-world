@@ -1,7 +1,11 @@
-import { hasAnyShellPayload, normalizeShellMessages } from "./shell-payload.js";
+import {
+  hasAnyShellPayload,
+  hasGatewayShellStatePayload,
+  normalizeShellMessages,
+} from "./shell-payload.js";
 
 export function normalizeShellStateForState(payload, fallbackState = {}) {
-  if (!hasAnyShellPayload(payload)) {
+  if (!hasAnyShellPayload(payload) && !hasGatewayShellStatePayload(payload)) {
     return structuredClone(fallbackState);
   }
   const contracts = contractConversationMap(payload);

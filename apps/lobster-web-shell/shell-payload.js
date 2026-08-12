@@ -23,6 +23,17 @@ export function hasAnyShellPayload(payload) {
   return (Array.isArray(payload?.rooms) && payload.rooms.length > 0) || hasConversationShellPayload(payload);
 }
 
+// Gateway /v1/shell/state is a complete projection. A valid projection may
+// contain zero visible conversations for a new or access-filtered resident,
+// so validity cannot depend on a non-empty room list.
+export function hasGatewayShellStatePayload(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false;
+  if (typeof payload.state_version !== "string" || !payload.state_version.trim()) return false;
+  return Array.isArray(payload.rooms) ||
+    Array.isArray(payload.conversation_shell?.conversations) ||
+    Array.isArray(payload.scene_render?.scenes);
+}
+
 export function normalizeShellMessages(messages) {
   return (messages || []).map((message) => ({
     ...message,

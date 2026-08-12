@@ -9,6 +9,7 @@ import {
   normalizeShellStateForState,
   synthesizeRoomsFromContracts,
 } from "../shell-state-normalize.js";
+import { hasGatewayShellStatePayload } from "../shell-payload.js";
 
 // Stub normalizeShellMessages — called by the module under test via shell-payload.js
 // The test verifies contractConversationMap / mergeRoomWithContract pass-through,
@@ -20,6 +21,25 @@ test("normalizeShellStateForState clones fallback for empty payloads", () => {
   assert.deepEqual(normalized, fallback);
   assert.notEqual(normalized, fallback);
   assert.notEqual(normalized.rooms, fallback.rooms);
+});
+
+test("Gateway accepts a valid empty projection without treating it as offline", () => {
+  const payload = {
+    state_version: "shell:v1:empty",
+    rooms: [],
+    conversation_shell: { conversations: [] },
+    scene_render: { scenes: [] },
+  };
+
+  assert.equal(hasGatewayShellStatePayload(payload), true);
+  assert.deepEqual(normalizeShellStateForState(payload, { rooms: [{ id: "fallback" }] }), payload);
+});
+
+test("Gateway rejects incomplete or non-object shell projections", () => {
+  assert.equal(hasGatewayShellStatePayload({ rooms: [] }), false);
+  assert.equal(hasGatewayShellStatePayload({ state_version: "shell:v1:empty" }), false);
+  assert.equal(hasGatewayShellStatePayload(null), false);
+  assert.equal(hasGatewayShellStatePayload([]), false);
 });
 
 test("normalizeShellStateForState merges conversation contract over legacy rooms", () => {

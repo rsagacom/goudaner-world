@@ -266,6 +266,14 @@
 - **防回归**：Web **1413/1413**；完整 `scripts/smoke-release-gate.sh` 通过，含 Gateway **323**、真实双浏览器、HTTP 双端和 provider federation smoke。
 - **部署边界**：仅本地代码、测试和文档已验证，未 SSH、未部署生产。
 
+### H5 合法空 Gateway 投影保持在线（2026-08-13）
+
+- **根因**：Gateway `ShellState` 对新居民或被可见性过滤的居民可以合法返回空 `rooms` / `conversation_shell.conversations`；H5 之前把“非空会话”误当成 Gateway 可用条件，导致合法空状态被显示为 offline。
+- **实现**：新增 Gateway 专用完整投影校验，要求 `state_version` 和至少一个正式数组字段；合法空数组通过并进入空会话态，不触发 sample/cache 回退；不完整、非对象和无版本投影继续清空并 fail-closed。
+- **夹具与回归**：fake Gateway 夹具补齐真实 `state_version`；新增 H5 空投影运行时测试、标准化和不完整载荷单测；消息编辑/撤回 SSE 夹具补齐版本游标。
+- **防回归**：Web **1416/1416**；完整 `scripts/smoke-release-gate.sh` 通过，含 Gateway **323**、TUI/CLI、双 HTTP、真实双浏览器和 provider federation smoke。
+- **部署边界**：仅本地代码、测试和文档已验证，未 SSH、未部署生产。
+
 ### P5 mirror source URL 安全合同（2026-08-13）
 
 - **根因**：enabled world mirror 会被 federation read 主动抓取，但原先只做字符串归一化，可能把任意 HTTP 源写入活动配置。
@@ -303,7 +311,7 @@
 | P0 单城 IM 闭环 | 100% | 私宅确权、好友流、认证、消息与双浏览器 smoke 已验证；生产主机/域名/邮件链路 2026-08-01 全部复验通过（真实 OTP 双邮箱投递、双居民私聊 8/8） |
 | P1 空间交互 | 98% | 16:9 坐标画布 + 场景编辑器 UX/移动端触控/空态卡片/cqh 基准和个人房间场景房主权限已收口；剩余仅 empty-note 视觉统一（低价值，已降级） |
 | P2 后台运维 | 100% | admin-ds 写操作护栏和注册账号审计投影完成；LOBSTER_SUPER_ADMINS 补齐后 ban/unban 恢复演练与审计留痕 2026-08-01 生产实操通过；备份/恢复演练通过；备份 2026-08-02 起脚本化+每日 timer |
-| P3 技术债 | ~95% | app.js 当前 7524 行；admin-ds 热点编辑器 2026-08-02 去重合一；本轮补齐 Gateway shell fail-closed；剩余候选 3/4/5 各 15-28 行且耦合运行时状态，蓝图维持"不做机械搬运"结论 |
+| P3 技术债 | ~95% | app.js 当前 7524 行；admin-ds 热点编辑器 2026-08-02 去重合一；本轮补齐 Gateway shell fail-closed 与合法空投影语义；剩余候选 3/4/5 各 15-28 行且耦合运行时状态，蓝图维持"不做机械搬运"结论 |
 | P4 TUI/CLI parity | 100% | CLI/TUI、居民主链、terminal 与 provider federation 已纳入完整 release gate；2026-08-02 完整门禁复验通过 |
 | P5 跨城/加密 | 15% | 后置（PRODUCT_CHARTER 延后） |
 

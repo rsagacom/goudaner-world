@@ -52,6 +52,29 @@ test("hub shell fails closed instead of showing generated rooms when Gateway she
   }
 });
 
+test("hub shell stays online when Gateway returns a valid empty projection", async () => {
+  const app = await loadHubShellApp({
+    useGeneratedFixtures: true,
+    locationSearch: "?gateway=http://127.0.0.1:50651",
+    gatewayBaseUrl: "http://127.0.0.1:50651",
+    gatewayShellStateFixture: {
+      state_version: "shell:v1:empty",
+      rooms: [],
+      conversation_shell: { conversations: [] },
+      scene_render: { scenes: [] },
+    },
+  });
+
+  try {
+    const { document } = app;
+    assert.equal(document.querySelectorAll(".room-button").length, 0);
+    assert.equal(document.querySelectorAll(".message-row").length, 0);
+    assert.equal(document.body.dataset.gatewayConnection, "online");
+  } finally {
+    app.cleanup();
+  }
+});
+
 test("hub shell scopes gateway state by current identity for viewer projection", serial, async () => {
   const app = await loadHubShellApp({
     useGeneratedFixtures: true,
