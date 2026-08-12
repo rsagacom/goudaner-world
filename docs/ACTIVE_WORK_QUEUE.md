@@ -11,7 +11,7 @@ Last updated: 2026-08-13
 | 覆盖缺口 | 已确认 | 之前 admin-ds 401/403 只有静态/单元回归，完整双浏览器 smoke 只覆盖 index/creative，未验证 classic `admin-ds.js` 与 deferred standalone auth 的真实加载顺序。 |
 | 浏览器回归 | 已实现 | 双浏览器 smoke 增加独立 browser context 的 admin-ds 页面：注入脱敏 fixture session，延迟 `/v1/admin/summary` 的 401，验证 token/身份清理、登录 HUD 恢复和登录 overlay 可重新打开。 |
 | 隔离纪律 | 已实现 | admin-ds 使用独立 origin storage context，避免过期会话 fixture 污染两个用户页的双端 IM 验收。 |
-| 防回归 | 已通过 | `node scripts/smoke-web-dual-browser.mjs` 通过；原有双居民发送、编辑、撤回、失败重试继续通过；完整 release gate 待本轮复验。 |
+| 防回归 | 已通过 | `node scripts/smoke-web-dual-browser.mjs` 通过；原有双居民发送、编辑、撤回、失败重试继续通过；完整 release gate 退出码 0，含 Gateway 323、TUI/CLI、双 HTTP、真实双浏览器（含 admin-ds 401）和 provider federation smoke。 |
 | 生产状态 | 未变更 | 仅本地 smoke、代码和文档验证，未 SSH、未部署生产。 |
 
 ## 2026-08-13 admin-ds Gateway 会话失效闭环
