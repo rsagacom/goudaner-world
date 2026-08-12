@@ -259,6 +259,30 @@ async function expectRecalledMessage(page, { previousText, side }) {
   );
 }
 
+async function expectAdminSessionExpiry(page, forcedFailures) {
+  await page.waitForFunction(() => {
+    const toggle = document.querySelector("#hud-login-toggle");
+    const status = document.querySelector("#auth-status")?.textContent || "";
+    return (
+      localStorage.getItem("lobster-session-token") === "" &&
+      localStorage.getItem("lobster-identity") === "访客" &&
+      status.includes("登录已失效，请重新登录") &&
+      toggle?.textContent === "登录" &&
+      toggle?.getAttribute("aria-label") === "打开登录窗口" &&
+      !toggle?.classList.contains("shell-hidden")
+    );
+  }, null, { timeout: 10000 });
+  if (forcedFailures.count !== 1) {
+    throw new Error(`admin-ds auth failure route count=${forcedFailures.count}, expected 1`);
+  }
+  await page.locator("#hud-login-toggle").click();
+  await page.waitForFunction(() => {
+    const overlay = document.querySelector("#resident-login-overlay");
+    return overlay?.getAttribute("aria-hidden") === "false" &&
+      !overlay?.classList.contains("shell-hidden");
+  }, null, { timeout: 5000 });
+}
+
 async function main() {
   if (!SKIP_BUILD) {
     await run("cargo", ["build", "--manifest-path", path.join(ROOT_DIR, "Cargo.toml"), "-p", "lobster-waku-gateway"]);
@@ -275,6 +299,7 @@ async function main() {
   let gateway = null;
   let web = null;
   let browser = null;
+  let adminContext = null;
 
   try {
     gateway = spawnChecked(GATEWAY_BIN, [
@@ -302,11 +327,41 @@ async function main() {
     const context = await browser.newContext();
     const indexPage = await context.newPage();
     const creativePage = await context.newPage();
+    // admin-ds deliberately starts with an expired local session. Keep it in
+    // a separate origin context so its auth reset cannot mutate the user-page
+    // localStorage used by the dual-user IM assertions.
+    adminContext = await browser.newContext();
+    const adminPage = await adminContext.newPage();
+    const adminAuthFailure = { count: 0 };
+    await adminPage.addInitScript(() => {
+      localStorage.setItem("lobster-session-token", "expired-session-fixture");
+      localStorage.setItem("lobster-identity", "admin-browser");
+    });
+    await adminPage.route("**/v1/admin/summary", async (route, request) => {
+      if (request.method() === "GET" && adminAuthFailure.count === 0) {
+        adminAuthFailure.count += 1;
+        // Keep the response pending long enough for admin-ds.js to finish as
+        // a classic script before the deferred standalone auth module wires
+        // the shared 401/403 bridge.
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await route.fulfill({
+          status: 401,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "invalid or expired session" }),
+        });
+        return;
+      }
+      await route.fallback();
+    });
     const browserDiagnostics = [];
     let expectedBrowser503s = 0;
-    for (const [label, page] of [["index", indexPage], ["creative", creativePage]]) {
+    for (const [label, page] of [["index", indexPage], ["creative", creativePage], ["admin-ds", adminPage]]) {
       page.on("console", (message) => {
         if (message.type() === "error" || message.type() === "warning") {
+          if (label === "admin-ds" && message.type() === "error" && message.text().includes("401")) {
+            console.error(`[${label} expected auth error] ${message.text()}`);
+            return;
+          }
           if (message.type() === "error" && message.text().includes("503") && expectedBrowser503s > 0) {
             expectedBrowser503s -= 1;
             console.error(`[${label} expected error] ${message.text()}`);
@@ -339,8 +394,10 @@ async function main() {
 
     await indexPage.goto(`${webUrl}/index.html?gateway=${encodeURIComponent(gatewayUrl)}&identity=qa-a&qa=browser`);
     await creativePage.goto(`${webUrl}/creative.html?gateway=${encodeURIComponent(gatewayUrl)}&identity=qa-b&qa=browser`);
+    await adminPage.goto(`${webUrl}/admin-ds.html?gateway=${encodeURIComponent(gatewayUrl)}`);
     await selectPublicRoom(indexPage);
     await selectPublicRoom(creativePage);
+    await expectAdminSessionExpiry(adminPage, adminAuthFailure);
 
     await submitComposer(indexPage, textA);
     await expectMessageSide(indexPage, textA, "self");
@@ -372,8 +429,10 @@ async function main() {
     console.log("== web dual browser smoke passed ==");
     console.log(`gateway: ${gatewayUrl}`);
     console.log(`web: ${webUrl}`);
+    console.log("admin-ds auth expiry: 401 -> visitor/login HUD -> overlay");
     console.log(`messages: ${textA}, ${editedTextA}, ${textB}, ${retryText}`);
   } finally {
+    await adminContext?.close().catch(() => {});
     await browser?.close().catch(() => {});
     await terminate(web);
     await terminate(gateway);

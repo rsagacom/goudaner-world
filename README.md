@@ -129,7 +129,7 @@ BASE_URL=https://<node>.<tailnet>.ts.net ./scripts/smoke-public-ingress.sh
 | **总计** | **~2,063** | **零警告** | 全模块通过；完整 release gate 已包含 provider federation |
 
 最近更新（8-13）：
-- 🛡️ admin-ds Gateway 会话失效闭环：后台 GET/POST 收到 401/403 统一清除过期 Bearer、降为访客并恢复登录 HUD；Web 1419、layout、realness 与完整 release gate 全绿
+- 🛡️ admin-ds Gateway 会话失效闭环：后台 GET/POST 收到 401/403 统一清除过期 Bearer、降为访客并恢复登录 HUD；真实双浏览器已覆盖 401→重新登录入口，Web 1419、layout、realness 与完整 release gate 全绿
 - 🔑 H5 Gateway 会话失效闭环：shell state 401/403 清除过期 Bearer、保留重新登录提示并阻断 stale-session 轮询/SSE；Web 1418、layout、realness 全绿
 - 🟢 H5 合法空 Gateway 投影保持在线：新居民/无可见会话时显示真实空态但不误报 offline；不完整载荷继续 fail-closed；Web 1416、Gateway 323、完整 release gate 全绿
 - 🛡️ H5 Gateway shell state fail-closed：Gateway 失败不再展示 sample/cache，provider 可达不再掩盖 IM shell offline；Web 1413、Gateway 323、完整 release gate 全绿

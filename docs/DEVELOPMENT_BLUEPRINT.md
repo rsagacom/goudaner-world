@@ -281,6 +281,13 @@
 - **防回归**：定向 auth/admin-ds/H5 回归 130/130；Web **1419/1419**、layout、realness 已通过；完整 release gate 退出码 0，含 Gateway 323、TUI/CLI、双 HTTP、真实双浏览器和 provider federation smoke。
 - **部署边界**：仅本地代码、测试和文档已验证，未 SSH、未部署生产。
 
+### admin-ds 会话失效真实浏览器回归（2026-08-13）
+
+- **覆盖缺口**：此前 admin-ds 401/403 只由静态/单元测试覆盖，完整双浏览器 smoke 只打开 index/creative，没有证明 classic `admin-ds.js` 与 deferred standalone auth 在真实页面加载顺序下能闭环。
+- **实现**：双浏览器 smoke 新增独立 browser context 的 admin-ds 页面；通过页面初始化脚本写入脱敏 fixture session，并延迟 `/v1/admin/summary` 的 401，让 classic script 先记录 pending failure，再由 deferred auth module 消费。
+- **验收断言**：真实浏览器确认 `lobster-session-token` 清空、`lobster-identity` 变为“访客”、状态保留“登录已失效，请重新登录”、HUD 回到“登录”，点击后登录 overlay 正常打开；index/creative 双端消息发送、编辑、撤回和失败重试不受污染。
+- **部署边界**：仅本地浏览器 smoke、代码和文档已验证，未 SSH、未部署生产。
+
 ### H5 合法空 Gateway 投影保持在线（2026-08-13）
 
 - **根因**：Gateway `ShellState` 对新居民或被可见性过滤的居民可以合法返回空 `rooms` / `conversation_shell.conversations`；H5 之前把“非空会话”误当成 Gateway 可用条件，导致合法空状态被显示为 offline。
