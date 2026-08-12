@@ -4,6 +4,15 @@ Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-13 公网生产状态只读复核
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 入口可达性 | 已确认 | `https://chat.ajw.cn/health` 返回 HTTP 200；`/v1/provider` 返回 `reachable=true`，当前模式为 `local-memory` / `Disconnected`。 |
+| 鉴权边界 | 已确认 | 未带会话访问 `/v1/shell/state` 与 `/v1/admin/summary` 均返回 HTTP 401，公网接口仍保持 fail-closed。 |
+| 部署版本 | 存在漂移 | 公网 `/v1/version` 返回 404；`/release-manifest.json` 虽为 200 但 `Content-Type` 为 `text/html`，属于 SPA fallback，不是真实 manifest；`creative.html` / `admin-ds.html` 静态资源最后修改时间仍为 2026-08-02。 |
+| 结论 | 已登记 | 当前本地/ GitHub 主线的 H5 与 admin-ds 会话失效修复尚未由公网页面证明已部署；本次只读核验未 SSH、未重启、未改生产。 |
+
 ## 2026-08-13 H5 会话失效真实浏览器回归
 
 | 项目 | 状态 | 说明 |
