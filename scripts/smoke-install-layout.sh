@@ -42,6 +42,8 @@ SERVICE_NAME="lobster-waku-gateway-smoke"
 HOST_TARGET="$(rustc -vV | awk '/host:/ { print $2 }')"
 GATEWAY_ARTIFACT="$ARTIFACT_ROOT/lobster-waku-gateway-${HOST_TARGET}.tar.gz"
 WEB_ARTIFACT="$ARTIFACT_ROOT/lobster-web-shell.tar.gz"
+RELEASE_MANIFEST="$ARTIFACT_ROOT/release-manifest.json"
+SMOKE_GIT_SHA="1111111111111111111111111111111111111111"
 SYSTEMD_UNIT="$ETC_ROOT/systemd/${SERVICE_NAME}.service"
 NGINX_SITE_DEBIAN="$ETC_ROOT/nginx/sites-available/lobster-chat"
 NGINX_LINK_DEBIAN="$ETC_ROOT/nginx/sites-enabled/lobster-chat"
@@ -92,8 +94,14 @@ case "$url" in
   */health)
     printf '{"ok":true,"status":"live"}'
     ;;
+  */v1/version)
+    printf '{"schema_version":1,"package_version":"smoke","git_sha":"%s"}' "$SMOKE_GIT_SHA"
+    ;;
   */v1/provider)
     printf '{"provider":"mock","reachable":true}'
+    ;;
+  */release-manifest.json)
+    cat "$RELEASE_MANIFEST"
     ;;
   *)
     echo "unexpected curl url: $url" >&2
@@ -119,6 +127,18 @@ cat >"$STATE_ROOT/fake-web/index.html" <<'EOF'
 EOF
 tar -czf "$WEB_ARTIFACT" -C "$STATE_ROOT/fake-web" .
 
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{ print $1 }'
+  else
+    shasum -a 256 "$1" | awk '{ print $1 }'
+  fi
+}
+
+printf '%s\n' \
+  "{\"schema_version\":1,\"git_sha\":\"$SMOKE_GIT_SHA\",\"built_at\":\"2026-08-12T00:00:00Z\",\"target\":\"$HOST_TARGET\",\"artifacts\":{\"source\":null,\"web\":{\"file\":\"$(basename "$WEB_ARTIFACT")\",\"sha256\":\"$(sha256_file "$WEB_ARTIFACT")\"},\"gateway\":{\"file\":\"$(basename "$GATEWAY_ARTIFACT")\",\"sha256\":\"$(sha256_file "$GATEWAY_ARTIFACT")\"}}}" \
+  >"$RELEASE_MANIFEST"
+
 echo "== install layout smoke =="
 PATH="$FAKE_BIN:$PATH" \
 SMOKE_LOG="$LOG_FILE" \
@@ -127,6 +147,8 @@ STATE_DIR="$STATE_DIR" \
 SERVICE_NAME="$SERVICE_NAME" \
 GATEWAY_ARTIFACT="$GATEWAY_ARTIFACT" \
 WEB_ARTIFACT="$WEB_ARTIFACT" \
+RELEASE_MANIFEST="$RELEASE_MANIFEST" \
+SMOKE_GIT_SHA="$SMOKE_GIT_SHA" \
 SYSTEMD_UNIT="$SYSTEMD_UNIT" \
 NGINX_SITE_DEBIAN="$NGINX_SITE_DEBIAN" \
 NGINX_LINK_DEBIAN="$NGINX_LINK_DEBIAN" \
@@ -141,6 +163,10 @@ bash "$ROOT_DIR/scripts/install-server.sh"
 }
 [[ -f "$INSTALL_ROOT/web/index.html" ]] || {
   echo "missing installed web shell" >&2
+  exit 1
+}
+[[ -f "$INSTALL_ROOT/release-manifest.json" && -f "$INSTALL_ROOT/web/release-manifest.json" ]] || {
+  echo "missing installed release manifest" >&2
   exit 1
 }
 [[ -f "$SYSTEMD_UNIT" ]] || {
@@ -166,7 +192,9 @@ assert_contains "$LOG_FILE" "systemctl enable --now $SERVICE_NAME"
 assert_contains "$LOG_FILE" "nginx -t"
 assert_contains "$LOG_FILE" "systemctl enable --now nginx"
 assert_contains "$LOG_FILE" "curl http://127.0.0.1:8787/health"
+assert_contains "$LOG_FILE" "curl http://127.0.0.1:8787/v1/version"
 assert_contains "$LOG_FILE" "curl http://127.0.0.1:8787/v1/provider"
+assert_contains "$LOG_FILE" "curl http://127.0.0.1:8080/release-manifest.json"
 
 echo "install layout smoke passed"
 echo "state root: $STATE_ROOT"
