@@ -50,6 +50,8 @@ def main() -> int:
     assert 'fetch_status()' in text
     assert 'assert_status "401" "GET" "$BASE_URL/v1/admin/summary"' in text
     assert 'assert_status "401" "POST" "$BASE_URL/v1/auth/logout"' in text
+    assert 'anonymous shell state exposed a direct conversation' in text
+    assert '"id"[[:space:]]*:[[:space:]]*"dm:' in text
     assert 'Origin: ${EXPECT_CORS_ORIGIN}' in text
     assert 'public ingress smoke passed' in text
     return 0

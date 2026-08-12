@@ -504,6 +504,14 @@ fn resident_scoped_shell_state_requires_matching_bearer_session() {
     runtime.set_dev_auth_bypass_for_tests(false);
     register_resident(&mut runtime, "alice");
     register_resident(&mut runtime, "bob");
+    runtime
+        .open_direct_session(OpenDirectSessionRequest {
+            requester_id: "alice".into(),
+            requester_device_id: Some("browser".into()),
+            peer_id: "bob".into(),
+            peer_device_id: Some("desktop".into()),
+        })
+        .expect("open direct session");
     let alice = IdentityId("alice".into());
     let (alice_token, _) = runtime.issue_auth_session(
         &alice,
@@ -529,6 +537,17 @@ fn resident_scoped_shell_state_requires_matching_bearer_session() {
         None,
     );
     assert_eq!(matching_status, 200);
+
+    let (anonymous_status, anonymous_payload) =
+        http_json("GET", &server.base_url, "/v1/shell/state", None);
+    assert_eq!(anonymous_status, 200);
+    assert!(
+        anonymous_payload["rooms"]
+            .as_array()
+            .expect("anonymous shell rooms")
+            .iter()
+            .all(|room| !room["id"].as_str().unwrap_or_default().starts_with("dm:"))
+    );
 
     let (mismatched_status, _) = http_json_with_headers(
         "GET",

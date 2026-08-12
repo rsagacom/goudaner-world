@@ -177,6 +177,13 @@ echo "== protected route without bearer =="
 assert_status "401" "GET" "$BASE_URL/v1/admin/summary"
 assert_status "401" "POST" "$BASE_URL/v1/auth/logout"
 
+echo "== anonymous shell state privacy =="
+fetch_body "$BASE_URL/v1/shell/state" "$BODY_FILE"
+if grep -Eq '"id"[[:space:]]*:[[:space:]]*"dm:' "$BODY_FILE"; then
+  echo "anonymous shell state exposed a direct conversation" >&2
+  exit 1
+fi
+
 if [[ -n "$EXPECT_CORS_ORIGIN" ]]; then
   echo "== CORS origin =="
   headers="$($CURL_BIN -fsS -D - -o /dev/null -H "Origin: ${EXPECT_CORS_ORIGIN}" "$BASE_URL/health")"
