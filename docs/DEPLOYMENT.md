@@ -61,7 +61,7 @@ dist/release-manifest.json
 ```
 
 在 macOS 开发机无法直接生成 Linux Gateway 时，可手动触发 GitHub Actions 的
-`lobster-chat-release` 工作流。工作流先运行 Rust workspace 与 Web 全量测试，再由 x86_64 与 ARM64 Linux runner 按各自 target triple 显式编译并校验 runner 架构，分别上传源码、H5、目标架构 Gateway 和 `SHA256SUMS`。
+`lobster-chat-release` 工作流。工作流先运行 Rust workspace 与 Web 全量测试，再由 x86_64 与 ARM64 Linux runner 按各自 target triple 显式编译并校验 runner 架构，分别上传源码、H5、目标架构 Gateway 和可在任意下载目录直接执行 `sha256sum -c SHA256SUMS` 的相对路径 `SHA256SUMS`。
 
 当前 Linux artifact 目标为：
 

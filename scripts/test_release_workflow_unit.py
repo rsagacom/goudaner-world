@@ -33,7 +33,7 @@ def main() -> int:
     assert "lobster-chat-source.tar.gz" in text
     assert "release-manifest.json" in text
     assert "jq -r .git_sha" in text
-    assert "sha256sum" in text
+    assert '(cd "$RUNNER_TEMP/lobster-dist" && sha256sum *.tar.gz) | tee "$RUNNER_TEMP/lobster-dist/SHA256SUMS"' in text
     assert "LOBSTER_DEV_EMAIL_OTP_INLINE" not in text
     assert "LOBSTER_EMAIL_OTP_MAILER_BEARER_TOKEN" not in text
     return 0
