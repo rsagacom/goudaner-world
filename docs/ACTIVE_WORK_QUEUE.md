@@ -32,6 +32,15 @@ Last updated: 2026-08-13
 | 架构与脱敏 | 已通过 | `file` 确认 Gateway 分别为 x86-64 与 ARM aarch64 ELF；source/web archive 未发现 `.env`、私钥/密钥文件、开发临时目录或高置信度 secret literal。 |
 | 生产边界 | 未变更 | 本轮只生成、下载和验收 release artifact，未 SSH、未重启、未切换公网服务；公网旧部署仍会在 `/v1/version` 追溯检查处失败。 |
 
+## 2026-08-13 生产切换前最后一公里复核
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 当前公网 | 仍有漂移 | 本次只读复核仍得到 `/health` 200、`/v1/provider` 为 `local-memory`/`Disconnected`、`/v1/version` 404、`/release-manifest.json` 返回 `text/html` SPA fallback；`creative.html` 与 `admin-ds.html` 仍可达。 |
+| 本地安装演练 | 已通过 | `scripts/smoke-install-layout.sh` 在隔离临时目录中用 fake systemd/Nginx/curl 完成 Gateway、Web、双份 manifest、systemd unit、Nginx site 和 health/version/provider/manifest 探针；未触碰系统路径。 |
+| 定向门禁 | 已通过 | `test_install_server_unit.py`、`test_smoke_install_layout_unit.py`、`test_production_readiness_unit.py` 和相关脚本 `bash -n` 全部通过。 |
+| 下一步 | 待授权 | 代码、制品、安装演练和回滚/验收文档已具备；真正生产备份、安装、重启、域名版本追溯和双居民验收仍须用户明确授权并在目标主机执行。 |
+
 ## 2026-08-13 H5 会话失效真实浏览器回归
 
 | 项目 | 状态 | 说明 |

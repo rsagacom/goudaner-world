@@ -302,6 +302,13 @@
 - **内容边界**：`file` 已确认 Gateway ELF 架构正确；source/web archive 已扫描 `.env`、私钥/密钥文件、开发临时目录和高置信度 secret literal，未发现脱敏边界违规。
 - **后续边界**：公网版本追溯仍需目标主机部署后再验收；生产 SSH、重启、切换和 DNS/TLS 均未执行。P5 native Waku/标准 MLS 仍需用户单独批准方案调研后再进入选型。
 
+### 生产切换前最后一公里复核（2026-08-13）
+
+- **公网现状复核**：只读请求再次确认 health 200，但 `/v1/version` 仍为 404，`/release-manifest.json` 仍被 SPA fallback 以 `text/html` 返回，当前线上没有新版本追溯证据。
+- **安装演练**：`scripts/smoke-install-layout.sh` 已在隔离临时目录中完成预构建 Gateway/Web artifact 安装流程，生成并检查双份 release manifest、systemd unit、Nginx site，以及 health/version/provider/manifest 探针；没有写入 `/opt`、`/var/lib`、`/etc` 或真实服务。
+- **门禁结果**：install-server、install-layout、production-readiness 定向单测与脚本语法检查通过；GitHub 主线 CI 和 Linux release CI 仍保持全绿。
+- **执行边界**：下一阶段只剩目标 Linux 主机的备份→安装→服务/公网追溯→真实邮箱 OTP→双居民 IM→回滚演练，必须在用户明确授权后执行；P5 native Waku/标准 MLS 仍是独立授权事项。
+
 ### admin-ds Gateway 会话失效闭环（2026-08-13）
 
 - **根因**：`admin-ds.js` 的 Gateway GET/POST helper 原先只返回 HTTP 失败，没有通知共享认证控制器；过期 Bearer 会让后台继续保留旧身份和登录 HUD。
