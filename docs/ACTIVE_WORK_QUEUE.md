@@ -29,6 +29,17 @@ Last updated: 2026-08-13
 | About/Description | 已更新 | GitHub 仓库描述已改为：`我和狗蛋儿的家（Goudaner World）｜以 Rust Gateway 为真源、H5 为主入口的单城即时通信与共建空间；配套 TUI/CLI、居民认证、私聊/群聊、治理后台与可追溯 Linux 发布链。` |
 | Homepage | 保持 | 仓库主页继续指向 `https://chat.ajw.cn`；描述不宣称跨城 Waku/标准 MLS 已完成，也不暴露内部主机、账号或凭据。 |
 
+## 2026-08-13 当前验证基线刷新
+
+| 模块 | 当前计数 | 结果 |
+| --- | ---: | --- |
+| Gateway | 323 | `cargo test -p lobster-waku-gateway --quiet`：323 passed |
+| H5 Web Shell | 1419 | `npm test`：unit 1419 passed；layout 与 frontend realness 通过 |
+| TUI | 235 | `cargo test -p lobster-tui --quiet`：235 passed |
+| CLI | 148 | `cargo test -p lobster-cli --quiet`：119 unit + 24 integration + 5 额外测试，全部通过 |
+| 支撑 crates | 69 | `crypto-mls` 24、`ai-sidecar` 7、`chat-core` 20、`chat-storage` 18，全部通过 |
+| 生产边界 | 未变更 | 以上均为本地验证；未 SSH、未重启、未部署生产。 |
+
 ## 2026-08-13 Linux 发布制品可审计收口
 
 | 项目 | 状态 | 说明 |
