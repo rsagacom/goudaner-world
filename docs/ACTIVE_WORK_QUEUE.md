@@ -1,8 +1,126 @@
 # lobster-chat Active Work Queue
 
-Last updated: 2026-07-31
+Last updated: 2026-08-12
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
+
+## 2026-08-12 S0 源控救援
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 8 月 2 日 WIP | 已提交 | 场景交互/私宅空态、admin-ds 热点去重、备份自动化已按功能拆分提交 |
+| 生成态污染 | 已修复 | TUI smoke 通过 `LOBSTER_WEB_GENERATED_DIR` 写临时目录；完整门禁后 tracked generated fixtures 不再变化 |
+| federation 门禁 | 已去抖 | 先等待上游 health 再启动下游；单项连续 5/5、完整 release gate 通过 |
+| 脱敏 | 已检查 | 新增生产记录中的真实测试邮箱和居民标识已移除；未发现 Token、验证码、API key 或私钥值 |
+| 生产状态 | 未变更 | 本阶段只做本地源控收口与验证，没有重新部署；线上仍需在 S1 通过 commit/artifact manifest 建立精确追溯 |
+
+## 2026-08-02 完整 release gate 复验（累计改动整体收口）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 完整门禁 | 通过 | `RUN_PREFLIGHT=0 INCLUDE_PROVIDER_FEDERATION=1 scripts/smoke-release-gate.sh` 退出码 0：Rust Gateway、TUI、CLI、Web 1412、双浏览器 smoke、provider federation、install/layout/public-ingress/package/release-workflow/production-readiness 各 unit、Rust production panic/unwrap scan 全过——今日五批改动（编辑器 UX/触控/私宅空态/cqh/去重）+ 备份脚本在完整门禁下整体可信 |
+| 生产状态 | 稳定 | 部署后公网四页（index/creative/scene-editor/admin-ds）200、health 200；备份 timer 已启用待次日 03:40 首次触发 |
+| 待用户动作 | 汇总 | 1) git commit（20+ 文件含已上线代码与文档）；2) DMARC TXT（可选加固）；3) admin-ds 去重版随下次部署上线 |
+
+## 2026-08-02 备份脚本化与定期化（systemd timer 每日 03:30）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 备份脚本 | 已上线 | `scripts/backup-state.sh`（装到 `/opt/lobster-chat/scripts/`）固化 DEPLOYMENT §8：stop-tar-start + tarball 非空/含 timelines/可解压三重校验 + 磁盘水位检查 + trap 保证任何失败都拉起 Gateway + KEEP=14 轮转 |
+| 定期化 | 已启用 | `scripts/systemd/lobster-chat-backup.{service,timer}` 装到 /etc/systemd/system 并 enable；每日 03:30 UTC ±15min（`Persistent=true` 补跑漏触发）；`systemctl list-timers` 确认下次 2026-08-03 03:40 |
+| 手动验证 | 通过 | `systemctl start lobster-chat-backup.service` 全程 <1s：停机→归档→拉起→校验通过（archive 8.0K）；gateway active、health 200；DEPLOYMENT.md §8 已同步脚本/timer 用法，手动命令降级为兜底 |
+| 范围说明 | 明确 | 仅状态目录 `/var/lib/lobster-chat`；`/etc/lobster-chat/*.env` 含密钥不纳入常规备份（重建走 install-server.sh + 密钥保管流程）；web 目录回滚锚点由部署时 web-backup-* 承担 |
+
+## 2026-08-02 admin-ds 热点编辑器去重（两套表单合一）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 去重 | 已完成 | 房间详情内联版与场景模块页的热点表单合并为共享助手 `createHotspotListEditor(existingHotspots, {layout:'blocks'\|'flex', onRowsRendered})`（行渲染/删除/添加/收集），外加 `newHotspotDefaults` / `buildHotspotLayerPayload` / `buildImageLayerPayload`；两调用点只保留各自容器结构、layer_id 前缀（admin-custom-/admin-scene-）和保存后动作；admin-ds.js 净减约 60 行 |
+| 顺手清除 | 已完成 | 场景模块页保存逻辑里的死代码 `querySelectorAll('[data-no-clear]')` 无用变量；两版重复的坐标字段表合一为 `HOTSPOT_COORD_FIELDS` |
+| 行为保持 | 已核对 | 三态清除语义（空热点/空图像层显式 null）、标题计数同步、保存后各自刷新路径不变；两条静态断言按新结构重写但保护意图不变（成对昼夜、null 清除、计数回调） |
+| 防回归 | 全绿 | unit 1412/1412、layout、realness 通过；`admin-ds.js` 升版 `?v=20260802-hotspot-dedup` |
+| 部署状态 | 未部署 | 纯重构无视觉变化，admin-ds 为后台页，随下一功能批次一起上生产即可 |
+| 后续候选 | 待做 | empty-note 视觉统一（低价值，可降级）；P3 app.js 剩余候选 3/4/5（蓝图标注边际递减，不建议做） |
+
+## 2026-08-02 P1 polish 四批次生产部署（web 静态）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 部署内容 | 已上线 | 场景编辑器入口+触控/键盘、移动端触控目标、私宅空态卡片、cqh 高度基准四批次；版本号 `20260802-scene-canvas-cqh` / `20260802-touch-targets` / `20260802-locked-card` / `20260802-scene-editor-entry` |
+| 打包 | 已校验 | 复刻 `package-release.sh` 排除规则本地打包（56M），`COPYFILE_DISABLE=1`；sha256 双端一致；上传前本地解包逐文件 size 比对（外盘曾瞬读 0 字节虚警，实为挂载抖动，文件本身完好） |
+| 安装 | 原子交换 | 先 `/srv/backups/web-backup-20260802-082217.tar.gz` 全量备份（56M，回滚锚点）；新包解到临时目录 → 零字节/关键文件检查 → `web-new` → `mv` 原子交换（摒弃 rm -rf 先行）；期间 SSH 多次瞬断，改 nohup  detached 执行 + 日志文件，防断线半途 |
+| 公网验证 | 通过 | `index.html` 公网已带新版本号；新 pixel-map.css 200（CF MISS 新 URL 自然失效旧缓存，无需 Purge）；`shell-private-room-locked-card.js` 200；assets 0 字节 PNG=0；health 200 |
+| 教训 | 已记录 | macOS 本地打包：`COPYFILE_DISABLE=1` 只挡 `._*` AppleDouble，pax xattr 关键字仍会写入但 GNU tar 只警告不影响内容；AWS 北京 SSH 在大传输后易瞬断，长操作一律 nohup + 日志；部署前零字节检查需排除已知残留 `styles.world-square.css.tmp`（0 字节，CI 打包同样会带上，无害） |
+
+## 2026-08-02 scene-canvas 高度基准修复（100vh → 容器查询 cqh）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 根因 | 已确认 | 运行时热点层宽度按 `100vh × 16/9` 推算（2026-05-18 layout hardening 遗留），stage 实际高度被顶栏/移动端 Tab Bar/safe-area 占去后，热点坐标盒与 `contain` 背景渲染盒错位；基准规则 `aspect-ratio + max-height` 冲突时比例失效同样致错位 |
+| 修复 | 已完成 | `.creative-stage` 加 `container-type: size`，热点层改 `width: min(100%, calc(100cqh × var(--creative-scene-aspect)))` + `margin: auto`：画布恒等于 min(stage内容宽, stage内容高×16/9) 且自保持 16:9，与背景 contain 盒严格对齐；桌面视觉不变 |
+| 验收 | 全绿 | `verify-scene-layout.mjs` 新增 2 个 case（390×844 移动竖屏、1560×873 桌面）断言热点画布宽与 16:9 比例；断言用 clientWidth/clientHeight（cq 单位相对 content-box，比 getBoundingClientRect 少 2px 边框）；unit 1412/1412、realness 通过 |
+| 缓存纪律 | 已执行 | pixel-map.css 引用再升版 `?v=20260802-scene-canvas-cqh`（3 页 + 3 处测试断言同步） |
+| 后续候选 | 待做 | admin-ds 两套热点表单去重（中）；empty-note 视觉统一（中）；public-square stage 如需同款 cqh 对齐可复用本模式 |
+
+## 2026-08-02 未授权私宅 stage 空态卡片
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 缺口 | 已确认 | 点击未授权私宅此前只有 governance 状态条一行字，stage/timeline 区域无任何视觉反馈 |
+| 空态卡片 | 已完成 | 新模块 `shell-private-room-locked-card.js` 纯模型：把 `residentPrivateRoomAccessPromptModel` 五态（未登录/需好友/已申请/待接受/好友待同步）升级为 timeline 区居中卡片，复用 `createTimelineEmptyStateNode` 结构（title/copy/action），copy 一律用 Gateway 投影原文不伪造；app.js `enterResidentRoom` 的 accessPrompt 分支挂载，下一次 focus/refresh 经 `clearChildren(timelineEl)` 自然覆盖 |
+| 卡片样式 | 已完成 | `styles.user-shell.css` 自洽卡片样式（creative 页不加载 styles.chat.css）：dark-on-dark `rgba(22,16,12,.88)` + `#3a2f28`，行动提示按状态分色（actionable 冷青/locked 暖红/pending 金）；引用升版 `?v=20260802-locked-card`（3 页） |
+| 测试基建 | 已补齐 | 新 shell 模块必须登记进 `test/fake-dom.mjs` 模块清单，否则 fake-DOM import rewrite 在临时目录找不到模块、67 个用例级联失败——本次已登记并验证 |
+| 防回归 | 全绿 | 新增 `shell-private-room-locked-card.test.mjs` 5 用例（结构/tone/五态文案/不伪造文案/app.js 接线/CSS 深色断言）；Web 1412/1412、layout、realness 通过 |
+| 后续候选 | 待做 | admin-ds 两套热点表单去重（中）；scene-canvas 高度基准 100vh→容器（中）；empty-note 视觉统一（中） |
+
+## 2026-08-02 移动端触控目标批次（≥34px 约定收口）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 口径确认 | 已对齐 | 项目移动端触控底线是 **≥34px**（verify-frontend-realness 钉住关系按钮 34px），不引入 Apple 44px 新标准；本批只抬基准以下元素，34px 及以上的（composer-symbol-menu 34、hud-login-toggle 34、wechat-rail-toggle 36/40、chat-detail-card-action 38）不动 |
+| pixel-map 3 处 | 已完成 | 文件末尾新增 ≤820px 块：`.message-action` 26→34、`.composer-symbol-tab` 28→34、`.public-square-mention-chip` 30→34（!important 对齐基准规则） |
+| world-square / creative | 已完成 | `.world-square-actions a/.hud-login-toggle/.hud-pill` 28→34（≤820px）；`.resident-login-close` 32→36（≤820px） |
+| 缓存纪律 | 已执行 | 三个改动 CSS 引用统一升版 `?v=20260802-touch-targets`（pixel-map×3 页、world-square×1、creative×5 页）；shell-pages-static 版本断言同步更新（含漏网的 world-square 一条） |
+| 防回归 | 全绿 | 新增 "mobile touch targets meet the 34px floor" 静态断言；Web 1407/1407、layout、realness 通过 |
+| 后续候选 | 待做 | admin-ds 两套热点表单去重（中）；运行时 scene-canvas 高度基准 100vh→容器（中）；未授权私宅 stage 空态卡片（中）；empty-note 视觉统一（中） |
+
+## 2026-08-02 P1 场景编辑器 UX polish 第一批（可视化编辑器入口 + 触控/键盘微调）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| admin-ds 可视化编辑器入口 | 已完成 | `renderSceneEditor` 顶部新增「打开可视化编辑器」入口卡，`admin-ds.js` 拼装 `./scene-editor.html?gateway=&room=&token=&identity=`（URL 合同与 `app.js sceneEditorUrlForCurrentState()` 一致），新标签页 `rel=noopener`；此前 scene-editor.html 在后台无任何入口 |
+| scene-editor 触控热区 | 已完成 | resize 手柄视觉保持 10px，`::before inset:-7px` 把可点区域扩到 24px；删除钮 18px→28px（top 同步 -26→-32） |
+| scene-editor 方向键微调 | 已完成 | 选中热点后方向键 0.5% 步进（50 permyriad，Shift=250 大步），输入框聚焦不拦截；连续按住经 `lastNudgeAt` 600ms 合并只推一次 undo 快照；边界 clamp 复用 drag 语义 |
+| 缓存纪律 | 已执行 | admin-ds.html 的 `admin-ds.js` 引用首次补 `?v=20260802-scene-editor-entry`；`admin-ds-static.test.mjs` 断言同步放宽为允许 `?v=`（此前无版本参数，CF 边缘 max-age=14400 下改动拿不到） |
+| 防回归 | 全绿 | 新增静态断言 2 条（admin-ds 入口 URL 合同、scene-editor 触控/方向键）；Web 1406/1406、layout、realness 通过 |
+| 后续候选 | 待做 | admin-ds 两套热点表单去重（中）；运行时 scene-canvas 高度基准 100vh→容器（中，需先补 verify-scene-layout 移动端 case）；其余移动端触控目标（.message-action 26px 等 9 处）；未授权私宅 stage 空态卡片 |
+
+## 2026-08-01 Resend 域名收口 + 双居民生产验收 + admin 恢复演练（当日上午阻塞项全部解除）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| Resend 域名验证 | 已 Verified | 用户在 Resend dashboard 添加 chat.ajw.cn（Tokyo ap-northeast-1），Auto configure 经 Cloudflare OAuth 自动写入 DNS；DKIM `resend._domainkey.chat`、SPF `send.chat`、MX `send.chat→feedback-smtp.ap-northeast-1.amazonses.com` 三条权威记录当日生效并 Verified；DMARC 可选未配，Enable Receiving 未开（OTP 仅发不收，不需要） |
+| 正式发件人 | 已切换 | `LOBSTER_MAILER_FROM` 改为 `Lobster Chat <no-reply@chat.ajw.cn>` 并重启 mailer；`gateway.env` 的 `LOBSTER_EMAIL_OTP_FROM` 此前已预设该值（07-28 曾因域名未验证 403），域名 Verified 后自然生效；两 env 变更前均留 `.bak-<ts>` 备份 |
+| 投递实测 | 通过 | 真实 OTP 经公网 gateway→mailer→Resend 投递 gmail/qq 两邮箱均成功（mailer 仅记录失败日志，全程零 fail）；challenge 响应无 dev_code、邮箱脱敏正常 |
+| 平台管理员能力 | 已补齐 | 发现 `ban:resident` 等能力由 `LOBSTER_SUPER_ADMINS` 或权限组授予，生产此前未配置致无人可执行管理动作；已在 gateway.env 加 `LOBSTER_SUPER_ADMINS="rsaga"`（与 governance-state `world_stewards=["rsaga"]` 对齐）并重启 gateway，停机秒级 |
+| admin 恢复动作演练 | 通过 | 按 ACCOUNT_APPEAL_RUNBOOK：只读调查（脱敏邮箱/注册态/sanctions）→ ban 测试居民（is_banned=True）→ unban（lifted_count=1，is_banned=False）→ audit-log 留痕 `admin:ban_resident`/`admin:unban_resident`（actor 使用脱敏管理员标识，含 reason 与时间戳） |
+| 第二测试居民 | 已注册 | 第二测试邮箱经真实 OTP 注册，resident_id 使用脱敏测试标识，registration_state=active，shell state 可读（4 个可见房间） |
+| 双居民私聊验收 | 8/8 通过 | 脱敏测试居民 A/B：direct/open、A→B 发送与对端可见、B 回复与对端可见、edit（edited）、recall（recalled）、终态双侧确认；全部走生产 API 无伪造 |
+| 现场清理 | 已完成 | 主机 /tmp 会话 token 文件、验收脚本已删除；env 备份保留在 /etc/lobster-chat/*.bak-* |
+| 待办（不阻塞） | 可选 | 补 DMARC TXT（`_dmarc.chat.ajw.cn`, `v=DMARC1; p=none;` 起步）；admin-ds 浏览器端视觉复核本轮 API 级操作 |
+
+## 2026-08-01 生产运维收口演练（备份/恢复/健康/邮件域名核查）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 生产健康验证 | 通过 | `production-readiness.sh CHECK_PUBLIC=1 BASE_URL=https://chat.ajw.cn` 在生产主机上以 sudo 执行退出码 0（脚本需读 `/etc/lobster-chat/gateway.env`，普通用户不可读）；公网 `/health`、本机 gateway `:8787/health`、mailer `:8791/health` 均 200，两服务 active |
+| 备份演练 | 通过 | 按 DEPLOYMENT §8：stop gateway → `tar -C /var/lib -czf /srv/backups/lobster-chat-state-20260801-053020.tar.gz lobster-chat` → start，停机秒级；重启后 health 200。状态目录现仅 64K（4 条 timeline + 5 个 JSON），生产尚新属正常 |
+| 恢复演练 | 通过 | 备份解至 home 临时目录（避开 tmpfs /tmp），9 个文件逐一 sha256 与现网一致、timeline 计数一致；临时目录已清理，现网状态未触碰 |
+| 回滚锚点 | 在位 | `/opt/lobster-chat/bin/lobster-waku-gateway.bak-7b0218d` 存在；`install-server.sh` 重装旧包路径未实操（无故障无需回滚） |
+| admin-ds 只读面 | 部分通过 | admin-ds.html 公网 200；`/v1/admin/summary`、`/v1/admin/residents` 无 Bearer 均 401；`audit-log.json` 为 NDJSON，auth:login/logout 留痕可追踪；Gateway journal 自 07-28 以来 0 条 bearer/OTP/密码敏感泄露 |
+| admin 恢复动作演练 | 阻塞（待用户配合） | 管理端点鉴权=居民 Bearer session，session 只存 token 哈希无法从状态复原；需管理员重新 OTP 登录（验证码进入已绑定管理员邮箱，地址不写入公开仓库）后才能演练 unban/unsanction 恢复动作 |
+| Resend 域名验证 | 未验证（确认） | mailer 日志实证：07-28 03:10 `403 The chat.ajw.cn domain is not verified`；当前 API key 为 sending-only（`/domains` 返回 restricted_api_key），无法 API 查域名状态。后果：当时仅可向 Resend 账户 owner 邮箱发信（地址不写入公开仓库），发件人维持 `onboarding@resend.dev` |
+| 后续待办 | 待用户外部动作 | 1) 在 Resend dashboard 验证 chat.ajw.cn（DNS SPF/DKIM）；2) 验证后切换 `LOBSTER_MAILER_FROM` 正式发件人；3) 注册第二测试居民补双居民私聊生产验收；4) 配合一次管理员 OTP 登录完成恢复动作演练 |
 
 ## 2026-07-31 三页框架宽度与边框统一
 

@@ -232,15 +232,49 @@
 - Web Shell: **1404 tests / 0 fail**(unit + layout + realness);Gateway 312;完整 release gate 通过
 - 缓存纪律:HTML 引用统一 `?v=20260731-ui-refresh-r4`,改样式必须升版
 
+### 邮件链路收口 + 双居民生产验收(2026-08-01)
+
+- **备份/恢复演练**:按 DEPLOYMENT §8 stop-tar-start(秒级停机),备份落 `/srv/backups/`;临时目录恢复 9 文件 sha256 与现网全一致;回滚锚点 `bak-7b0218d` 在位
+- **Resend 域名 Verified**:chat.ajw.cn(Tokyo ap-northeast-1)经 Cloudflare Auto configure 写入 DKIM/SPF/MX 并 Verified;正式发件人切 `Lobster Chat <no-reply@chat.ajw.cn>`(`LOBSTER_MAILER_FROM` + `LOBSTER_EMAIL_OTP_FROM` 对齐),gmail/qq 真实 OTP 投递均成功;DMARC 可选未配
+- **隐藏缺口修复**:管理能力(ban:resident 等)由 `LOBSTER_SUPER_ADMINS` env 或权限组授予,生产未配置致无人可执行;已加 `LOBSTER_SUPER_ADMINS="rsaga"` 与 governance `world_stewards` 对齐,重启 gateway 生效
+- **admin 恢复演练**:按 ACCOUNT_APPEAL_RUNBOOK 对脱敏测试居民执行只读调查→ban→unban→audit 留痕(`admin:ban_resident`/`unban_resident`)全通过
+- **双居民验收 8/8**:第二测试邮箱真实 OTP 注册;脱敏测试居民之间的双向收发/对端可见/编辑/撤回全走生产 API（邮箱与居民标识不写入公开仓库）
+- **运维教训**:OTP challenge 10 分钟过期且 verify 有尝试次数限制,生产验收需用户即时配合收码;mailer 仅记录失败日志,无 fail 即投递成功
+
+### P1 空间交互 polish 收口 + 生产部署(2026-08-02)
+
+- **场景编辑器 UX**:admin-ds 场景模块新增「打开可视化编辑器」入口(scene-editor.html 此前无入口);编辑器 resize 手柄 `::before` 扩触控热区 10→24px、删除钮 18→28px、方向键 0.5%/Shift 2.5% 微调(600ms 合并 undo)
+- **移动端触控目标**:口径对齐既有 realness 约定 **≥34px**(不引入 44px 新标准);`.message-action` 26→34、符号 tab 28→34、mention chip 30→34、世界页 HUD 动作 28→34、登录关闭钮 32→36,全部 ≤820px 媒体查询内
+- **私宅空态卡片**:新模块 `shell-private-room-locked-card.js`,未授权私宅五态提示从状态条一行字升级为 timeline 区居中卡片(copy 一律用 Gateway 投影原文);**新 shell 模块必须登记 `test/fake-dom.mjs`,否则 67 用例级联失败**
+- **cqh 高度基准修复**:`.creative-stage` 加 `container-type: size`,热点层宽度从 `100vh×16/9` 改 `100cqh×aspect`,热点坐标盒与 contain 背景渲染盒严格对齐;`verify-scene-layout` 新增移动竖屏/桌面 2 个 hotspot canvas case(断言用 client 尺寸,cq 单位相对 content-box)
+- **admin-ds 热点编辑器去重**:两套表单合并为 `createHotspotListEditor` 共享助手,净减约 60 行,三态清除语义不变
+- **生产部署(web 静态)**:复刻 `package-release.sh` 排除规则本地打包(56M,`COPYFILE_DISABLE=1`,sha256 双端校验),备份后 `web-new`+`mv` 原子交换;版本号 `20260802-scene-canvas-cqh`/`touch-targets`/`locked-card`/`scene-editor-entry`/`hotspot-dedup`;新 `?v=` URL 使 CF 旧缓存自然失效无需 Purge;AWS 北京 SSH 大传输后易瞬断,长操作一律 nohup+日志
+- **备份脚本化**:`scripts/backup-state.sh`(三重校验+trap 拉起+KEEP=14 轮转)+ systemd timer 每日 03:30 UTC,手动跑通 <1s;DEPLOYMENT §8 已同步
+- **完整 release gate 复验**:Rust/TUI/CLI/Web 1412/双浏览器/provider federation/panic scan 全绿
+
+### 当前验证基线(2026-08-02)
+
+- Web Shell: **1412 tests / 0 fail**(unit + layout + realness);完整 release gate 退出码 0
+- 生产与仓库代码完全对齐(全部批次已上线);缓存纪律:改动 CSS/JS 必须同步升版 `?v=`
+
+### S0 源控救援与门禁去抖（2026-08-12）
+
+- **未提交生产 WIP 已收口**：8 月 2 日场景交互、私宅空态、admin-ds 热点去重和备份 timer 已按功能形成原子提交，不再只存在于工作树/生产目录
+- **测试生成态隔离**：TUI 新增 `LOBSTER_WEB_GENERATED_DIR` 覆盖项；terminal 与居民主链 smoke 写入各自临时目录，完整门禁后 tracked `generated/bootstrap.json`、`generated/state.json` hash 保持不变
+- **provider federation 去抖**：下游 Gateway 改为等待上游 health 后启动，失败时输出下游日志；单项连续 5/5、完整 release gate 均通过
+- **备份脚本回归测试**：新增真实 tar/目录清单单测，并修复 `pipefail + grep -q` 可能触发 SIGPIPE 假失败的问题
+- **公开仓库脱敏**：生产验收文档不再记录真实测试邮箱和居民标识；未写入 Token、验证码、API key 或凭据值
+- **本地验证基线**：Rust workspace、clippy、CLI、认证、居民主链、Web 1412、双浏览器、TUI、provider federation、备份单测和 panic scan 全绿；本阶段未重新部署生产
+
 ### 真实进度（2026-07-16）
 
 | 模块 | 估算 | 说明 |
 |------|------:|------|
-| P0 单城 IM 闭环 | 99% | 私宅确权、好友流、认证、消息与双浏览器 smoke 已验证；剩余仅生产主机/域名/邮件链路复验 |
-| P1 空间交互 | 90% | 统一 16:9 坐标画布已完成，场景编辑器 UX、移动端 polish 仍有空间 |
-| P2 后台运维 | 95% | admin-ds 写操作护栏和注册账号审计投影完成，Gateway 端点齐全（residents/invites/members/logs/devices）；生产接管和账号申诉操作手册已补齐 |
-| P3 技术债 | ~94% | app.js 已降至 8422 行；本轮继续把 room digest 统计投影下沉到 `shell-room-rail.js`，Quick Action reader、页面生命周期、输入附件、消息搜索、pending echo、Gateway 实时同步、fallback 轮询/前台恢复、同步状态/刷新编排、持久化 shell-state、聊天专注、消息发送与认证状态均形成真实生产边界和直接测试，继续以职责拆分而非机械行数为准 |
-| P4 TUI/CLI parity | 98% | CLI/TUI、居民主链、terminal 与 provider federation 已纳入完整 release gate；剩余为生产环境复验 |
+| P0 单城 IM 闭环 | 100% | 私宅确权、好友流、认证、消息与双浏览器 smoke 已验证；生产主机/域名/邮件链路 2026-08-01 全部复验通过（真实 OTP 双邮箱投递、双居民私聊 8/8） |
+| P1 空间交互 | 97% | 16:9 坐标画布 + 场景编辑器 UX/移动端触控/空态卡片/cqh 基准 2026-08-02 收口并上生产；剩余仅 empty-note 视觉统一（低价值，已降级） |
+| P2 后台运维 | 100% | admin-ds 写操作护栏和注册账号审计投影完成；LOBSTER_SUPER_ADMINS 补齐后 ban/unban 恢复演练与审计留痕 2026-08-01 生产实操通过；备份/恢复演练通过；备份 2026-08-02 起脚本化+每日 timer |
+| P3 技术债 | ~95% | app.js 当前 7496 行；admin-ds 热点编辑器 2026-08-02 去重合一；剩余候选 3/4/5 各 15-28 行且耦合运行时状态，蓝图维持"不做机械搬运"结论 |
+| P4 TUI/CLI parity | 100% | CLI/TUI、居民主链、terminal 与 provider federation 已纳入完整 release gate；2026-08-02 完整门禁复验通过 |
 | P5 跨城/加密 | 15% | 后置（PRODUCT_CHARTER 延后） |
 
 ### 关键发现：6-26~28 WIP 曾未提交
@@ -249,10 +283,11 @@
 
 ### 下一步候选（按优先级）
 
-1. **剩余 app.js 职责边界**：优先选择可独立实例化、可直接测试的 UI 控制器；不为达到旧 `<8700` 参考值做机械搬运
-2. **生产环境复验**：目标 Linux 主机、正式域名、反向代理和邮件适配器到位后，按 release/deploy 清单验证真实 OTP 与公网入口；Linux x86_64 artifact 可通过手动触发 `.github/workflows/release.yml` 生成，不依赖 macOS 交叉链接器
-3. **P1 空间交互 polish**：场景编辑器 UX、移动端触控、空态视觉
-4. **P5 跨城/MLS 加密**：继续后置，不阻塞单城集中式 IM 完成
+1. **单城集中式 IM 已完成面保持**：P0/P1/P2/P4 全部收口并生产验证；日常按 release gate + 备份 timer 维持
+2. **P5 跨城/MLS 加密**：PRODUCT_CHARTER 后置项，是"完全落地"路线上的下一个主战场；启动前需单独评审边界（真实 Waku transport、MLS 1v1/群、跨城发现）
+3. **可选加固（不阻塞）**：DMARC TXT（Cloudflare）、empty-note 视觉统一（低价值，已降级）
+
+（已完成的候选：生产环境复验 2026-08-01；P1 空间交互 polish、备份脚本化/定期化 2026-08-02。）
 
 剩余 app.js 候选 3/4/5（消息 payload 已做；房间状态/连接/同步文案、shellMode 视图状态文案）收益小（各 15-28 行）且多耦合运行时状态或 DOM，边际递减。
 
