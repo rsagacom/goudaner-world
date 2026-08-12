@@ -4,6 +4,16 @@ Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-13 P5 mirror source URL 安全合同
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 根因 | 已确认 | enabled world mirror 会被 federation read 主动抓取，但原先只做字符串归一化，可写入任意 HTTP |
+| URL 合同 | 已实现 | enabled mirror 复用 provider URL 校验：远端仅 HTTPS；dev/test 仅允许 loopback HTTP；disabled mirror 保留配置兼容 |
+| fail-closed | 已实现 | provider-config.json 载入 enabled 非法 mirror 时 Gateway 启动失败；新增/更新 mirror 在启用前拒绝非法 URL |
+| 防回归 | 已实现 | Gateway 323/323，覆盖 enabled/disabled mirror 与 provider URL 合同复用 |
+| 生产状态 | 未变更 | 仅本地代码、测试和文档验证，未 SSH、未部署 |
+
 ## 2026-08-13 P5 provider URL 安全合同
 
 | 项目 | 状态 | 说明 |

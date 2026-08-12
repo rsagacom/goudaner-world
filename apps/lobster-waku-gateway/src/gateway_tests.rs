@@ -5669,6 +5669,30 @@ fn provider_config_load_fails_closed_for_remote_http() {
 }
 
 #[test]
+fn enabled_mirror_source_reuses_provider_url_contract() {
+    let temp = tempdir().expect("temp dir");
+    let mut runtime =
+        GatewayRuntime::open(temp.path().join("gateway"), 8, None).expect("open runtime");
+
+    let error = runtime
+        .add_world_mirror_source(AddWorldMirrorSourceRequest {
+            base_url: "http://mirror.example.invalid".into(),
+            enabled: Some(true),
+        })
+        .expect_err("enabled remote HTTP mirror should be rejected");
+    assert!(error.contains("must use HTTPS"));
+
+    runtime
+        .add_world_mirror_source(AddWorldMirrorSourceRequest {
+            base_url: "http://mirror.example.invalid".into(),
+            enabled: Some(false),
+        })
+        .expect("disabled mirror remains a storable local config");
+    assert_eq!(runtime.mirror_sources.len(), 1);
+    assert!(!runtime.mirror_sources[0].enabled);
+}
+
+#[test]
 fn provider_direct_and_mirror_http_routes_roundtrip_gateway_contract() {
     let temp = tempdir().expect("temp dir");
     let runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
@@ -5797,7 +5821,7 @@ fn provider_and_auth_state_roundtrip_across_restart() {
                 .expect("connect provider");
             runtime
                 .add_world_mirror_source(AddWorldMirrorSourceRequest {
-                    base_url: "http://mirror.example.invalid/".into(),
+                    base_url: "https://mirror.example.invalid/".into(),
                     enabled: Some(true),
                 })
                 .expect("add mirror source");
@@ -5820,7 +5844,7 @@ fn provider_and_auth_state_roundtrip_across_restart() {
         assert_eq!(runtime.mirror_sources.len(), 1);
         assert_eq!(
             runtime.mirror_sources[0].base_url,
-            "http://mirror.example.invalid"
+            "https://mirror.example.invalid"
         );
         assert_eq!(runtime.registrations.len(), 0);
         assert_eq!(runtime.email_otp_challenges.len(), 1);

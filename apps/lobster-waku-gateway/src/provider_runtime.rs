@@ -162,7 +162,7 @@ impl GatewayRuntime {
         let config: PersistedProviderConfig = serde_json::from_slice(&bytes)
             .map_err(|error| format!("decode provider config failed: {error}"))?;
         self.apply_upstream_provider_url(config.upstream_gateway_url)?;
-        self.apply_mirror_sources(config.mirror_sources);
+        self.apply_mirror_sources(config.mirror_sources)?;
         Ok(())
     }
 
@@ -215,11 +215,20 @@ impl GatewayRuntime {
         }
     }
 
-    pub(crate) fn apply_mirror_sources(&mut self, mirror_sources: Vec<MirrorSourceConfig>) {
+    pub(crate) fn apply_mirror_sources(
+        &mut self,
+        mirror_sources: Vec<MirrorSourceConfig>,
+    ) -> Result<(), String> {
         let mut deduped = Vec::new();
         for source in mirror_sources {
-            let Some(base_url) = Self::normalize_base_url(&source.base_url) else {
-                continue;
+            let base_url = if source.enabled {
+                self.normalize_provider_url(&source.base_url)?
+                    .ok_or_else(|| "enabled mirror base_url required".to_string())?
+            } else {
+                let Some(base_url) = Self::normalize_base_url(&source.base_url) else {
+                    continue;
+                };
+                base_url
             };
             if deduped
                 .iter()
@@ -234,6 +243,7 @@ impl GatewayRuntime {
         }
         deduped.sort_by_key(|item| item.base_url.clone());
         self.mirror_sources = deduped;
+        Ok(())
     }
 
     pub(crate) fn add_world_mirror_source(
@@ -244,6 +254,12 @@ impl GatewayRuntime {
             return Err("mirror base_url required".into());
         };
         let enabled = request.enabled.unwrap_or(true);
+        let base_url = if enabled {
+            self.normalize_provider_url(&base_url)?
+                .ok_or_else(|| "enabled mirror base_url required".to_string())?
+        } else {
+            base_url
+        };
         let mut mirror_sources = self.mirror_sources.clone();
         if let Some(existing) = mirror_sources
             .iter_mut()
@@ -253,7 +269,7 @@ impl GatewayRuntime {
         } else {
             mirror_sources.push(MirrorSourceConfig { base_url, enabled });
         }
-        self.apply_mirror_sources(mirror_sources);
+        self.apply_mirror_sources(mirror_sources)?;
         self.persist_provider_config()?;
         Ok(self.mirror_sources.clone())
     }

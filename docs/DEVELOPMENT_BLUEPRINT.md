@@ -257,6 +257,13 @@
 - Web Shell: **1412 tests / 0 fail**(unit + layout + realness);完整 release gate 退出码 0
 - 生产与仓库代码完全对齐(全部批次已上线);缓存纪律:改动 CSS/JS 必须同步升版 `?v=`
 
+### P5 mirror source URL 安全合同（2026-08-13）
+
+- **根因**：enabled world mirror 会被 federation read 主动抓取，但原先只做字符串归一化，可能把任意 HTTP 源写入活动配置。
+- **实现**：enabled mirror 复用 provider URL 安全合同；disabled mirror 保留配置兼容；持久化 enabled 非法 URL 在启动载入时 fail-closed。
+- **验证**：Gateway 323/323，覆盖 enabled/disabled mirror 与 provider URL 合同复用。
+- **范围**：这是跨城 mirror 接入前的安全合同，不代表已接入 native Waku 或标准 MLS。
+
 ### P5 provider URL 安全合同（2026-08-13）
 
 - **根因**：`/v1/provider/connect` 原先未复用 production readiness 对远端 URL 的 HTTPS 约束，持久化 provider 配置载入也可能绕过该边界。
