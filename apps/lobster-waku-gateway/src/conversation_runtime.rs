@@ -286,7 +286,11 @@ impl GatewayRuntime {
             .find(|item| item.conversation_id == conversation_id)
             .ok_or_else(|| "scene update target room not found".to_string())?;
 
-        if !conversation.participants.contains(&actor) {
+        if let Some(owner) = Self::personal_room_owner(&conversation) {
+            if owner != &actor {
+                return Err("only the personal room owner can edit scene".into());
+            }
+        } else if !conversation.participants.contains(&actor) {
             return Err("scene update actor is not a room participant".into());
         }
 
@@ -351,13 +355,21 @@ impl GatewayRuntime {
         if conversation_id.0 == "room:world:entry" || conversation_id.0 == "room:world:square" {
             return Err("only world stewards can edit world entry/square scenes".into());
         }
-        // 私宅 (dm:*) → 房主可以编辑
+        let conv = self
+            .timeline_store
+            .active_conversations()
+            .into_iter()
+            .find(|c| c.conversation_id == *conversation_id);
+        if let Some(conv) = conv.as_ref()
+            && let Some(owner) = Self::personal_room_owner(conv)
+        {
+            if owner != &actor {
+                return Err("only the personal room owner can edit private room scenes".into());
+            }
+            return Ok(());
+        }
+        // 共享私聊 (dm:*) → 维持现有参与者可编辑行为
         if conversation_id.0.starts_with("dm:") {
-            let conv = self
-                .timeline_store
-                .active_conversations()
-                .into_iter()
-                .find(|c| c.conversation_id == *conversation_id);
             if let Some(conv) = conv
                 && !conv.participants.contains(&actor)
             {

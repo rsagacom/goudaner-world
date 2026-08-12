@@ -1,8 +1,19 @@
 # lobster-chat Active Work Queue
 
-Last updated: 2026-08-12
+Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
+
+## 2026-08-13 P1 个人房间场景权限收口
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 根因 | 已确认 | `home:<resident>` 已由 `personal_room_owner()` 明确定义，但 shell 场景写入只校验参与者；admin 私宅分支原先仅覆盖 `dm:*`，且没有区分房主 |
+| 权限修复 | 已实现 | 个人房间 shell/admin 场景写入均要求房主；普通双人 `dm:*` 保持原有参与者可编辑行为；世界管家既有全局覆盖保持不变 |
+| 防回归 | 已实现 | 新增 shell 与 admin 两组个人房间房主/非房主回归测试；`cargo test -p lobster-waku-gateway --quiet` 319/319 |
+| 完整验证 | 已通过 | `RUN_PREFLIGHT=0 INCLUDE_PROVIDER_FEDERATION=1 scripts/smoke-release-gate.sh` 退出码 0，含 workspace、Clippy、CLI/TUI、Web 1412、双浏览器、provider federation、发布脚本与 panic scan |
+| 生产状态 | 未变更 | 本阶段只修改本地代码、测试和文档，未 SSH、未部署；GitHub 同步待本地提交完成后进行 |
+| 后续边界 | 保持 | P5 native Waku/标准 MLS 仍需用户批准开源调研后再选型；当前不引入新依赖、不把现有 federation/AES-GCM 骨架包装成正式实现 |
 
 ## 2026-08-12 P5 secure-session 密钥暴露收口
 

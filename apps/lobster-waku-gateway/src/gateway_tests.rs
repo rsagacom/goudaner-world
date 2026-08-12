@@ -6110,6 +6110,64 @@ fn shell_scene_update_rejects_non_participant_actor() {
 }
 
 #[test]
+fn personal_room_scene_update_is_owner_only() {
+    let temp = tempdir().expect("temp dir");
+    let mut runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
+    runtime
+        .ensure_personal_room(&IdentityId("alice".into()))
+        .expect("personal room should exist");
+
+    let request = |actor: &str| UpdateShellSceneRequest {
+        room_id: "home:alice".into(),
+        actor: actor.into(),
+        image_layer: None,
+        hotspot_layer: None,
+    };
+
+    assert_eq!(
+        runtime
+            .update_shell_scene(request("bob"))
+            .expect_err("non-owner should be rejected"),
+        "only the personal room owner can edit scene"
+    );
+    assert!(
+        runtime
+            .update_shell_scene(request("alice"))
+            .expect("owner should edit personal room scene")
+            .ok
+    );
+}
+
+#[test]
+fn admin_personal_room_scene_update_is_owner_only() {
+    let temp = tempdir().expect("temp dir");
+    let mut runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
+    runtime
+        .ensure_personal_room(&IdentityId("alice".into()))
+        .expect("personal room should exist");
+
+    let request = |actor: &str| AdminUpdateSceneRequest {
+        room_id: "home:alice".into(),
+        actor_id: Some(actor.into()),
+        image_layer: None,
+        hotspot_layer: None,
+    };
+
+    assert_eq!(
+        runtime
+            .admin_update_scene(request("bob"))
+            .expect_err("non-owner should be rejected"),
+        "only the personal room owner can edit private room scenes"
+    );
+    assert!(
+        runtime
+            .admin_update_scene(request("alice"))
+            .expect("owner should edit personal room scene")
+            .ok
+    );
+}
+
+#[test]
 fn shell_scene_update_http_route_returns_updated_scene_contract() {
     let temp = tempdir().expect("temp dir");
     let mut runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
