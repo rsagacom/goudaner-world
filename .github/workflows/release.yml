@@ -87,7 +87,7 @@ jobs:
           test -f "$RUNNER_TEMP/lobster-dist/release-manifest.json"
           test "$(jq -r .git_sha "$RUNNER_TEMP/lobster-dist/release-manifest.json")" = "${{ github.sha }}"
           tar -tzf "$RUNNER_TEMP/lobster-dist/lobster-waku-gateway-${{ matrix.target }}.tar.gz" | grep -qx lobster-waku-gateway
-          sha256sum "$RUNNER_TEMP"/lobster-dist/*.tar.gz | tee "$RUNNER_TEMP/lobster-dist/SHA256SUMS"
+          (cd "$RUNNER_TEMP/lobster-dist" && sha256sum *.tar.gz) | tee "$RUNNER_TEMP/lobster-dist/SHA256SUMS"
 
       - name: Upload Linux release artifacts
         uses: actions/upload-artifact@v4
