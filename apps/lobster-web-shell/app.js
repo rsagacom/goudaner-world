@@ -4293,6 +4293,7 @@ async function loadGatewayState() {
       headers: gatewayJsonHeaders(getSessionToken()),
     });
     if (!response.ok) {
+      handleGatewayAuthFailure(response.status);
       return gatewayShellStateIsAuthoritative() ? clearGatewayShellState() : false;
     }
     const payload = await response.json();
@@ -6924,6 +6925,7 @@ function initializeLocalShellState() {
 }
 
 function updateInitialAuthStatus() {
+  if (hasGatewayAuthFailureMod()) return;
   const authSession = getAuthSession();
   if (authSession.challengeId && authSession.maskedEmail) {
     setAuthStatus(`待完成验证码登录：${authSession.maskedEmail}`);
@@ -7173,6 +7175,7 @@ const {
   updateAuthFormState: updateAuthFormStateMod,
   updateResidentLoginSurface: applyResidentLoginSurface,
   handleGatewayAuthFailure: handleGatewayAuthFailureMod,
+  hasGatewayAuthFailure: hasGatewayAuthFailureMod,
   logout: logoutMod,
   requestEmailOtp: requestEmailOtpMod,
   updateMyNickname: updateMyNicknameMod,

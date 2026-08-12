@@ -289,6 +289,30 @@ test("gateway creative resident shell scopes state and opens SSE stream by store
   }
 });
 
+test("gateway creative resident shell clears an expired session on shell-state 401", serial, async () => {
+  const app = await loadUserShellApp({
+    useGeneratedFixtures: true,
+    locationSearch: "?gateway=http://127.0.0.1:50651",
+    gatewayBaseUrl: "http://127.0.0.1:50651",
+    gatewayShellStateShouldFail: true,
+    gatewayShellStateFailureStatus: 401,
+    localStorageEntries: {
+      "lobster-identity": "qa",
+      "lobster-session-token": TEST_SESSION_TOKEN,
+    },
+  });
+
+  try {
+    const { document, window } = app;
+    assert.equal(window.localStorage.getItem("lobster-session-token"), "");
+    assert.equal(document.body.dataset.gatewayConnection, "offline");
+    assert.match(document.querySelector("#auth-status")?.textContent || "", /登录已失效，请重新登录/);
+    assert.equal(document.querySelector("#composer-input")?.disabled, true);
+  } finally {
+    app.cleanup();
+  }
+});
+
 test("gateway creative resident SSE reopens with state version wait cursor", serial, async () => {
   const app = await loadUserShellApp({
     useGeneratedFixtures: true,

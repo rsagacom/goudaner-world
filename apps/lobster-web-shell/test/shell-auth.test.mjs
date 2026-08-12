@@ -185,6 +185,23 @@ describe("shell-auth logout", () => {
     assert.deepEqual(identities, ["访客"]);
     assert.match(els.statusEl.textContent, /网关退出待重试/);
   });
+
+  test("clears an expired Gateway session and exposes the invalid-session state", () => {
+    const els = createElMap();
+    const controller = createAuthController(els, {});
+
+    controller.setSessionToken("expired-session");
+    assert.equal(controller.hasGatewayAuthFailure(), false);
+    assert.equal(controller.handleGatewayAuthFailure(401), true);
+
+    assert.equal(controller.getSessionToken(), null);
+    assert.equal(storage.getItem("lobster-session-token"), "");
+    assert.equal(controller.hasGatewayAuthFailure(), true);
+    assert.match(els.statusEl.textContent, /登录已失效，请重新登录/);
+
+    controller.setSessionToken("fresh-session");
+    assert.equal(controller.hasGatewayAuthFailure(), false);
+  });
 });
 
 describe("shell-auth demo fallback", () => {

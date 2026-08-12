@@ -266,6 +266,13 @@
 - **防回归**：Web **1413/1413**；完整 `scripts/smoke-release-gate.sh` 通过，含 Gateway **323**、真实双浏览器、HTTP 双端和 provider federation smoke。
 - **部署边界**：仅本地代码、测试和文档已验证，未 SSH、未部署生产。
 
+### H5 Gateway 会话失效闭环（2026-08-13）
+
+- **根因**：H5 `GET /v1/shell/state` 收到 401/403 时原先只清空 shell 投影，没有清除本地 Bearer session；初始化状态更新还可能把“登录已失效”覆盖成“空闲”，SSE/轮询因此持续携带过期会话。
+- **实现**：shell state、POST 和导出共用 Gateway 鉴权失败边界；shell state 401/403 现在清除 token、记录失效状态并保留重新登录提示；新 OTP/新 session token 会清除失效标记。
+- **防回归**：Web **1418/1418**、layout、realness；新增 shell state 401 运行时回归和 auth controller 失效状态回归。
+- **部署边界**：仅本地代码、测试和文档已验证，未 SSH、未部署生产。
+
 ### H5 合法空 Gateway 投影保持在线（2026-08-13）
 
 - **根因**：Gateway `ShellState` 对新居民或被可见性过滤的居民可以合法返回空 `rooms` / `conversation_shell.conversations`；H5 之前把“非空会话”误当成 Gateway 可用条件，导致合法空状态被显示为 offline。

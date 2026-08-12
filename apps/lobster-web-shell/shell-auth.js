@@ -9,6 +9,7 @@ let _authSession = {
   deliveryMode: null,
 };
 let _sessionToken = null;
+let _gatewayAuthFailure = false;
 
 // --- cached DOM refs ---
 let _els = {};
@@ -95,6 +96,7 @@ function clearSession() {
 
 function setSessionToken(token) {
   _sessionToken = token || null;
+  if (token) _gatewayAuthFailure = false;
   safeLocalStorageSet("lobster-session-token", token || "");
 }
 
@@ -117,6 +119,7 @@ async function logout() {
   }
 
   clearSession();
+  _gatewayAuthFailure = false;
   _authSession = {
     challengeId: null,
     maskedEmail: null,
@@ -268,14 +271,20 @@ function persistAuthDraft() {
 // --- gateway auth failure ---
 function handleGatewayAuthFailure(status) {
   if (status !== 401 && status !== 403) return false;
+  _gatewayAuthFailure = true;
   _sessionToken = null;
   safeLocalStorageSet("lobster-session-token", "");
   setAuthStatus("登录已失效，请重新登录", true);
   return true;
 }
 
+function hasGatewayAuthFailure() {
+  return _gatewayAuthFailure;
+}
+
 // --- OTP flow ---
 async function requestEmailOtp() {
+  _gatewayAuthFailure = false;
   const deliveryMode = _els.deliverySelectEl?.value || "email";
   if (deliveryMode === "mobile") {
     return requestMobileOtp();
@@ -328,6 +337,7 @@ async function requestEmailOtp() {
 }
 
 async function requestMobileOtp() {
+  _gatewayAuthFailure = false;
   const mobile = _els.mobileInputEl?.value?.trim() || "";
   const email = _els.emailInputEl?.value?.trim() || "";
   const devicePhysicalAddress = _els.deviceInputEl?.value?.trim() || "";
@@ -394,6 +404,7 @@ async function verifyEmailOtp() {
     return;
   }
   if (challengeId === "demo-challenge") {
+    _gatewayAuthFailure = false;
     const residentId = _callbacks.desiredResidentId ? _callbacks.desiredResidentId() : "demo-resident";
     if (_callbacks.persistIdentity) {
       _callbacks.persistIdentity(residentId);
@@ -428,6 +439,7 @@ async function verifyEmailOtp() {
   }
   if (_els.residentInputEl) _els.residentInputEl.value = response.resident_id;
   _sessionToken = response.session_token || null;
+  _gatewayAuthFailure = false;
   safeLocalStorageSet("lobster-session-token", _sessionToken || "");
   const masked = response.mobile_masked || response.email_masked || "";
   _authSession = {
@@ -473,6 +485,7 @@ async function updateMyNickname(nickname) {
     getAuthSession,
     getSessionToken,
     handleGatewayAuthFailure,
+    hasGatewayAuthFailure,
     initAuth,
     loadAuthDraft,
     persistAuthDraft,

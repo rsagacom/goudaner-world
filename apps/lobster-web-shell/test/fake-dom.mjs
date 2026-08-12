@@ -1460,6 +1460,7 @@ async function loadShellApp(shellPage, options = {}) {
     gatewayMessageShouldFail = false,
     gatewayMessageFailuresBeforeSuccess = 0,
     gatewayShellStateShouldFail = false,
+    gatewayShellStateFailureStatus = 503,
     gatewayShellStateFixture = null,
     gatewayProviderState = null,
   } = options;
@@ -1758,7 +1759,10 @@ async function loadShellApp(shellPage, options = {}) {
       }
       if (url === `${gatewayBaseUrl}/v1/shell/state` || url.startsWith(`${gatewayBaseUrl}/v1/shell/state?`)) {
         if (gatewayShellStateShouldFail) {
-          return responseFromJson({ Error: { message: "模拟 Gateway shell state 失败" } }, { status: 503 });
+          return responseFromJson(
+            { Error: { message: "模拟 Gateway shell state 失败" } },
+            { status: gatewayShellStateFailureStatus },
+          );
         }
         return responseFromJson(await readGatewayShellState());
       }
@@ -2004,12 +2008,14 @@ async function loadShellApp(shellPage, options = {}) {
       Boolean(gatewayBaseUrl) &&
       Boolean(
         gatewayProviderState?.reachable === false ||
-          providerConnectionState === "disconnected" ||
-          providerConnectionState === "offline",
+        providerConnectionState === "disconnected" ||
+        providerConnectionState === "offline" ||
+        gatewayShellStateShouldFail,
       );
+    const allowsGatewayShellFailure = Boolean(gatewayBaseUrl && gatewayShellStateShouldFail);
     return (
       document.body?.dataset?.shellMode === shellPage &&
-      Boolean(activeRoom) &&
+      (Boolean(activeRoom) || allowsGatewayShellFailure) &&
       Boolean(composer) &&
       (composer.disabled === false || allowsLoginBlockedComposer || allowsOfflineBlockedComposer) &&
       typeof composer.placeholder === "string" &&

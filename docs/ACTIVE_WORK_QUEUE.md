@@ -4,6 +4,15 @@ Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-13 H5 Gateway 会话失效闭环
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 根因 | 已确认 | H5 `GET /v1/shell/state` 收到 401/403 时原先只清空 shell 投影，没有清除本地 Bearer session；初始化状态更新还可能把“登录已失效”覆盖成“空闲”，SSE/轮询因此持续携带过期会话 |
+| 会话处理 | 已实现 | shell state、POST 和导出共用 Gateway 鉴权失败边界；shell state 401/403 现在清除 token、标记失效并保留重新登录提示；新 OTP/新 token 会清除失效标记 |
+| 防回归 | 已通过 | Web **1418/1418**、layout、realness；新增 shell state 401 运行时回归和 auth controller 失效状态回归 |
+| 生产状态 | 未变更 | 仅本地代码、测试和文档验证，未 SSH、未部署生产 |
+
 ## 2026-08-13 H5 合法空 Gateway 投影保持在线
 
 | 项目 | 状态 | 说明 |
