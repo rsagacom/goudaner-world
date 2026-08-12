@@ -395,6 +395,16 @@ fn http_boundary_routes_return_health_cors_and_not_found_contract() {
     assert!(health_headers.contains("Access-Control-Allow-Origin: *"));
     assert_eq!(health_body, "ok");
 
+    let (version_status, version) = http_json("GET", &server.base_url, "/v1/version", None);
+    assert_eq!(version_status, 200);
+    assert_eq!(version["schema_version"], 1);
+    assert_eq!(version["package_version"], env!("CARGO_PKG_VERSION"));
+    assert!(
+        version["git_sha"]
+            .as_str()
+            .is_some_and(|value| value.len() == 40)
+    );
+
     let (head_status, head_headers, _head_body) =
         http_raw("HEAD", &server.base_url, "/health", None);
     assert_eq!(head_status, 200);

@@ -58,6 +58,7 @@ use crate::{
         handle_post_shell_set_nickname, handle_post_waku, handle_post_world_mirror_sources,
         require_admin_auth,
     },
+    release_info::handle_get_version,
 };
 
 pub(crate) type HttpResponse = Response<Cursor<Vec<u8>>>;
@@ -101,6 +102,7 @@ pub(crate) fn dispatch_http_request(
         (Method::Get, "/health") | (Method::Head, "/health") => Response::from_string("ok")
             .with_status_code(StatusCode(200))
             .with_optional_header(text_header()),
+        (Method::Get, "/v1/version") => handle_get_version(),
         (Method::Get, "/v1/admin/summary") => {
             dispatch_admin_read(runtime, request, || handle_get_admin_summary(runtime))
         }

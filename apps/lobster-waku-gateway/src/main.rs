@@ -45,6 +45,7 @@ mod http_support;
 mod http_write_routes;
 mod message_runtime;
 mod provider_runtime;
+mod release_info;
 mod request_runtime;
 mod shell_runtime;
 mod transport_runtime;
