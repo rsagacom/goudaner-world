@@ -13,6 +13,15 @@ Last updated: 2026-08-13
 | 部署版本 | 存在漂移 | 公网 `/v1/version` 返回 404；`/release-manifest.json` 虽为 200 但 `Content-Type` 为 `text/html`，属于 SPA fallback，不是真实 manifest；`creative.html` / `admin-ds.html` 静态资源最后修改时间仍为 2026-08-02。 |
 | 结论 | 已登记 | 当前本地/ GitHub 主线的 H5 与 admin-ds 会话失效修复尚未由公网页面证明已部署；本次只读核验未 SSH、未重启、未改生产。 |
 
+## 2026-08-13 公网版本追溯 smoke 收口
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 旧缺口 | 已修复 | `smoke-public-ingress.sh` 原先只验证页面、health、provider 和 401，无法发现 `/v1/version` 缺失或 `release-manifest.json` 被 SPA fallback 吞掉。 |
+| 新合同 | 已实现 | 默认页面标记与当前 `index.html` / `creative.html` 对齐；新增运行时 `git_sha`、manifest `git_sha`、JSON `Content-Type` 和两者一致性校验；`EXPECT_RELEASE_GIT_SHA` 可锁定指定发布 commit。 |
+| readiness | 已接入 | `production-readiness.sh CHECK_PUBLIC=1` 同步检查版本端点与 manifest，拒绝 404、HTML fallback、SHA 不一致和错误 release pin。 |
+| 验证 | 已通过 | 本地真实 HTTP fixture 全链路通过；现网只读运行 smoke 在 `/v1/version` 404 处按预期失败，证明旧部署会被捕获；未修改生产。 |
+
 ## 2026-08-13 H5 会话失效真实浏览器回归
 
 | 项目 | 状态 | 说明 |
@@ -577,7 +586,7 @@ Last updated: 2026-08-13
 | overview context adapter | 已完成 | 新增 `conversationOverviewContextModelForRoom()`；`createConversationOverviewContextNode()` 只负责 DOM 投影，summary/context/status 运行态由 adapter 收集后交给 `conversationOverviewContextModel()` |
 | overview base status adapter | 已完成 | 新增 `conversationOverviewBaseStatusPillsForRoom()`；`gatewaySyncController`、`roomSendErrors`、pending echo、未读和会话摘要均在 adapter 边界注入，DOM appender 不再自行决定 pill 文案与 tone |
 | user status adapter | 已完成 | 新增 `userConversationStatusPillsForRoom()`；user status DOM 与运行态状态模型分离，保留 quick action DOM 控件在 app.js |
-| TDD 护栏 | 已完成 | 更新 `shell-pages-static.test.mjs`，分别锁定 DOM renderer 与运行态 adapter 边界；focused suite 246 passed / 0 failed |
+| TDD 护栏 | 已完成 | 更新 `shell-pages-static.test.mjs`，分别锁定 DOM renderer 与运��态 adapter 边界；focused suite 246 passed / 0 failed |
 | Web 全量验证 | 已通过 | `npm test`：1385 passed / 0 failed；layout、frontend realness、`node --check` 与 `git diff --check` 通过 |
 | 完整发布门禁 | 已通过 | `RUN_PREFLIGHT=0 INCLUDE_PROVIDER_FEDERATION=1 scripts/smoke-release-gate.sh` 通过；Gateway 304、Rust workspace、CLI/TUI、认证、居民主链、双 HTTP、Web shell、双浏览器、provider federation、安装布局、发布工作流、生产 readiness 和完整验证均通过 |
 | 外部验收边界 | 保持 | 本轮只验证本地代码与发布链；生产 Linux 主机、正式域名/TLS、真实邮件 OTP、公网双端 IM 和账号申诉演练仍未执行；未提交 Git |
@@ -585,7 +594,7 @@ Last updated: 2026-08-13
 ### 下一步建议
 
 1. 进入目标 Linux 主机：使用发布 artifact 部署 Gateway/H5，配置 systemd、Nginx、正式 CORS/TLS 与生产邮件 Webhook。
-2. ��行 `scripts/production-readiness.sh` 与 `scripts/smoke-public-ingress.sh`，再按 `docs/DEPLOYMENT.md` 完成真实邮箱 OTP、双端公共/私聊发送编辑撤回、失败重试、重启恢复和 admin 验收。
+2. 运行 `scripts/production-readiness.sh` 与 `scripts/smoke-public-ingress.sh`，再按 `docs/DEPLOYMENT.md` 完成真实邮箱 OTP、双端公共/私聊发送编辑撤回、失败重试、重启恢复和 admin 验收。
 
 ## 2026-07-27 app.js 技术债继续收口: Gateway shell state 标准化下沉
 

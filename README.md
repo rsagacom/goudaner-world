@@ -6,7 +6,7 @@
 
 ## 当前交付状态（2026-08-13）
 
-单城 IM 主线的 Gateway、TUI/CLI、H5 与 admin-ds 已完成会话失效闭环；H5 **1419/1419**、Gateway **323/323**、完整 release gate 和 GitHub CI 均已通过。公网入口可达且未登录接口正确返回 401，但公网静态资源仍显示为 2026-08-02 版本，尚未证明本轮会话失效修复已部署；P5 native Waku/标准 MLS 仍待单独的方案调研授权。
+单城 IM 主线的 Gateway、TUI/CLI、H5 与 admin-ds 已完成会话失效闭环；H5 **1419/1419**、Gateway **323/323**、完整 release gate 和 GitHub CI 均已通过。公网入口可达且未登录接口正确返回 401；版本追溯 smoke 现在会拒绝缺失 `/v1/version`、HTML manifest 或 SHA 漂移，而当前公网仍在 `/v1/version` 处失败，尚未证明本轮会话失效修复已部署；P5 native Waku/标准 MLS 仍待单独的方案调研授权。
 
 ## 内测入口说明（中文）
 

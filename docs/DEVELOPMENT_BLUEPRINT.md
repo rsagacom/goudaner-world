@@ -288,6 +288,12 @@
 - **版本证据**：公网 `/v1/version` 返回 404；`/release-manifest.json` 返回 HTML SPA fallback 而非 manifest；`creative.html` 与 `admin-ds.html` 的静态资源最后修改时间仍为 2026-08-02。
 - **真实进度修正**：本地 `0e6fc1b` 与 GitHub `main` 已包含 H5/admin-ds 过期会话闭环和真实浏览器回归，但当前不能声称这些修复已在公网生效；生产部署仍需单独授权和验收。
 
+### 公网版本追溯 smoke 收口（2026-08-13）
+
+- **旧缺口**：`smoke-public-ingress.sh` 之前只检查页面、health、provider 和无 Bearer 401，无法发现公网缺少 `/v1/version` 或把 `release-manifest.json` 返回成 SPA HTML。
+- **实现**：公网 smoke 现在校验运行时与 manifest 的 40 字符 `git_sha`、manifest `application/json` Content-Type 和两者一致性；`EXPECT_RELEASE_GIT_SHA` 可按发布 commit 精确锁定；`production-readiness.sh CHECK_PUBLIC=1` 同步执行版本追溯检查。
+- **验证**：本地真实 HTTP fixture 全链路通过；对 `https://chat.ajw.cn` 的只读 smoke 在 `/v1/version` 404 处失败，证明现网旧部署会被新合同拦截；生产未变更。
+
 ### admin-ds Gateway 会话失效闭环（2026-08-13）
 
 - **根因**：`admin-ds.js` 的 Gateway GET/POST helper 原先只返回 HTTP 失败，没有通知共享认证控制器；过期 Bearer 会让后台继续保留旧身份和登录 HUD。
