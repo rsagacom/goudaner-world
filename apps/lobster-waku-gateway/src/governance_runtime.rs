@@ -209,7 +209,12 @@ impl GatewayRuntime {
     }
 
     pub(crate) fn persist_secure_sessions(&self) -> Result<(), String> {
-        let bytes = serde_json::to_vec_pretty(&self.secure_sessions.snapshot())
+        let storage_key = self.secure_session_storage_key.as_ref().ok_or_else(|| {
+            "LOBSTER_SECURE_SESSION_MASTER_KEY is required before persisting secure sessions"
+                .to_string()
+        })?;
+        let snapshot = self.secure_sessions.seal_snapshot(storage_key)?;
+        let bytes = serde_json::to_vec_pretty(&snapshot)
             .map_err(|error| format!("encode secure session state failed: {error}"))?;
         atomic_write_file(&self.secure_sessions_path, &bytes)
             .map_err(|error| format!("write secure session state failed: {error}"))
@@ -258,9 +263,22 @@ impl GatewayRuntime {
         if bytes.is_empty() {
             return Ok(());
         }
-        let groups = serde_json::from_slice::<Vec<MlsGroupState>>(&bytes)
-            .map_err(|error| format!("decode secure session state failed: {error}"))?;
+        let storage_key = self.secure_session_storage_key.as_ref().ok_or_else(|| {
+            "LOBSTER_SECURE_SESSION_MASTER_KEY is required to open secure session state".to_string()
+        })?;
+        if let Ok(snapshot) = serde_json::from_slice::<SealedSecureSessionSnapshot>(&bytes) {
+            self.secure_sessions
+                .restore_sealed_snapshot(&snapshot, storage_key)?;
+            return Ok(());
+        }
+
+        // One-way compatibility migration for snapshots produced before at-rest
+        // sealing. The plaintext file is replaced atomically before startup completes.
+        let groups = serde_json::from_slice::<Vec<MlsGroupState>>(&bytes).map_err(|error| {
+            format!("decode sealed or legacy secure session state failed: {error}")
+        })?;
         self.secure_sessions.restore(groups);
+        self.persist_secure_sessions()?;
         Ok(())
     }
 

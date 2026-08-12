@@ -15,7 +15,10 @@ use chat_core::{
     WorldId, WorldProfile, canonical_direct_conversation_id,
 };
 use chat_storage::{ArchiveStore, FileTimelineStore, TimelineStore, atomic_write_file};
-use crypto_mls::{MlsGroupState, MlsMember, SecureSessionManager, SkeletonSecureSessionManager};
+use crypto_mls::{
+    MlsGroupState, MlsGroupView, MlsMember, SealedSecureSessionSnapshot, SecureSessionManager,
+    SecureSessionStorageKey, SkeletonSecureSessionManager,
+};
 use serde::{Deserialize, Serialize};
 use tiny_http::Server;
 use transport_waku::{

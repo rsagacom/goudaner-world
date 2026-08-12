@@ -20,6 +20,7 @@ def main() -> int:
     assert 'LOBSTER_DEV_EMAIL_OTP_INLINE' in text
     assert 'LOBSTER_EMAIL_OTP_MAILER_URL' in text
     assert 'LOBSTER_EMAIL_OTP_MAILER_BEARER_TOKEN' in text
+    assert 'LOBSTER_SECURE_SESSION_MASTER_KEY' in text
     assert 'LOBSTER_WAKU_UPSTREAM_URL' in text
     assert 'LOBSTER_WAKU_UPSTREAM_TOKEN' in text
     assert 'LOBSTER_CORS_ORIGIN' in text
@@ -43,6 +44,7 @@ def main() -> int:
                     "LOBSTER_CORS_ORIGIN=https://chat.example.com",
                     "LOBSTER_DEV_AUTH_BYPASS=0",
                     "LOBSTER_DEV_EMAIL_OTP_INLINE=0",
+                    "LOBSTER_SECURE_SESSION_MASTER_KEY=test-only-secure-session-master-key-0001",
                     "LOBSTER_EMAIL_OTP_MAILER_URL=https://mailer.example.com/otp",
                     "LOBSTER_EMAIL_OTP_MAILER_BEARER_TOKEN=test-only-token",
                 ]
@@ -54,6 +56,41 @@ def main() -> int:
         base_env.update({"ENV_FILE": str(env_file), "CHECK_PUBLIC": "0"})
         valid = subprocess.run(["bash", str(SCRIPT)], env=base_env, capture_output=True, text=True)
         assert valid.returncode == 0, valid.stderr
+
+        env_file.write_text(
+            env_file.read_text(encoding="utf-8").replace(
+                "LOBSTER_SECURE_SESSION_MASTER_KEY=test-only-secure-session-master-key-0001\n",
+                "",
+            ),
+            encoding="utf-8",
+        )
+        missing_session_key = subprocess.run(
+            ["bash", str(SCRIPT)], env=base_env, capture_output=True, text=True
+        )
+        assert missing_session_key.returncode != 0
+        env_file.write_text(
+            env_file.read_text(encoding="utf-8")
+            + "LOBSTER_SECURE_SESSION_MASTER_KEY=test-only-secure-session-master-key-0001\n",
+            encoding="utf-8",
+        )
+        env_file.write_text(
+            env_file.read_text(encoding="utf-8").replace(
+                "LOBSTER_SECURE_SESSION_MASTER_KEY=test-only-secure-session-master-key-0001",
+                "LOBSTER_SECURE_SESSION_MASTER_KEY=too-short",
+            ),
+            encoding="utf-8",
+        )
+        short_session_key = subprocess.run(
+            ["bash", str(SCRIPT)], env=base_env, capture_output=True, text=True
+        )
+        assert short_session_key.returncode != 0
+        env_file.write_text(
+            env_file.read_text(encoding="utf-8").replace(
+                "LOBSTER_SECURE_SESSION_MASTER_KEY=too-short",
+                "LOBSTER_SECURE_SESSION_MASTER_KEY=test-only-secure-session-master-key-0001",
+            ),
+            encoding="utf-8",
+        )
 
         env_file.write_text(
             env_file.read_text(encoding="utf-8").replace(

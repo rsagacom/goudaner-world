@@ -737,6 +737,7 @@ Gateway 通过环境变量控制安全敏感行为，无需改代码或配置文
 | `LOBSTER_DEV_EMAIL_OTP_INLINE` | (空) | 设为 `1` 后 OTP 验证码直接返回在 API 响应里（`dev_code` 字段），跳过邮件发送。**仅限本地开发**。 |
 | `LOBSTER_EMAIL_OTP_MAILER_URL` | (空) | 生产邮件 Webhook 地址，必须为 HTTPS；仅 localhost/127.0.0.1 测试端点允许 HTTP。未配置时生产 OTP 请求失败关闭，不会生成无法送达的挑战。 |
 | `LOBSTER_EMAIL_OTP_MAILER_BEARER_TOKEN` | (空) | 调用邮件 Webhook 的 Bearer 凭证，必填。凭证只进入 Authorization header，不写入请求体或 auth-state。 |
+| `LOBSTER_SECURE_SESSION_MASTER_KEY` | (空) | 加密 `secure-sessions.json` 的 at-rest master key，生产必填且至少 32 个字符；只通过部署环境注入。 |
 | `LOBSTER_EMAIL_OTP_FROM` | (空) | 可选发件人，例如 `我和狗蛋儿的家 <no-reply@example.com>`；实际发件域名与 DKIM/SPF 由邮件 Webhook 服务负责。 |
 | `LOBSTER_WAKU_PROVIDER_URL` | (空) | 上游 gateway / Waku provider URL。设置后 gateway 启动时自动连接上游。 |
 | `LOBSTER_WAKU_UPSTREAM_URL` | (空) | `LOBSTER_WAKU_PROVIDER_URL` 的旧名，仍受支持。 |
@@ -748,6 +749,7 @@ Gateway 通过环境变量控制安全敏感行为，无需改代码或配置文
 - [ ] `LOBSTER_DEV_EMAIL_OTP_INLINE` 未设置（或显式设为 `0`）
 - [ ] `LOBSTER_EMAIL_OTP_MAILER_URL` 指向正式 HTTPS 邮件 Webhook
 - [ ] `LOBSTER_EMAIL_OTP_MAILER_BEARER_TOKEN` 使用部署密钥注入，未写入仓库或日志
+- [ ] `LOBSTER_SECURE_SESSION_MASTER_KEY` 使用部署密钥注入，长度至少 32 个字符，未写入仓库或日志
 - [ ] 邮件 Webhook 接收 `lobster-email-otp` JSON 并已用真实邮箱完成 request → delivery → verify 验收
 - [ ] OTP 限流已生效：每邮箱 1次/分钟请求，每 challenge 5次/分钟验证
 - [ ] Session token 30 天过期，logout 立即撤销

@@ -5878,6 +5878,72 @@ fn direct_session_persists_across_restart() {
 }
 
 #[test]
+fn direct_open_http_route_never_returns_or_persists_group_key() {
+    let temp = tempdir().expect("temp dir");
+    let root = temp.path().join("gateway");
+    let runtime = GatewayRuntime::open(&root, 64, None).expect("runtime");
+    let server = start_local_gateway_http_server(runtime);
+
+    let (status, response) = http_json(
+        "POST",
+        &server.base_url,
+        "/v1/direct/open",
+        Some(&serde_json::json!({
+            "requester_id": "qa-a",
+            "requester_device_id": "browser-a",
+            "peer_id": "qa-b",
+            "peer_device_id": "browser-b"
+        })),
+    );
+    assert_eq!(status, 200);
+    assert!(response.get("group_key").is_none());
+    assert_eq!(response["conversation_id"], "dm:qa-a:qa-b");
+
+    let snapshot = std::fs::read_to_string(root.join("secure-sessions.json"))
+        .expect("sealed secure session snapshot");
+    assert!(!snapshot.contains("group_key"));
+    let snapshot_json: serde_json::Value =
+        serde_json::from_str(&snapshot).expect("sealed snapshot json");
+    assert_eq!(snapshot_json["schema_version"], 1);
+    assert_eq!(snapshot_json["algorithm"], "AES-256-GCM-HKDF-SHA256");
+    assert!(
+        snapshot_json["ciphertext_hex"]
+            .as_str()
+            .is_some_and(|value| { !value.is_empty() && value.len() % 2 == 0 })
+    );
+}
+
+#[test]
+fn legacy_plaintext_secure_session_snapshot_is_migrated_to_sealed_storage() {
+    let temp = tempdir().expect("temp dir");
+    let root = temp.path().join("gateway");
+    std::fs::create_dir_all(&root).expect("gateway state dir");
+    let conversation = ConversationId("dm:legacy-a:legacy-b".into());
+    let mut legacy_manager = SkeletonSecureSessionManager::new();
+    legacy_manager
+        .bootstrap_direct(
+            &conversation,
+            vec![
+                MlsMember::device("legacy-a", "device-a"),
+                MlsMember::device("legacy-b", "device-b"),
+            ],
+        )
+        .expect("legacy session");
+    std::fs::write(
+        root.join("secure-sessions.json"),
+        serde_json::to_vec(&legacy_manager.snapshot()).expect("legacy snapshot"),
+    )
+    .expect("write legacy snapshot");
+
+    let runtime = GatewayRuntime::open(&root, 64, None).expect("migrate legacy snapshot");
+    assert!(runtime.secure_sessions.group_state(&conversation).is_some());
+    let migrated = std::fs::read_to_string(root.join("secure-sessions.json"))
+        .expect("migrated secure session snapshot");
+    assert!(!migrated.contains("group_key"));
+    assert!(migrated.contains("AES-256-GCM-HKDF-SHA256"));
+}
+
+#[test]
 fn direct_session_reuses_existing_legacy_conversation_id() {
     let temp = tempdir().expect("temp dir");
     let mut runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");

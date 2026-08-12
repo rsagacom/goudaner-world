@@ -12,6 +12,8 @@ impl GatewayRuntime {
         let archive_policy = ArchivePolicy::default();
         let timeline_store = FileTimelineStore::open(&storage_root, archive_policy)?;
         let cli_provider_url = upstream_base_url;
+        let dev_auth_bypass = Self::dev_auth_bypass_default();
+        let secure_session_storage_key = Self::secure_session_storage_key_default(dev_auth_bypass)?;
         let mut runtime = Self {
             node: InMemoryWakuLightNode::new(
                 WakuPeerMode::DesktopLight,
@@ -47,6 +49,7 @@ impl GatewayRuntime {
             device_state_path: storage_root.join("device-state.json"),
             timeline_store,
             secure_sessions: SkeletonSecureSessionManager::new(),
+            secure_session_storage_key,
             world: Self::default_world(),
             portability: ResidentPortability::protocol_safe_default(),
             cities: HashMap::new(),
@@ -78,7 +81,7 @@ impl GatewayRuntime {
             audit_counter: 0,
             agent_token_hashes: Self::agent_token_hashes_default(),
             federation_token_hash: Self::federation_token_hash_default(),
-            dev_auth_bypass: Self::dev_auth_bypass_default(),
+            dev_auth_bypass,
             started_at_ms: Self::now_ms(),
             app_config: HashMap::new(),
         };
@@ -705,6 +708,24 @@ impl GatewayRuntime {
         std::env::var("LOBSTER_DEV_AUTH_BYPASS")
             .map(|v| v == "1")
             .unwrap_or(cfg!(test))
+    }
+
+    fn secure_session_storage_key_default(
+        dev_auth_bypass: bool,
+    ) -> Result<Option<SecureSessionStorageKey>, String> {
+        match std::env::var("LOBSTER_SECURE_SESSION_MASTER_KEY") {
+            Ok(secret) => SecureSessionStorageKey::from_secret(&secret).map(Some),
+            Err(std::env::VarError::NotPresent) if dev_auth_bypass || cfg!(test) => {
+                SecureSessionStorageKey::from_secret(
+                    "lobster-insecure-development-session-key-0001",
+                )
+                .map(Some)
+            }
+            Err(std::env::VarError::NotPresent) => Ok(None),
+            Err(std::env::VarError::NotUnicode(_)) => {
+                Err("LOBSTER_SECURE_SESSION_MASTER_KEY must be valid UTF-8".into())
+            }
+        }
     }
 
     pub(crate) fn dev_auth_bypass_enabled(&self) -> bool {

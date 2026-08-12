@@ -200,7 +200,7 @@ impl GatewayRuntime {
     pub(crate) fn open_direct_session(
         &mut self,
         request: OpenDirectSessionRequest,
-    ) -> Result<MlsGroupState, String> {
+    ) -> Result<MlsGroupView, String> {
         let requester = IdentityId(Self::normalize_direct_resident_id(request.requester_id)?);
         let peer = IdentityId(Self::normalize_direct_resident_id(request.peer_id)?);
         if requester == peer {
@@ -211,7 +211,7 @@ impl GatewayRuntime {
         self.ensure_direct_conversation(&conversation_id, &[requester.clone(), peer.clone()])?;
 
         if let Some(existing) = self.secure_sessions.group_state(&conversation_id) {
-            return Ok(existing.clone());
+            return Ok(MlsGroupView::from(existing));
         }
 
         let members = vec![
@@ -228,7 +228,7 @@ impl GatewayRuntime {
             .secure_sessions
             .bootstrap_direct(&conversation_id, members)?;
         self.persist_secure_sessions()?;
-        Ok(group)
+        Ok(MlsGroupView::from(&group))
     }
 
     /// Ensure a personal room (1-participant Direct conversation) exists for `resident`.

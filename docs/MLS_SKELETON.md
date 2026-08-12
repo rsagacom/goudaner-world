@@ -56,6 +56,11 @@ Right now the ciphertext boundary is:
 This is intentionally just a transport boundary placeholder.
 It is **not** the final cryptographic MLS wire format.
 
+The gateway's lifecycle state is a separate at-rest boundary: `secure-sessions.json` is sealed with
+AES-256-GCM under a key derived from `LOBSTER_SECURE_SESSION_MASTER_KEY`, and public session
+projections omit `group_key`. This protects the current skeleton's persisted lifecycle material but
+does not turn the skeleton into interoperable MLS or production end-to-end encryption.
+
 ## Why this is still useful
 
 Even without final cryptography, this layer already gives the rest of the system stable expectations for:

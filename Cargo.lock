@@ -243,6 +243,7 @@ dependencies = [
  "postcard",
  "ring",
  "serde",
+ "serde_json",
  "zeroize",
 ]
 

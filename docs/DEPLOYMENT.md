@@ -115,6 +115,7 @@ LOBSTER_DEV_EMAIL_OTP_INLINE=0
 LOBSTER_EMAIL_OTP_MAILER_URL=http://127.0.0.1:8791/lobster/email-otp
 LOBSTER_EMAIL_OTP_MAILER_BEARER_TOKEN=replace-with-secret
 LOBSTER_EMAIL_OTP_FROM="我和狗蛋儿的家 <no-reply@chat.ajw.cn>"
+LOBSTER_SECURE_SESSION_MASTER_KEY=replace-with-at-least-32-character-secret
 
 > 含空格/尖括号的值必须加双引号:gateway.env 会被 systemd 读取,也会被
 > scripts/production-readiness.sh 用 bash source,不加引号会导致 bash 语法错误。
@@ -131,9 +132,11 @@ LOBSTER_WAKU_UPSTREAM_TOKEN=replace-with-the-upstream-secret
 
 # TUI 等受信客户端直连 Gateway 协议时使用；应匹配接收端 federation token
 LOBSTER_WAKU_GATEWAY_TOKEN=replace-with-the-gateway-secret
+
 ```
 
 生产模式下 `/v1/waku` 缺失或携带错误 federation token 一律返回 401；原始 token 只从环境读取，runtime 仅保留哈希，Debug 和持久化状态均不得出现明文。
+`secure-sessions.json` 使用该 master key 派生 AES-256-GCM 存储密钥；`POST /v1/direct/open` 只返回会话元数据，不返回 `group_key`。生产 readiness 会拒绝缺失或过短的 master key。当前 MLS 仍是骨架，不应据此宣称标准 MLS/E2EE。
 
 `LOBSTER_EMAIL_OTP_MAILER_URL` 指向同机部署的 `apps/lobster-mailer`（推荐，
 loopback HTTP 是 Gateway 唯一放行的非 HTTPS 情形）；使用外部邮件 Webhook

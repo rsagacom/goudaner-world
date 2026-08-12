@@ -12,6 +12,9 @@ use zeroize::Zeroize;
 
 const KEY_LEN: usize = 32;
 const NONCE_LEN: usize = 12;
+const STORAGE_SNAPSHOT_VERSION: u8 = 1;
+const STORAGE_SNAPSHOT_ALGORITHM: &str = "AES-256-GCM-HKDF-SHA256";
+const STORAGE_SNAPSHOT_AAD: &[u8] = b"lobster-secure-session-snapshot-v1";
 type Key = [u8; KEY_LEN];
 
 static RNG: LazyLock<SystemRandom> = LazyLock::new(SystemRandom::new);
@@ -113,6 +116,84 @@ pub struct MlsGroupState {
     pub group_key: Vec<u8>,
 }
 
+/// Public projection of a secure-session group. Key material must never cross
+/// an API or logging boundary with the lifecycle metadata.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MlsGroupView {
+    pub group_id: String,
+    pub conversation_id: ConversationId,
+    pub kind: MlsGroupKind,
+    pub scope: ConversationScope,
+    pub epoch: u64,
+    pub members: Vec<MlsMember>,
+    pub pending_rekey: bool,
+}
+
+impl From<&MlsGroupState> for MlsGroupView {
+    fn from(group: &MlsGroupState) -> Self {
+        Self {
+            group_id: group.group_id.clone(),
+            conversation_id: group.conversation_id.clone(),
+            kind: group.kind,
+            scope: group.scope,
+            epoch: group.epoch,
+            members: group.members.clone(),
+            pending_rekey: group.pending_rekey,
+        }
+    }
+}
+
+/// Derived storage key for sealing secure-session snapshots. The original
+/// deployment secret is not retained and Debug output is always redacted.
+#[derive(Clone, PartialEq, Eq)]
+pub struct SecureSessionStorageKey(Vec<u8>);
+
+impl SecureSessionStorageKey {
+    pub fn from_secret(secret: &str) -> Result<Self, String> {
+        let secret = secret.trim();
+        if secret.len() < KEY_LEN {
+            return Err("secure session storage secret must be at least 32 characters".into());
+        }
+        let salt = hkdf::Salt::new(hkdf::HKDF_SHA256, b"lobster-secure-session-storage-v1");
+        let prk = salt.extract(secret.as_bytes());
+        let mut key = [0u8; KEY_LEN];
+        prk.expand(&[b"snapshot-key"], hkdf::HKDF_SHA256)
+            .map_err(|error| format!("secure session storage key expansion failed: {error}"))?
+            .fill(&mut key)
+            .map_err(|error| format!("secure session storage key fill failed: {error}"))?;
+        Ok(Self(key.to_vec()))
+    }
+
+    fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl Drop for SecureSessionStorageKey {
+    fn drop(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+impl std::fmt::Debug for SecureSessionStorageKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SecureSessionStorageKey([REDACTED])")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SealedSecureSessionSnapshot {
+    pub schema_version: u8,
+    pub algorithm: String,
+    pub nonce_hex: String,
+    pub ciphertext_hex: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SecureSessionSnapshotV1 {
+    groups: Vec<MlsGroupState>,
+}
+
 impl Drop for MlsGroupState {
     fn drop(&mut self) {
         self.group_key.zeroize();
@@ -195,6 +276,80 @@ impl SkeletonSecureSessionManager {
             .into_iter()
             .map(|g| (g.conversation_id.clone(), g))
             .collect()
+    }
+
+    pub fn seal_snapshot(
+        &self,
+        storage_key: &SecureSessionStorageKey,
+    ) -> Result<SealedSecureSessionSnapshot, String> {
+        let snapshot = SecureSessionSnapshotV1 {
+            groups: self.snapshot(),
+        };
+        let mut protected = serde_json::to_vec(&snapshot)
+            .map_err(|error| format!("encode secure session snapshot failed: {error}"))?;
+        let mut nonce = [0u8; NONCE_LEN];
+        RNG.fill(&mut nonce)
+            .map_err(|error| format!("secure session snapshot nonce generation failed: {error}"))?;
+        let unbound = aead::UnboundKey::new(&aead::AES_256_GCM, storage_key.as_bytes())
+            .map_err(|error| format!("secure session snapshot key rejected: {error}"))?;
+        aead::LessSafeKey::new(unbound)
+            .seal_in_place_append_tag(
+                aead::Nonce::assume_unique_for_key(nonce),
+                aead::Aad::from(STORAGE_SNAPSHOT_AAD),
+                &mut protected,
+            )
+            .map_err(|error| format!("seal secure session snapshot failed: {error}"))?;
+        Ok(SealedSecureSessionSnapshot {
+            schema_version: STORAGE_SNAPSHOT_VERSION,
+            algorithm: STORAGE_SNAPSHOT_ALGORITHM.into(),
+            nonce_hex: hex::encode(nonce),
+            ciphertext_hex: hex::encode(protected),
+        })
+    }
+
+    pub fn restore_sealed_snapshot(
+        &mut self,
+        snapshot: &SealedSecureSessionSnapshot,
+        storage_key: &SecureSessionStorageKey,
+    ) -> Result<(), String> {
+        if snapshot.schema_version != STORAGE_SNAPSHOT_VERSION {
+            return Err(format!(
+                "unsupported secure session snapshot version: {}",
+                snapshot.schema_version
+            ));
+        }
+        if snapshot.algorithm != STORAGE_SNAPSHOT_ALGORITHM {
+            return Err(format!(
+                "unsupported secure session snapshot algorithm: {}",
+                snapshot.algorithm
+            ));
+        }
+        let nonce: [u8; NONCE_LEN] = hex::decode(&snapshot.nonce_hex)
+            .map_err(|error| format!("decode secure session snapshot nonce failed: {error}"))?
+            .try_into()
+            .map_err(|_| "secure session snapshot nonce has invalid length".to_string())?;
+        let mut protected = hex::decode(&snapshot.ciphertext_hex).map_err(|error| {
+            format!("decode secure session snapshot ciphertext failed: {error}")
+        })?;
+        let unbound = aead::UnboundKey::new(&aead::AES_256_GCM, storage_key.as_bytes())
+            .map_err(|error| format!("secure session snapshot key rejected: {error}"))?;
+        let plaintext_len = match aead::LessSafeKey::new(unbound).open_in_place(
+            aead::Nonce::assume_unique_for_key(nonce),
+            aead::Aad::from(STORAGE_SNAPSHOT_AAD),
+            &mut protected,
+        ) {
+            Ok(plaintext) => plaintext.len(),
+            Err(_) => {
+                protected.zeroize();
+                return Err("open secure session snapshot failed".into());
+            }
+        };
+        let decoded =
+            serde_json::from_slice::<SecureSessionSnapshotV1>(&protected[..plaintext_len])
+                .map_err(|error| format!("decode secure session snapshot failed: {error}"));
+        protected.zeroize();
+        self.restore(decoded?.groups);
+        Ok(())
     }
     #[allow(clippy::possible_missing_else)]
     fn build(
@@ -470,6 +625,65 @@ mod tests {
                 .members
                 .len(),
             2
+        );
+    }
+    #[test]
+    fn public_group_view_never_serializes_group_key() {
+        let mut manager = SkeletonSecureSessionManager::new();
+        let group = manager
+            .bootstrap_direct(&ConversationId("dm:rsaga:builder".into()), dm())
+            .unwrap();
+        let serialized = serde_json::to_value(MlsGroupView::from(&group)).unwrap();
+        assert!(serialized.get("group_key").is_none());
+        assert_eq!(serialized["group_id"], "mls:dm:rsaga:builder");
+    }
+    #[test]
+    fn sealed_snapshot_roundtrips_without_plaintext_group_key() {
+        let mut manager = SkeletonSecureSessionManager::new();
+        let conversation = ConversationId("dm:rsaga:builder".into());
+        manager.bootstrap_direct(&conversation, dm()).unwrap();
+        let expected_key = manager
+            .group_state(&conversation)
+            .unwrap()
+            .group_key
+            .clone();
+        let storage_key =
+            SecureSessionStorageKey::from_secret("unit-test-secure-session-storage-secret-0001")
+                .unwrap();
+
+        let sealed = manager.seal_snapshot(&storage_key).unwrap();
+        let serialized = serde_json::to_string(&sealed).unwrap();
+        assert!(!serialized.contains("group_key"));
+        assert!(!serialized.contains(&hex::encode(&expected_key)));
+
+        let mut restored = SkeletonSecureSessionManager::new();
+        restored
+            .restore_sealed_snapshot(&sealed, &storage_key)
+            .unwrap();
+        assert_eq!(
+            restored.group_state(&conversation).unwrap().group_key,
+            expected_key
+        );
+    }
+    #[test]
+    fn sealed_snapshot_rejects_wrong_storage_key() {
+        let mut manager = SkeletonSecureSessionManager::new();
+        manager
+            .bootstrap_direct(&ConversationId("dm:rsaga:builder".into()), dm())
+            .unwrap();
+        let storage_key =
+            SecureSessionStorageKey::from_secret("unit-test-secure-session-storage-secret-0001")
+                .unwrap();
+        let wrong_key =
+            SecureSessionStorageKey::from_secret("unit-test-secure-session-storage-secret-0002")
+                .unwrap();
+        let sealed = manager.seal_snapshot(&storage_key).unwrap();
+
+        let mut restored = SkeletonSecureSessionManager::new();
+        assert!(
+            restored
+                .restore_sealed_snapshot(&sealed, &wrong_key)
+                .is_err()
         );
     }
     #[test]

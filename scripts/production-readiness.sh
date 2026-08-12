@@ -23,6 +23,9 @@ cors_origin="${LOBSTER_CORS_ORIGIN:-}"
 [[ "$cors_origin" != "*" ]] || fail "LOBSTER_CORS_ORIGIN must not be *"
 [[ "${LOBSTER_DEV_AUTH_BYPASS:-0}" == "0" ]] || fail "LOBSTER_DEV_AUTH_BYPASS must be 0 or unset"
 [[ "${LOBSTER_DEV_EMAIL_OTP_INLINE:-0}" == "0" ]] || fail "LOBSTER_DEV_EMAIL_OTP_INLINE must be 0 or unset"
+secure_session_master_key="${LOBSTER_SECURE_SESSION_MASTER_KEY:-}"
+[[ "${#secure_session_master_key}" -ge 32 ]] \
+  || fail "LOBSTER_SECURE_SESSION_MASTER_KEY must be at least 32 characters"
 
 mailer_url="${LOBSTER_EMAIL_OTP_MAILER_URL:-}"
 if [[ ! "$mailer_url" =~ ^https://[^[:space:]]+$ ]]; then

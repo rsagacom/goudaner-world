@@ -1628,6 +1628,9 @@ pub(crate) struct GatewayRuntime {
     pub(crate) audit_log_path: PathBuf,
     pub(crate) timeline_store: FileTimelineStore,
     pub(crate) secure_sessions: SkeletonSecureSessionManager,
+    /// Derived key used only to seal the at-rest skeleton session snapshot.
+    /// Debug output is redacted by the key type and the source secret is never persisted.
+    pub(crate) secure_session_storage_key: Option<SecureSessionStorageKey>,
     pub(crate) world: WorldProfile,
     pub(crate) portability: ResidentPortability,
     pub(crate) cities: HashMap<CityId, CityState>,

@@ -712,9 +712,14 @@ The gateway stores world/city state in:
 
 - `<state-dir>/governance-state.json`
 
-The gateway stores MLS skeleton session state in:
+The gateway stores the sealed MLS skeleton session state in:
 
 - `<state-dir>/secure-sessions.json`
+
+The file is encrypted with the key derived from `LOBSTER_SECURE_SESSION_MASTER_KEY` and must not be
+copied without the matching deployment secret. The `POST /v1/direct/open` response contains only
+group metadata; it never exposes `group_key`. Legacy plaintext snapshots are accepted once for
+startup migration and are atomically replaced with a sealed snapshot.
 
 and timeline state in the file-backed `FileTimelineStore` under the same root.
 
