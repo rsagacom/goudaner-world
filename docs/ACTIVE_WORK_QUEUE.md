@@ -4,6 +4,15 @@ Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-13 下一阶段执行规划
+
+| 轨道 | 当前状态 | 下一动作与门禁 |
+| --- | --- | --- |
+| 单城生产收口 | 已具备执行条件，待授权 | 按 `docs/DEVELOPMENT_BLUEPRINT.md` 的 0→6 阶段执行：固定 manifest → 目标机只读预检 → 备份/安装 → 本机与公网 SHA 追溯 → 真实 OTP/双居民矩阵 → 回滚判定；任何门禁失败即停在当前阶段。 |
+| 生产权限边界 | 保持 | Atlas `host.aws-ec2-beijing` 的 `agent_execution_allowed=false`；当前未 SSH、未重启、未切换生产。需用户明确授权目标主机操作后才进入第 2 阶段。 |
+| P5 跨城/加密 | 暂缓 | 不把 HTTP federation/AES-GCM 骨架称为 native Waku/标准 MLS；开源调研、依赖选型和 Proposal/ADR 需另行授权。 |
+| 低价值 polish | 降级 | DMARC/empty-note 可单独排期，不插入生产切换主链。 |
+
 ## 2026-08-13 公网生产状态只读复核
 
 | 项目 | 状态 | 说明 |

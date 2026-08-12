@@ -387,6 +387,109 @@
 
 剩余 app.js 候选 3/4/5（消息 payload 已做；房间状态/连接/同步文案、shellMode 视图状态文案）收益小（各 15-28 行）且多耦合运行时状态或 DOM，边际递减。
 
+### 下一阶段执行规划（2026-08-13；生产收口优先）
+
+下一阶段不再以继续拆 `app.js` 或增加低收益 UI polish 为主，而是把已经通过本地门禁的单城 IM 版本安全地变成**可追溯、可验收、可回滚的生产发布**。每一阶段必须满足退出条件后才能进入下一阶段；任何失败都停在当前阶段，不带故障进入真实居民验收。
+
+#### 0. 固定发布锚点与执行资料
+
+当前已验证的发布锚点固定为：
+
+| 项目 | 值 |
+|------|-----|
+| `RELEASE_GIT_SHA` | `d0e80f54539241381f10f3e256ec065b52083f77` |
+| GitHub release run | `31632458159` |
+| 制品目录 | `/Volumes/AJW-Data/Projects/lobster-chat-release-d0e80f5.zjrdwG` |
+| x86_64 target | `x86_64-unknown-linux-gnu` |
+| ARM64 target | `aarch64-unknown-linux-gnu` |
+| 安装/公网合同 | `docs/DEPLOYMENT.md` §3–§9 |
+
+本次只改文档不会改变该 Gateway/H5 制品的代码内容。生产安装必须以 `release-manifest.json.git_sha` 为准，而不是以当时的本地 HEAD 或服务别名为准；如果重新打包，则先产生新的完整 Git SHA，再重新跑 release gate、制品校验和 manifest 复核，不能混用旧制品与新 SHA。
+
+#### 1. 本地发布前门禁（无生产写入）
+
+**执行人**：Codex/开发机。**入口**：固定发布锚点和目标架构已确认。
+
+1. 根据目标主机 `uname -m` 选择 `x86_64` 或 `aarch64` 制品；在对应目录直接执行 `sha256sum -c SHA256SUMS`。
+2. 检查 `release-manifest.json` 的 `git_sha` 等于 `RELEASE_GIT_SHA`，Gateway tarball 经 `file` 确认为对应 ELF 架构；不把 source/web archive 的内容当成 Gateway 已运行证据。
+3. 复跑文档和脚本门禁：`git diff --check`、`bash -n scripts/{install-server.sh,backup-state.sh,production-readiness.sh,smoke-public-ingress.sh,smoke-install-layout.sh}`、`scripts/smoke-install-layout.sh`。
+4. 仅当发布代码发生变化时，才运行完整 `RUN_PREFLIGHT=0 INCLUDE_PROVIDER_FEDERATION=1 scripts/smoke-release-gate.sh` 并重新生成制品；文档-only 提交沿用已验证 release run，但不能在报告中声称它重新编译过 Gateway。
+
+**退出条件**：目标架构、三类制品 checksum、manifest SHA、安装 layout 演练全部通过；无任何制品来自 dirty worktree；外盘临时目录之外不复制大文件。
+
+#### 2. 目标 Linux 主机只读预检（需要生产授权）
+
+**执行人**：获得用户明确授权的目标主机操作员。当前 Atlas 事实 `host.aws-ec2-beijing.scheduling.agent_execution_allowed=false`，因此 Codex 不直接 SSH、重启或切换该主机；授权应明确包含“在 aws-beijing 执行 IM 生产切换”。
+
+只读确认以下项目，并只回报状态、路径和版本，不回显环境文件内容、Bearer、OTP、API key 或私钥：
+
+| 检查 | 通过标准 | 失败处理 |
+|------|----------|----------|
+| 架构/空间/内存 | 与制品 target 匹配；磁盘和备份目录有余量 | 换正确制品或先清理/扩容，不安装 |
+| Gateway/mailer/Nginx | unit、监听端口和 Nginx 配置可定位 | 先修服务依赖，不重启切换 |
+| 环境文件 | 文件存在、权限正确、只报告变量名；生产 readiness 不拒绝 | 不复制/改写 secret，回到配置维护流程 |
+| 当前版本 | 记录当前 `/v1/version`、manifest 类型和服务状态 | 作为回滚锚点，不覆盖旧制品 |
+| 备份目录 | `/var/lib/lobster-chat` 与 `/srv/backups` 可写且有空间 | 备份不可验证时禁止安装 |
+
+本阶段只执行 `scripts/preflight.sh`、`systemctl is-active/status`、`nginx -t`、本机 health/version/manifest 的读取检查，不执行 `restart`、`install-server.sh` 或状态写入。
+
+#### 3. 备份、安装与服务恢复
+
+**入口条件**：第 2 阶段只读预检通过，且备份目录可用。
+
+1. 先运行已脚本化备份：`sudo bash /opt/lobster-chat/scripts/backup-state.sh`；确认 tarball 非空、包含 timelines、可解压，且 Gateway 被 trap 拉回 active。
+2. 保留当前 Gateway/H5 的版本和回滚制品；对 `/etc/lobster-chat/*.env` 只做受保护的运维备份，不将其复制到仓库、日志或公开工单。
+3. 使用与目标架构匹配的 Gateway、Web 和同目录 `release-manifest.json` 调用 `scripts/install-server.sh`；必须传 `RELEASE_MANIFEST`，让安装器在替换前校验 checksum 和 SHA。
+4. `daemon-reload` 后按 runbook 恢复 Gateway/mailer，先验证本机 `127.0.0.1:8787/health`、`/v1/version` 和 `release-manifest.json`，再验证 Nginx；不以 systemd `active` 单独作为成功标准。
+
+**停止条件**：备份失败、manifest/checksum 不符、Gateway 本机 health/version 失败、Nginx 配置失败、mailer 不可达，立即停止在本阶段并使用原制品恢复；不得进入公网登录验收。
+
+#### 4. 公网版本追溯与安全边界
+
+本机检查通过后，执行：
+
+```bash
+BASE_URL=https://chat.ajw.cn \
+EXPECT_RELEASE_GIT_SHA=d0e80f54539241381f10f3e256ec065b52083f77 \
+  scripts/smoke-public-ingress.sh
+```
+
+并用 `CHECK_PUBLIC=1` 的 `scripts/production-readiness.sh` 做同一轮只读检查。必须同时满足：`/health` 200、`/v1/version` 为 JSON、`/release-manifest.json` 为 JSON 而非 SPA HTML、两处 `git_sha` 完全一致、受保护摘要和 logout 在无 Bearer 时返回 401、正式 CORS origin 正确。`/v1/provider` 显示 `local-memory`/`Disconnected` 只能说明当前 provider 状态，不能替代居民 IM 或外部 provider 的验收。
+
+**停止条件**：任何版本 404、manifest `text/html`、SHA 漂移、鉴权边界变宽、首页/住宅页/后台页不可达，都先回滚或修复代理，再继续；不在旧公网部署上做真实邮箱和居民数据测试。
+
+#### 5. 真实 OTP 与双居民 IM 验收
+
+仅在第 4 阶段通过后，使用两组经用户批准的测试邮箱和脱敏居民标识；报告只写结果，不写邮箱、resident ID、token、challenge ID 或验证码。
+
+| 组别 | 必测项 | 通过标准 |
+|------|--------|----------|
+| 注册/会话 | OTP 实际到达、verify、shell state、logout、旧 token 失效 | 邮件收件箱真实收到；响应不含 `dev_code`；退出后旧 token 401 |
+| 公共房间 | A→B 发送、B 可见、编辑、撤回、搜索 | 双端最终状态一致，搜索遵守参与者权限 |
+| 私聊 | direct/open、双向发送、编辑、撤回 | 非参与者不可读；双方状态一致 |
+| 失败恢复 | 人为一次网络失败后重发 | 失败气泡可重发，最终 committed copy 不重复 |
+| 持久化 | 刷新页面、重启 Gateway 后恢复 | 消息、注册、已读和会话按既有合同恢复 |
+| 管理后台 | 居民/房间/审计读取，按 runbook 做一次恢复动作 | 成功/失败反馈真实，`audit-log.json` 有脱敏留痕 |
+
+每个场景记录“请求入口—HTTP/SSE 结果—页面最终态—是否重启后复现”；只保存脱敏摘要。若 OTP 真实投递失败、消息重复/丢失、越权可读、登出后旧 token 仍有效或后台写操作假成功，立即进入回滚判定。
+
+#### 6. 回滚判定与收口
+
+任一阶段触发停止条件时，优先保留故障证据和当前坏状态副本；按 `docs/DEPLOYMENT.md` §8 安装上一版匹配架构制品。只有确认新版本造成状态格式不兼容时才恢复旧状态备份，不能为修复代码问题默认覆盖用户数据。回滚后重复 `/health`、本机 version/manifest、公网 smoke 和最小真实登录验证。
+
+本阶段的完成门槛是：
+
+1. 公网版本和 manifest 精确指向部署制品 SHA；
+2. Gateway、mailer、Nginx、TLS/公网入口均有真实可用证据；
+3. 未授权 401、CORS、logout 和不泄露 `dev_code` 的安全边界通过；
+4. 两组真实 OTP 收件、双居民公共房间/私聊矩阵和失败重发通过；
+5. 备份包、安装 manifest、验证摘要和（如发生）回滚结果均可追溯且脱敏；
+6. Atlas 写入本次部署的 finding/change/verification/checkpoint，释放 lease 后再 finish task。
+
+#### 7. P5 保持独立授权门
+
+P5 不与本次单城生产切换混合。当前 HTTP gateway federation 与自研 AES-GCM `crypto-mls` 骨架不得包装成 native Waku 或标准 MLS。只有用户另行明确允许限时开源调研后，才运行 Atlas reuse gate，围绕真实 Waku transport、MLS 1:1/群组库、密钥存储/迁移、跨城发现和互操作性形成 Proposal/ADR，再用最小 spike 验证 transport + 加密端到端链路；在此之前不新增依赖、不改生产协议面。
+
 ### 未入主线的实验产物（保留 untracked）
 
 按 scope 收紧原则（ACTIVE-im [ACT-013]）未接入页面、不入主线提交：
