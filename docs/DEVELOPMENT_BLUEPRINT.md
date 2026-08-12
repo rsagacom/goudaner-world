@@ -273,6 +273,14 @@
 - **防回归**：Web **1418/1418**、layout、realness；新增 shell state 401 运行时回归和 auth controller 失效状态回归。
 - **部署边界**：仅本地代码、测试和文档已验证，未 SSH、未部署生产。
 
+### H5 会话失效真实浏览器回归（2026-08-13）
+
+- **覆盖缺口**：H5 `/v1/shell/state` 401 先前已有 controller/runtime 单元回归，但真实双浏览器 smoke 只证明正常双居民消息链路，没有证明真实页面加载后的过期 session 恢复。
+- **实现**：双浏览器 smoke 增加独立 H5 browser context，页面初始化写入脱敏过期 session，并延迟第一次 `/v1/shell/state` 401；不触碰正常 index/creative 双居民 context。
+- **验收断言**：真实 H5 页面确认 token 清空、身份降为“访客”、状态保留“登录已失效，请重新登录”，并进入登录 surface；当前 H5 合同允许失效后直接打开登录 overlay，admin-ds 仍单独验证 HUD 回到“登录”并可点击打开 overlay。
+- **防回归**：Web **1419/1419**、layout、realness；完整 release gate 退出码 0，含 Gateway 323、TUI/CLI、双 HTTP、真实双浏览器（H5/admin-ds 401）和 provider federation smoke。
+- **部署边界**：仅本地浏览器 smoke、代码和文档已验证，未 SSH、未部署生产。
+
 ### admin-ds Gateway 会话失效闭环（2026-08-13）
 
 - **根因**：`admin-ds.js` 的 Gateway GET/POST helper 原先只返回 HTTP 失败，没有通知共享认证控制器；过期 Bearer 会让后台继续保留旧身份和登录 HUD。

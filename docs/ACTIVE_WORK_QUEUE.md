@@ -4,6 +4,16 @@ Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-13 H5 会话失效真实浏览器回归
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 覆盖缺口 | 已确认 | H5 `/v1/shell/state` 401 之前已有 auth/controller 与 creative runtime 单元回归，但真实双浏览器只覆盖正常双居民消息链路和 admin-ds 过期会话。 |
+| 浏览器回归 | 已实现 | 增加独立 H5 browser context，注入脱敏过期 session，延迟 shell state 401，验证 token/身份清理、失效提示和登录 surface；H5 当前行为是直接打开登录 overlay，admin-ds 仍验证 HUD 点击入口。 |
+| 隔离纪律 | 已实现 | H5 过期 fixture 与 index/creative 双居民页分离，避免失效状态污染真实发送、编辑、撤回和失败重试验收。 |
+| 防回归 | 已通过 | `node scripts/smoke-web-dual-browser.mjs` 与完整 release gate 退出码 0；Web **1419/1419**、layout、realness、Gateway 323、TUI/CLI、双 HTTP、真实双浏览器（含 H5/admin-ds 401）和 provider federation smoke 全绿。 |
+| 生产状态 | 未变更 | 仅本地 smoke、代码和文档验证，未 SSH、未部署生产。 |
+
 ## 2026-08-13 admin-ds 会话失效真实浏览器回归
 
 | 项目 | 状态 | 说明 |

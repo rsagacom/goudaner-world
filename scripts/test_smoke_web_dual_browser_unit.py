@@ -43,15 +43,21 @@ def main() -> int:
     assert "async function expectEditedMessage(page, editedText, side)" in text
     assert "async function clickMessageAction(page, text, side, action)" in text
     assert "async function expectRecalledMessage(page, { previousText, side })" in text
-    assert "async function expectAdminSessionExpiry(page, forcedFailures)" in text
+    assert "async function expectSessionExpiry(page, forcedFailures, label)" in text
+    assert 'localStorage.setItem("lobster-session-token", "expired-h5-session-fixture")' in text
+    assert 'localStorage.setItem("lobster-identity", "h5-browser")' in text
+    assert 'await h5Page.route("**/v1/shell/state*"' in text
+    assert 'await h5Page.goto(`${webUrl}/creative.html?gateway=${encodeURIComponent(gatewayUrl)}&identity=h5-browser&qa=browser`);' in text
+    assert 'await expectSessionExpiry(h5Page, h5AuthFailure, "h5");' in text
     assert 'localStorage.setItem("lobster-session-token", "expired-session-fixture")' in text
     assert 'localStorage.setItem("lobster-identity", "admin-browser")' in text
     assert 'await adminPage.route("**/v1/admin/summary"' in text
     assert 'status: 401' in text
     assert 'invalid or expired session' in text
     assert 'await adminPage.goto(`${webUrl}/admin-ds.html?gateway=${encodeURIComponent(gatewayUrl)}`);' in text
-    assert 'await expectAdminSessionExpiry(adminPage, adminAuthFailure);' in text
+    assert 'await expectSessionExpiry(adminPage, adminAuthFailure, "admin-ds");' in text
     assert 'admin-ds auth expiry: 401 -> visitor/login HUD -> overlay' in text
+    assert 'h5 auth expiry: 401 -> visitor/login surface -> overlay' in text
     assert '"消息已撤回"' in text
     assert 'await run("cargo", ["build", "--manifest-path", path.join(ROOT_DIR, "Cargo.toml"), "-p", "lobster-waku-gateway"])' in text
     assert text.index("await assertExecutable(GATEWAY_BIN, \"gateway\");") < text.index('const stateRoot = await mkdtemp(path.join(os.tmpdir(), "lobster-web-dual-browser."));')
@@ -60,9 +66,11 @@ def main() -> int:
     assert 'env: { LOBSTER_DEV_AUTH_BYPASS: "1" }' in text
     assert 'web = spawnChecked("python3", [' in text
     assert 'browser = await chromium.launch({ headless: true });' in text
+    assert 'h5Context = await browser.newContext();' in text
     assert 'adminContext = await browser.newContext();' in text
+    assert 'await h5Context?.close().catch(() => {});' in text
     assert 'await adminContext?.close().catch(() => {});' in text
-    assert 'label === "admin-ds" && message.type() === "error" && message.text().includes("401")' in text
+    assert '(label === "h5-auth" || label === "admin-ds") && message.type() === "error" && message.text().includes("401")' in text
     assert 'const browserDiagnostics = [];' in text
     assert 'let expectedBrowser503s = 0;' in text
     assert 'expectedBrowser503s > 0' in text
