@@ -2019,3 +2019,11 @@ body[data-room-ownership="visitor"] .creative-hud-ownership-badge--visitor {
   cursor: default;
   opacity: 0.52;
 }
+
+/* 2026-08-02 移动端触控目标收口：登录弹窗关闭钮 32px → 36px（≥34px 约定），仅 ≤820px 生效。 */
+@media (max-width: 820px) {
+  .resident-login-close {
+    width: 36px;
+    height: 36px;
+  }
+}

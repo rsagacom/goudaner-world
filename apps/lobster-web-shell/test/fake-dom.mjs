@@ -21,6 +21,7 @@ export const APP_LOCAL_IMPORT_PATHS = Object.freeze([
   "./shell-lifecycle.js",
   "./shell-governance-status.js",
   "./shell-governance-render.js",
+  "./shell-private-room-locked-card.js",
   "./shell-governance-city-surfaces.js",
   "./shell-resident-surfaces.js",
   "./shell-room-list-surfaces.js",

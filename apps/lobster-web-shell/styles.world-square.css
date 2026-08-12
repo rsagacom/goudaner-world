@@ -912,3 +912,13 @@ body.scene-clear-mode[data-shell-page="world-square"] .scene-hotspot.is-active {
     flex-wrap: wrap;
   }
 }
+
+/* 2026-08-02 移动端触控目标收口：HUD 动作链接 28px → ≥34px（与关系按钮 realness 约定一致），仅 ≤820px 生效。 */
+@media (max-width: 820px) {
+  .world-square-actions a,
+  .world-square-actions .hud-login-toggle,
+  .world-square-actions .hud-pill {
+    min-height: 34px;
+    padding: 6px 12px;
+  }
+}

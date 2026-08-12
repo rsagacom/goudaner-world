@@ -41,8 +41,8 @@ test("hub page is now main-city group chat page with canvas and timeline", async
   assert.match(html, /styles\.scene\.css\?v=20260731-ui-refresh-r4/);
   assert.match(html, /styles\.chat\.css\?v=20260731-ui-refresh-r4/);
   assert.match(html, /styles\.css\?v=20260731-ui-refresh-r4/);
-  assert.match(html, /styles\.user-shell\.css\?v=20260731-ui-refresh-r4/);
-  assert.match(html, /styles\.pixel-map\.css\?v=20260731-ui-refresh-r4/);
+  assert.match(html, /styles\.user-shell\.css\?v=20260802-locked-card/);
+  assert.match(html, /styles\.pixel-map\.css\?v=20260802-scene-canvas-cqh/);
   assert.match(html, /app\.js\?v=20260731-ui-refresh-r4/);
   assert.match(html, /data-symbol-trigger/);
   assert.match(html, /composer-symbol-category/);
@@ -82,9 +82,9 @@ test("creative page is the residential pixel room entry", async () => {
   assert.match(html, /data-rail-visibility="owner-only"/);
   assert.match(html, /data-personal-room-policy="friends_only"/);
   assert.match(html, /data-personal-room-policy="registered_all"/);
-  assert.match(html, /styles\.creative\.css\?v=20260731-ui-refresh-r4/);
-  assert.match(html, /styles\.user-shell\.css\?v=20260731-ui-refresh-r4/);
-  assert.match(html, /styles\.pixel-map\.css\?v=20260731-ui-refresh-r4/);
+  assert.match(html, /styles\.creative\.css\?v=20260802-touch-targets/);
+  assert.match(html, /styles\.user-shell\.css\?v=20260802-locked-card/);
+  assert.match(html, /styles\.pixel-map\.css\?v=20260802-scene-canvas-cqh/);
   assert.match(html, /app\.js\?v=20260731-ui-refresh-r4/);
   assert.match(html, /data-symbol-trigger/);
   assert.match(html, /composer-symbol-category/);
@@ -102,7 +102,7 @@ test("admin page has collapsible management navigation and tool groups", async (
   assert.match(html, /href="\.\/styles\.scene\.css\?v=20260731-ui-refresh-r4"/);
   assert.match(html, /href="\.\/styles\.chat\.css\?v=20260731-ui-refresh-r4"/);
   assert.match(html, /href="\.\/styles\.css\?v=20260731-ui-refresh-r4"/);
-  assert.match(html, /href="\.\/styles\.user-shell\.css\?v=20260731-ui-refresh-r4"/);
+  assert.match(html, /href="\.\/styles\.user-shell\.css\?v=20260802-locked-card"/);
   assert.match(html, /管理后台/);
 
   // 左侧是可收起管理目录，仍保留会话队列作为首个日常入口。
@@ -781,7 +781,7 @@ test("world-square page is a readonly public square entry", async () => {
   assert.match(html, /href="\.\/index\.html"/);
   assert.match(css, /world-square-concept-20260427-256\.png/);
   assert.match(css, /世界广场/);
-  assert.match(html, /styles\.world-square\.css\?v=20260731-ui-refresh-r4/);
+  assert.match(html, /styles\.world-square\.css\?v=20260802-touch-targets/);
   assert.match(html, /dataset\.timeOfDay/);
   assert.match(html, /\/v1\/world-square/);
   assert.match(html, /textContent/);
@@ -4749,6 +4749,21 @@ test("scene editor follows Gateway scene contract and never fabricates a save ac
   assert.match(source, /&identity=" \+ encodeURIComponent\(editorIdentity\)/);
 });
 
+test("scene editor hotspot controls stay touch-friendly with arrow-key nudge", async () => {
+  const html = await readShellPage("scene-editor.html");
+
+  // 触控热区：视觉 10px 手柄经 ::before 扩到 24px 可点区域
+  assert.match(html, /\.editor-resize-handle::before\s*\{[^}]*inset:\s*-7px/);
+  // 删除钮 28px（原 18px 移动端捏不住）
+  assert.match(html, /\.editor-hotspot-delete\s*\{[^}]*width:\s*28px[^}]*height:\s*28px/);
+  // 方向键微调：0.5% 步进、Shift 大步、输入框聚焦不拦截、连续按住合并 undo 历史
+  assert.match(html, /ArrowLeft:\s*\[-1,\s*0\]/);
+  assert.match(html, /ArrowDown:\s*\[0,\s*1\]/);
+  assert.match(html, /e\.shiftKey \? 250 : 50/);
+  assert.match(html, /e\.target\.tagName === 'INPUT'/);
+  assert.match(html, /lastNudgeAt/);
+});
+
 test("scene-editor link resolves active room and token at click time (no stale dm prefix)", async () => {
   const source = await readShellModule("app.js");
   const mainSource = sliceBetween(
@@ -4902,4 +4917,28 @@ test("conversation overview header delegates copy/badge spec to shell-room-rende
   assert.doesNotMatch(headerRenderer, /后台对象 · /);
   assert.doesNotMatch(headerRenderer, /room\.overview_summary \|\| room\.context_summary/);
   assert.doesNotMatch(headerRenderer, /roomKind\(room\) === "direct" \? "accent" : "muted"/);
+});
+
+test("mobile touch targets meet the 34px floor on small screens", async () => {
+  const pixelMap = await readShellModule("styles.pixel-map.css");
+  const worldSquare = await readShellModule("styles.world-square.css");
+  const creative = await readShellModule("styles.creative.css");
+
+  // 2026-08-02 触控收口块必须挂在 ≤820px 媒体查询内，桌面视觉不受影响
+  assert.match(pixelMap, /@media \(max-width: 820px\) \{[\s\S]*2026-08-02 移动端触控目标收口|2026-08-02 移动端触控目标收口[\s\S]*@media \(max-width: 820px\)/);
+  // 消息动作 / 符号 tab / mention chip 全部抬到 ≥34px
+  assert.match(pixelMap, /\.message-action \{[\s\S]*?min-height: 34px/);
+  assert.match(pixelMap, /\.composer-symbol-tab \{[\s\S]*?min-height: 34px/);
+  assert.match(pixelMap, /\.public-square-mention-chip \{[\s\S]*?min-height: 34px !important/);
+  // 世界页 HUD 动作链接 ≥34px
+  assert.match(worldSquare, /\.world-square-actions a,[\s\S]*?min-height: 34px/);
+  // 登录弹窗关闭钮 36px
+  assert.match(creative, /\.resident-login-close \{[\s\S]*?width: 36px;[\s\S]*?height: 36px/);
+  // 升版纪律：改了样式的三个 CSS 引用必须离开旧版本号
+  const index = await readShellPage("index.html");
+  const creativeHtml = await readShellPage("creative.html");
+  const worldHtml = await readShellPage("world-square.html");
+  assert.match(index, /styles\.pixel-map\.css\?v=20260802-scene-canvas-cqh/);
+  assert.match(creativeHtml, /styles\.creative\.css\?v=20260802-touch-targets/);
+  assert.match(worldHtml, /styles\.world-square\.css\?v=20260802-touch-targets/);
 });

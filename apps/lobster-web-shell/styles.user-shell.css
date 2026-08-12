@@ -4203,3 +4203,45 @@ body[data-chat-style="wechat"] #room-stage-title {
   font-weight: 600;
   color: var(--sfc-gold);
 }
+
+/* 2026-08-02 未授权私宅 stage 空态卡片：dark-on-dark 三页统一色系，行动提示按状态分色。
+   creative 页不加载 styles.chat.css，卡片结构样式需在此自洽。 */
+body[data-shell-page="user"] .private-room-locked-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 48px auto;
+  max-width: 420px;
+  padding: 28px 24px;
+  text-align: center;
+  background: rgba(22, 16, 12, 0.88);
+  border: 1px solid #3a2f28;
+  border-radius: 14px;
+}
+
+body[data-shell-page="user"] .private-room-locked-card .timeline-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e8ded2;
+}
+
+body[data-shell-page="user"] .private-room-locked-card .timeline-empty-copy {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #9a8b7a;
+}
+
+body[data-shell-page="user"] .private-room-locked-card .timeline-empty-action {
+  font-size: 12px;
+  color: #57c8c2;
+}
+
+body[data-shell-page="user"] .private-room-locked-card.is-locked .timeline-empty-action {
+  color: #d98a76;
+}
+
+body[data-shell-page="user"] .private-room-locked-card.is-pending .timeline-empty-action {
+  color: #c9a86a;
+}

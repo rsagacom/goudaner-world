@@ -2665,11 +2665,15 @@ body[data-shell-variant="creative-terminal"] .creative-stage {
   min-height: 0 !important;
   height: 100% !important;
   aspect-ratio: auto !important;
+  /* 2026-08-02：stage 成为尺寸容器，让热点层按容器高度（而非 100vh）推算 16:9 画布，
+     移动端 Tab Bar / safe-area / 桌面顶栏占高时热点与 contain 背景保持对齐。 */
+  container-type: size;
 }
 
 body[data-shell-variant="creative-terminal"] .scene-hotspots {
   inset: 0 !important;
-  width: min(100%, calc(100vh * var(--creative-scene-aspect))) !important;
+  margin: auto !important;
+  width: min(100%, calc(100cqh * var(--creative-scene-aspect))) !important;
   height: auto !important;
   max-width: 100% !important;
   max-height: 100% !important;
@@ -3221,4 +3225,25 @@ body[data-shell-page="user"] .room-button .room-meta,
 body[data-shell-page="user"] .room-button .room-preview,
 body[data-shell-page="user"] .room-button .room-subtitle {
   color: #9a8b7a !important;
+}
+
+/* 2026-08-02 移动端触控目标收口：基准以下可点元素统一抬到 ≥34px（与关系按钮 realness 约定一致）。
+   桌面视觉不变，仅在 ≤820px 生效；放在文件末尾保证同优先级后定义生效。 */
+@media (max-width: 820px) {
+  body[data-shell-page="hub"][data-shell-variant="public-square"] .message-action,
+  body[data-shell-variant="creative-terminal"] .message-action {
+    min-height: 34px;
+    padding: 6px 10px;
+  }
+
+  body[data-shell-page="hub"][data-shell-variant="public-square"] .composer-symbol-tabs .composer-symbol-tab,
+  body[data-shell-variant="creative-terminal"] .composer-symbol-tabs .composer-symbol-tab {
+    min-height: 34px;
+    padding: 6px 12px;
+  }
+
+  body[data-shell-page="hub"][data-shell-variant="public-square"] .public-square-field-label.public-square-mention-chip {
+    min-height: 34px !important;
+    padding: 6px 12px !important;
+  }
 }

@@ -7,7 +7,7 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="./styles.tokens.css?v=20260731-ui-refresh-r4">
 <link rel="stylesheet" href="./styles.css?v=20260731-ui-refresh-r4">
-<link rel="stylesheet" href="./styles.pixel-map.css?v=20260731-ui-refresh-r4">
+<link rel="stylesheet" href="./styles.pixel-map.css?v=20260802-scene-canvas-cqh">
 <style>
 :root { --editor-bg: #0d0a08; --editor-panel: #1a1410; --editor-accent: #f1c978; --editor-text: #e8dcc8; }
 body { margin:0; background:var(--editor-bg); color:var(--editor-text); font-family:"PingFang SC","Microsoft YaHei",sans-serif; }
@@ -32,12 +32,14 @@ body { margin:0; background:var(--editor-bg); color:var(--editor-text); font-fam
 .editor-hotspot-label { position:absolute; top:-20px; left:50%; transform:translateX(-50%); background:#1a1410; color:var(--editor-accent); padding:2px 8px; border-radius:4px; font-size:11px; white-space:nowrap; pointer-events:none; }
 /* Resize handles */
 .editor-resize-handle { position:absolute; width:10px; height:10px; background:var(--editor-accent); border:1px solid #1a1410; border-radius:2px; z-index:2; }
+/* 触控热区扩展：视觉保持 10px 方块，::before 把可点区域扩到 24px（移动端捏取友好，pointer 事件落在伪元素上等价于落在手柄上）。 */
+.editor-resize-handle::before { content:''; position:absolute; inset:-7px; }
 .editor-resize-handle--nw { top:-6px; left:-6px; cursor:nw-resize; }
 .editor-resize-handle--ne { top:-6px; right:-6px; cursor:ne-resize; }
 .editor-resize-handle--sw { bottom:-6px; left:-6px; cursor:sw-resize; }
 .editor-resize-handle--se { bottom:-6px; right:-6px; cursor:se-resize; }
 /* Hotspot delete button */
-.editor-hotspot-delete { position:absolute; top:-26px; right:-6px; width:18px; height:18px; background:rgba(255,60,60,0.85); color:#fff; border:none; border-radius:50%; font-size:11px; line-height:18px; text-align:center; cursor:pointer; z-index:3; opacity:0; transition:opacity 0.15s; padding:0; }
+.editor-hotspot-delete { position:absolute; top:-32px; right:-6px; width:28px; height:28px; background:rgba(255,60,60,0.85); color:#fff; border:none; border-radius:50%; font-size:14px; line-height:28px; text-align:center; cursor:pointer; z-index:3; opacity:0; transition:opacity 0.15s; padding:0; }
 .editor-hotspot.selected .editor-hotspot-delete { opacity:1; }
 .editor-hotspot-delete:hover { background:#ff3030; }
 .editor-toolbar { position:absolute; top:12px; right:12px; z-index:10; display:flex; gap:8px; }
@@ -148,6 +150,8 @@ let resizeCorner = null;
 let dragOffset = { x: 0, y: 0 };
 let resizeStart = { x: 0, y: 0, w: 0, h: 0 };
 let scale = 1;
+// 方向键微调的历史合并：连续按住方向键只在首次（或间隔 600ms 后）推一次 undo 快照。
+let lastNudgeAt = 0;
 // 未保存追踪：用快照比较捕获任意热点/背景改动，加载/保存成功置基线；页面卸载时有改动则警告防丢失。
 let lastSavedSnapshot = null;
 function sceneSnapshot() {
@@ -495,6 +499,23 @@ stage.addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
   if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); redo(); return; }
+  // 方向键微调选中热点：0.5% 步进（Shift=2.5% 大步），输入框聚焦时不拦截。
+  // 连续按住只在首次推一次历史，避免 undo 栈被长按刷屏。
+  var arrowDelta = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (arrowDelta && selectedHotspot != null && hotspots[selectedHotspot]) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    e.preventDefault();
+    var step = (e.shiftKey ? 250 : 50);
+    var now = Date.now();
+    if (!e.repeat || now - lastNudgeAt > 600) pushHistory();
+    lastNudgeAt = now;
+    var nh = hotspots[selectedHotspot];
+    nh.x_permyriad = Math.max(0, Math.min(10000 - nh.width_permyriad, nh.x_permyriad + arrowDelta[0] * step));
+    nh.y_permyriad = Math.max(0, Math.min(10000 - nh.height_permyriad, nh.y_permyriad + arrowDelta[1] * step));
+    renderHotspots();
+    updatePropsPanel();
+    return;
+  }
   if (e.key === 'Delete' || e.key === 'Backspace') {
     if (selectedHotspot != null && hotspots[selectedHotspot]) {
       if (e.target.tagName === 'INPUT') return; // not in input

@@ -73,6 +73,7 @@ import {
   directSessionOpenRequestState,
   residentPrivateRoomAccessPromptModel,
 } from "./shell-governance-render.js";
+import { privateRoomLockedCardModel } from "./shell-private-room-locked-card.js";
 import {
   displayCityDescription,
   displayCityTitle,
@@ -5581,6 +5582,19 @@ function renderTimelineNoRoomState(shellPage) {
   timelineEl.appendChild(empty);
 }
 
+/**
+ * 未授权私宅的 stage 反馈：状态条之外，在 timeline 区挂一张居中卡片说明
+ * 为什么进不去、下一步做什么。下一次 focusRoom/refresh 会经
+ * prepareTimelineSurface → clearChildren(timelineEl) 正常覆盖掉它。
+ */
+function renderPrivateRoomLockedCard(accessPrompt, displayName) {
+  if (!timelineEl) return;
+  const cardModel = privateRoomLockedCardModel(accessPrompt, { displayName });
+  if (!cardModel) return;
+  clearChildren(timelineEl);
+  timelineEl.appendChild(createTimelineEmptyStateNode(cardModel));
+}
+
 function appendTimelineCommittedMessageRows(room, messages, flowSpec) {
   for (const item of timelineCommittedMessageRenderItems({
     messages,
@@ -6579,6 +6593,7 @@ async function enterResidentRoom(resident) {
   });
   if (accessPrompt) {
     setGovernanceStatus(accessPrompt.text, accessPrompt.isError, accessPrompt.className);
+    renderPrivateRoomLockedCard(accessPrompt, displayName);
     return;
   }
   const message = "进入「" + displayName + "」的房间私聊？";
