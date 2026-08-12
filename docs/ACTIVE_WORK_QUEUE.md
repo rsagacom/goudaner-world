@@ -21,7 +21,7 @@ Last updated: 2026-08-13
 | 根因 | 已确认 | `shell_visible_conversations_for_viewer(None)` 对普通 Direct 会话错误返回可见，匿名路径没有沿用个人房间的 fail-closed 规则。 |
 | 修复 | 已完成 | Gateway 匿名投影只保留公共房间；居民 scoped 请求行为保持不变；公网 smoke 同时检查匿名 `/v1/shell/state` 与 `/v1/shell/events?wait_ms=0` 响应不得出现 `"id":"dm:`。 |
 | 本地验证 | 已通过 | Gateway 323/323、clippy `-D warnings`、脚本语法和 smoke 合同通过；无生产写入。 |
-| GitHub/制品 | 已完成 | 代码 `7031f624645302df0e01a5872db7a8a8111a6197`；CI `31637255944` 全绿；release `31637554649` 三 job 全绿；双架构制品已下载到外盘并完成 SHA/manifest/ELF/敏感文件名校验。 |
+| GitHub/制品 | 已完成 | 可部署制品锚点为 `7031f624645302df0e01a5872db7a8a8111a6197`；CI `31637255944` 全绿；release `31637554649` 三 job 全绿；双架构制品已下载到外盘并完成 SHA/manifest/ELF/敏感文件名校验。当前 GitHub `main` 为 `008483d43d8309e650dc3fc4528794d39a19bae8`，后续仅有测试/文档提交，未重新生成 Gateway 制品。 |
 | 生产状态 | 待授权 | 公网仍为旧版 `/v1/version` 404、manifest SPA fallback；未 SSH、未重启、未部署。生产切换必须先备份，再安装新 manifest，最后重跑公网 smoke 和真实 OTP/双居民验收。 |
 
 ## 2026-08-13 公网生产状态只读复核
