@@ -4,6 +4,16 @@ Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-13 admin-ds Gateway 会话失效闭环
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 根因 | 已确认 | `admin-ds.js` 的 Gateway 读写 helper 原先只返回 HTTP 失败，不通知共享认证控制器；过期 Bearer 会让后台继续保留旧身份和登录 HUD。 |
+| 认证接线 | 已实现 | `admin-ds.js` 对 401/403 统一通知 `shell-auth-standalone.js`；经典脚本早于 deferred module 执行时先暂存失效状态，模块初始化后立即消费。 |
+| 失效语义 | 已实现 | 共享控制器清除 token/challenge，身份降为“访客”，HUD 回到“登录”，并保留“登录已失效，请重新登录”提示；新 OTP/新 token 自动清除失效标记。 |
+| 防回归 | 已通过 | 定向 auth/admin-ds/H5 回归 130/130；Web **1419/1419**、layout、realness 通过；完整 release gate 退出码 0，含 Gateway 323、TUI/CLI、双 HTTP、真实双浏览器和 provider federation smoke。 |
+| 生产状态 | 未变更 | 仅本地代码、测试和文档验证，未 SSH、未部署生产。 |
+
 ## 2026-08-13 H5 Gateway 会话失效闭环
 
 | 项目 | 状态 | 说明 |

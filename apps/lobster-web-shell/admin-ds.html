@@ -768,10 +768,16 @@
   <script type="module">
     import { initStandaloneAuthSurface } from "./shell-auth-standalone.js";
     const gatewayUrl = new URLSearchParams(window.location.search).get("gateway") || "";
-    initStandaloneAuthSurface({
+    const authSurface = initStandaloneAuthSurface({
       gatewayUrl,
       onIdentityChanged: () => window.__adminDsRefresh?.(),
     });
+    window.__adminDsHandleAuthFailure = (status) => authSurface.authController.handleGatewayAuthFailure(status);
+    const pendingAuthFailure = window.__adminDsPendingAuthFailure;
+    if (pendingAuthFailure) {
+      delete window.__adminDsPendingAuthFailure;
+      window.__adminDsHandleAuthFailure(pendingAuthFailure);
+    }
     const toggle = document.getElementById("hud-login-toggle");
     if (gatewayUrl) {
       setTimeout(() => {

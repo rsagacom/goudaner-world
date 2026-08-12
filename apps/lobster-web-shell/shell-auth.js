@@ -20,6 +20,7 @@ let _callbacks = {
   postAuthenticated: null,
   refreshFromGateway: null,
   persistIdentity: null,
+  onGatewayAuthFailure: null,
   userProjection: null,
   gatewayUrl: null,
   desiredResidentId: null,
@@ -52,6 +53,7 @@ function initAuth(elMap, cbs) {
     postAuthenticated: cbs.postAuthenticated || null,
     refreshFromGateway: cbs.refreshFromGateway || null,
     persistIdentity: cbs.persistIdentity || null,
+    onGatewayAuthFailure: cbs.onGatewayAuthFailure || null,
     userProjection: cbs.userProjection || null,
     gatewayUrl: cbs.gatewayUrl || null,
     desiredResidentId: cbs.desiredResidentId || null,
@@ -191,7 +193,7 @@ function updateResidentLoginSurface(userProjection, gatewayUrl, senderIdentity, 
     _els.hudLoginToggleEl.textContent = signedIn ? "退出登录" : "登录";
     _els.hudLoginToggleEl.setAttribute("aria-label", signedIn ? "退出登录" : "打开登录窗口");
   }
-  if (needsLogin && _els.statusEl && !_authSession.challengeId) {
+  if (needsLogin && _els.statusEl && !_authSession.challengeId && !_gatewayAuthFailure) {
     setAuthStatus("访客模式 · 请登录后发送");
   }
 }
@@ -274,7 +276,21 @@ function handleGatewayAuthFailure(status) {
   _gatewayAuthFailure = true;
   _sessionToken = null;
   safeLocalStorageSet("lobster-session-token", "");
+  _authSession = {
+    challengeId: null,
+    maskedEmail: null,
+    expiresAtMs: null,
+    deliveryMode: null,
+  };
+  if (_els.challengeInputEl) _els.challengeInputEl.value = "";
+  if (_els.codeInputEl) _els.codeInputEl.value = "";
+  try {
+    _callbacks.onGatewayAuthFailure?.(status);
+  } catch {
+    // Auth invalidation must still complete if a surface-specific UI callback fails.
+  }
   setAuthStatus("登录已失效，请重新登录", true);
+  updateAuthFormState();
   return true;
 }
 

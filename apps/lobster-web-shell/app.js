@@ -7158,6 +7158,7 @@ const authController = createAuthController({
   postAuthenticated: postGatewayJson,
   refreshFromGateway,
   persistIdentity: persistSenderIdentity,
+  onGatewayAuthFailure: () => persistSenderIdentity("访客"),
   userProjection: userShellProjection,
   gatewayUrl: () => gatewayUrl,
   desiredResidentId: () => {

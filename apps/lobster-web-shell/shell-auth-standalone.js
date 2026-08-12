@@ -93,6 +93,19 @@ export function initStandaloneAuthSurface(options = {}) {
     postAuthenticated: options.postAuthenticated || ((path, body, token) =>
       postGatewayJsonAuthenticated(gatewayUrl(), path, body, token)),
     refreshFromGateway: options.refreshFromGateway || (async () => {}),
+    onGatewayAuthFailure: (status) => {
+      try {
+        localStorage.setItem(options.identityStorageKey || "lobster-identity", "访客");
+      } catch {}
+      if (els.residentInputEl) els.residentInputEl.value = "访客";
+      if (els.hudLoginToggleEl) {
+        els.hudLoginToggleEl.classList.toggle("shell-hidden", !gatewayUrl());
+        els.hudLoginToggleEl.disabled = false;
+        els.hudLoginToggleEl.textContent = "登录";
+        els.hudLoginToggleEl.setAttribute("aria-label", "打开登录窗口");
+      }
+      options.onAuthFailure?.(status);
+    },
     persistIdentity: (id) => {
       try {
         localStorage.setItem(options.identityStorageKey || "lobster-identity", id);

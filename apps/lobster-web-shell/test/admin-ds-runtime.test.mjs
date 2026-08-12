@@ -310,6 +310,28 @@ test("admin-ds runtime: fetchGatewayJson 在 gateway 失败时返回 null", seri
   assert.equal(result, null, "gateway 失败时应返回 null 而非 crash");
 });
 
+test("admin-ds runtime: 401/403 进入共享认证失效回调并保留 deferred failure", serial, async () => {
+  setupMinimalGlobals("http://127.0.0.1:9999");
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 401,
+    json: async () => { throw new Error("invalid json body"); },
+    text: async () => '{"error":"invalid or expired session"}',
+  });
+  const api = await loadAdminDsWithExports({ fetchMock: globalThis.fetch });
+
+  assert.equal(window.__adminDsPendingAuthFailure, 401, "standalone auth 尚未初始化时应保留失效状态");
+  const failures = [];
+  delete window.__adminDsPendingAuthFailure;
+  window.__adminDsHandleAuthFailure = (status) => failures.push(status);
+  await api.fetchGatewayJson("/v1/admin/summary");
+  const postResult = await api.fetchGatewayJsonPost("/v1/admin/logs/clear", {});
+
+  assert.deepEqual(failures, [401, 401], "读写请求都应通知共享认证控制器");
+  assert.equal(postResult.ok, false, "无 JSON body 时仍应保留 HTTP 失败结果");
+  assert.equal(postResult.status, 401);
+});
+
 test("admin-ds runtime: fetchGatewayJson 成功时返回解析后的 JSON", serial, async () => {
   setupMinimalGlobals("http://127.0.0.1:8787");
   const mockData = { residents: [{ resident_id: "alice", nick: "爱丽丝" }] };

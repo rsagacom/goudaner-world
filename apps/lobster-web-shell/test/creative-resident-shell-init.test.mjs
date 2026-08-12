@@ -305,6 +305,7 @@ test("gateway creative resident shell clears an expired session on shell-state 4
   try {
     const { document, window } = app;
     assert.equal(window.localStorage.getItem("lobster-session-token"), "");
+    assert.equal(window.localStorage.getItem("lobster-identity"), "访客");
     assert.equal(document.body.dataset.gatewayConnection, "offline");
     assert.match(document.querySelector("#auth-status")?.textContent || "", /登录已失效，请重新登录/);
     assert.equal(document.querySelector("#composer-input")?.disabled, true);

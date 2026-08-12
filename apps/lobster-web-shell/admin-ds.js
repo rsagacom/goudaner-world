@@ -128,13 +128,28 @@
     return (params.get('identity') || safeLocalStorageGet('lobster-identity') || 'rsaga').trim() || 'rsaga';
   }
 
+  function notifyGatewayAuthFailure(status) {
+    if (status !== 401 && status !== 403) return;
+    if (typeof window.__adminDsHandleAuthFailure === 'function') {
+      window.__adminDsHandleAuthFailure(status);
+      return;
+    }
+    // admin-ds.js is a classic script and the standalone auth module is deferred;
+    // retain the first failure so the shared controller can close the session once
+    // its HUD and DOM refs have been initialized.
+    window.__adminDsPendingAuthFailure = status;
+  }
+
   async function fetchGatewayJson(path) {
     if (!gatewayUrl) return null;
     var sessionToken = safeLocalStorageGet('lobster-session-token');
     var response = await fetch(gatewayUrl + path, {
       headers: { Accept: 'application/json', ...(sessionToken ? { Authorization: 'Bearer ' + sessionToken } : {}) }
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      notifyGatewayAuthFailure(response.status);
+      return null;
+    }
     return response.json();
   }
 
@@ -147,7 +162,14 @@
         headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(sessionToken ? { Authorization: 'Bearer ' + sessionToken } : {}) },
         body: JSON.stringify(body)
       });
-      var data = await response.json();
+      notifyGatewayAuthFailure(response.status);
+      var data = null;
+      try {
+        data = await response.json();
+      } catch (_) {
+        // Preserve the HTTP result and auth invalidation even when an upstream
+        // error response is empty or not JSON.
+      }
       return { ok: response.ok, status: response.status, data: data };
     } catch (err) {
       return { error: err.message || '请求失败' };

@@ -273,6 +273,14 @@
 - **防回归**：Web **1418/1418**、layout、realness；新增 shell state 401 运行时回归和 auth controller 失效状态回归。
 - **部署边界**：仅本地代码、测试和文档已验证，未 SSH、未部署生产。
 
+### admin-ds Gateway 会话失效闭环（2026-08-13）
+
+- **根因**：`admin-ds.js` 的 Gateway GET/POST helper 原先只返回 HTTP 失败，没有通知共享认证控制器；过期 Bearer 会让后台继续保留旧身份和登录 HUD。
+- **实现**：admin-ds 对 401/403 统一通知 `shell-auth-standalone.js`；经典脚本早于 deferred module 执行时暂存失效状态，认证模块完成 DOM 接线后立即消费；共享 controller 清除 token/challenge、降为访客并恢复登录 HUD。
+- **提示优先级**：身份刷新为访客后仍保留“登录已失效，请重新登录”，避免初始化的访客空态覆盖明确的鉴权失败原因；新 OTP/新 token 会清除失效标记。
+- **防回归**：定向 auth/admin-ds/H5 回归 130/130；Web **1419/1419**、layout、realness 已通过；完整 release gate 退出码 0，含 Gateway 323、TUI/CLI、双 HTTP、真实双浏览器和 provider federation smoke。
+- **部署边界**：仅本地代码、测试和文档已验证，未 SSH、未部署生产。
+
 ### H5 合法空 Gateway 投影保持在线（2026-08-13）
 
 - **根因**：Gateway `ShellState` 对新居民或被可见性过滤的居民可以合法返回空 `rooms` / `conversation_shell.conversations`；H5 之前把“非空会话”误当成 Gateway 可用条件，导致合法空状态被显示为 offline。

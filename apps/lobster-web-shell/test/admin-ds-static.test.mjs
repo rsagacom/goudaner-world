@@ -46,6 +46,8 @@ test("admin-ds.html 引用正确的 CSS 和 JS", async () => {
   assert.match(html, /import \{ initStandaloneAuthSurface \} from "\.\/shell-auth-standalone\.js";/, "注册登录应走共享 standalone auth 接线");
   assert.match(html, /initStandaloneAuthSurface\(\{[\s\S]*gatewayUrl/, "应初始化 standalone auth 并传入 gatewayUrl");
   assert.match(html, /onIdentityChanged:\s*\(\) => window\.__adminDsRefresh\?\.\(\)/, "登录状态变化后应刷新后台 Gateway 投影");
+  assert.match(html, /window\.__adminDsHandleAuthFailure\s*=\s*\(status\) => authSurface\.authController\.handleGatewayAuthFailure\(status\)/, "后台应把 Gateway 401/403 交给共享认证控制器");
+  assert.match(html, /window\.__adminDsPendingAuthFailure/, "standalone auth 初始化后应消费 classic script 延迟记录的失效状态");
   assert.doesNotMatch(html, /import \{ initAuth \} from "\.\/shell-auth\.js";/, "后台页不应复制 shell-auth 初始化细节");
   assert.match(html, /<html lang="zh-CN"/, "应声明中文语言");
   assert.match(html, /<title>AJW聊天 · 管理后台<\/title>/, "应有正确的页面标题");
@@ -66,6 +68,8 @@ test("standalone auth module wires OTP submit lifecycle", async () => {
   assert.match(js, /authController\.logout\(\)/, "后台 HUD 登录按钮应支持服务端 logout");
   assert.match(js, /persistAuthDraft\(\)/, "submit 前应保存当前邮箱/昵称/验证码草稿");
   assert.match(js, /localizedRuntimeError\(/, "失败反馈应复用本地化错误文案");
+  assert.match(js, /onGatewayAuthFailure:\s*\(status\) =>/, "standalone auth 应在会话失效时收口身份和 HUD");
+  assert.match(js, /localStorage\.setItem\(options\.identityStorageKey \|\| "lobster-identity", "访客"\)/, "会话失效应清除本地居民身份");
 });
 
 // ====== 核心模块 DOM 存在 ======
@@ -621,6 +625,8 @@ test("admin-ds.js loadGatewayAdminData 包含加载和错误状态处理", async
   // Loading 状态管理
   assert.match(js, /setSectionLoading\('mod-residents', true\)/, "应设置居民模块加载态");
   assert.match(js, /setSectionLoading\('mod-residents', false\)/, "应清除居民模块加载态");
+  assert.match(js, /function notifyGatewayAuthFailure\(status\)/, "应有统一的 Gateway 鉴权失败通知边界");
+  assert.match(js, /window\.__adminDsPendingAuthFailure = status/, "standalone auth 延迟加载前应保留鉴权失败");
 });
 
 test("admin-ds.js loadGatewayAdminData 使用 Promise.allSettled 容错", async () => {
