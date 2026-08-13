@@ -38,6 +38,7 @@ INSTALL_ROOT="$STATE_ROOT/install-root"
 STATE_DIR="$STATE_ROOT/state"
 ETC_ROOT="$STATE_ROOT/etc"
 LOG_FILE="$STATE_ROOT/commands.log"
+INVALID_NAME_LOG="$STATE_ROOT/invalid-server-name.log"
 SERVICE_NAME="lobster-waku-gateway-smoke"
 HOST_TARGET="$(rustc -vV | awk '/host:/ { print $2 }')"
 GATEWAY_ARTIFACT="$ARTIFACT_ROOT/lobster-waku-gateway-${HOST_TARGET}.tar.gz"
@@ -49,6 +50,7 @@ NGINX_SITE_DEBIAN="$ETC_ROOT/nginx/sites-available/lobster-chat"
 NGINX_LINK_DEBIAN="$ETC_ROOT/nginx/sites-enabled/lobster-chat"
 NGINX_DEFAULT_SITE_DEBIAN="$ETC_ROOT/nginx/sites-enabled/default"
 NGINX_SITE_RHEL="$ETC_ROOT/nginx/conf.d/lobster-chat.conf"
+NGINX_SERVER_NAME="chat.example.com"
 
 cleanup() {
   local exit_code=$?
@@ -154,8 +156,31 @@ NGINX_SITE_DEBIAN="$NGINX_SITE_DEBIAN" \
 NGINX_LINK_DEBIAN="$NGINX_LINK_DEBIAN" \
 NGINX_DEFAULT_SITE_DEBIAN="$NGINX_DEFAULT_SITE_DEBIAN" \
 NGINX_SITE_RHEL="$NGINX_SITE_RHEL" \
+NGINX_SERVER_NAME="$NGINX_SERVER_NAME" \
 PUBLIC_PORT=8080 \
 bash "$ROOT_DIR/scripts/install-server.sh"
+
+if PATH="$FAKE_BIN:$PATH" \
+  SMOKE_LOG="$LOG_FILE" \
+  INSTALL_ROOT="$INSTALL_ROOT" \
+  STATE_DIR="$STATE_DIR" \
+  SERVICE_NAME="$SERVICE_NAME" \
+  GATEWAY_ARTIFACT="$GATEWAY_ARTIFACT" \
+  WEB_ARTIFACT="$WEB_ARTIFACT" \
+  RELEASE_MANIFEST="$RELEASE_MANIFEST" \
+  SMOKE_GIT_SHA="$SMOKE_GIT_SHA" \
+  SYSTEMD_UNIT="$SYSTEMD_UNIT" \
+  NGINX_SITE_DEBIAN="$NGINX_SITE_DEBIAN" \
+  NGINX_LINK_DEBIAN="$NGINX_LINK_DEBIAN" \
+  NGINX_DEFAULT_SITE_DEBIAN="$NGINX_DEFAULT_SITE_DEBIAN" \
+  NGINX_SITE_RHEL="$NGINX_SITE_RHEL" \
+  NGINX_SERVER_NAME='chat.example.com; include /tmp/unsafe.conf' \
+  PUBLIC_PORT=8080 \
+  bash "$ROOT_DIR/scripts/install-server.sh" >"$INVALID_NAME_LOG" 2>&1; then
+  echo "installer accepted unsafe NGINX_SERVER_NAME" >&2
+  exit 1
+fi
+assert_contains "$INVALID_NAME_LOG" "invalid NGINX_SERVER_NAME"
 
 [[ -x "$INSTALL_ROOT/bin/lobster-waku-gateway" ]] || {
   echo "missing installed gateway binary" >&2
@@ -184,6 +209,7 @@ bash "$ROOT_DIR/scripts/install-server.sh"
 
 assert_contains "$SYSTEMD_UNIT" "ExecStart=$INSTALL_ROOT/bin/lobster-waku-gateway --host 127.0.0.1 --port 8787 --state-dir $STATE_DIR"
 assert_contains "$NGINX_SITE_DEBIAN" "root $INSTALL_ROOT/web;"
+assert_contains "$NGINX_SITE_DEBIAN" "server_name \"$NGINX_SERVER_NAME\";"
 assert_contains "$NGINX_SITE_DEBIAN" "proxy_pass http://127.0.0.1:8787;"
 assert_contains "$NGINX_SITE_DEBIAN" "proxy_method GET;"
 assert_contains "$LOG_FILE" "systemctl daemon-reload"

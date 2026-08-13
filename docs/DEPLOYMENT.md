@@ -15,6 +15,7 @@
 - 当前生产状态（2026-08-13）：已在 AWS 北京 `aws-beijing`（实际架构 `x86_64`）部署上述 release；公网 `/v1/version` 与 `/release-manifest.json` 均精确指向该 Git SHA
 - 当前生产备份：`/srv/backups/lobster-chat-state-20260813-005851.tar.gz`；备份包含 `timelines/`，归档完整性已验证
 - 当前生产验收：真实邮件 OTP、双居民公共房间/私聊 API+SSE 矩阵、编辑/撤回、搜索、logout、Gateway 重启后 session/消息恢复、公网 smoke 均通过；未记录邮箱、token、challenge 或验证码值
+- 当前 Nginx：IM 站点显式使用正式域名，`nginx -t` 无 duplicate `server_name _` warning；变更前配置备份为 `/srv/backups/lobster-chat-nginx-20260813-0948.conf`
 - H5 主入口：`index.html`（主城群聊）、`creative.html`（住宅/私聊）、`admin-ds.html`（管理后台）
 
 ## 2. 支持环境
@@ -85,6 +86,7 @@ macOS 构建出的 Darwin binary 不能安装到 Linux。安装器会校验 arti
 
 ```bash
 sudo \
+  NGINX_SERVER_NAME=chat.example.com \
   GATEWAY_ARTIFACT=./dist/lobster-waku-gateway-x86_64-unknown-linux-gnu.tar.gz \
   WEB_ARTIFACT=./dist/lobster-web-shell.tar.gz \
   ./scripts/install-server.sh
@@ -102,6 +104,8 @@ sudo \
 | Nginx site | Debian: `/etc/nginx/sites-available/lobster-chat`; RHEL 系: `/etc/nginx/conf.d/lobster-chat.conf` |
 
 Gateway 默认只监听 `127.0.0.1:8787`，公网流量由 Nginx 接入。不要把 Gateway 裸端口直接暴露到公网。
+
+`NGINX_SERVER_NAME` 只接受一个不含空白或 Nginx 语法字符的 DNS 风格名称。生产应显式设为正式域名；未设置时安装器写出 `server_name "";`，仍由 `listen ... default_server` 承担默认站点，但不会与 RHEL/CentOS 主配置中常见的 `server_name _;` 发生名称冲突。安装器在写配置前拒绝不安全值。
 
 ## 5. 生产环境变量
 

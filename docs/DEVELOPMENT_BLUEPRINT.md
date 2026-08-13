@@ -369,8 +369,16 @@
 - **公网验收**：`production-readiness.sh CHECK_PUBLIC=1` 和 `smoke-public-ingress.sh` 均通过；公网 `/v1/version` 与 JSON `release-manifest.json` 精确指向发布 SHA，CORS、管理摘要/ logout 401、匿名 shell state/events 不泄露 `dm:` 均通过。
 - **真实居民验收**：两个既有居民通过真实邮件 OTP 完成 verify；响应均为 `mailer-webhook` 且无 `dev_code`。已完成双方 auth session、presence、公共房间和私聊收发、编辑、撤回、搜索、认证 SSE、未授权搜索 401、logout 及旧 token 失效验证。
 - **持久化验收**：Gateway 重启后两份 Bearer session 仍可恢复，编辑/撤回消息状态保持，版本仍为目标 release；随后注销临时验收 session。
-- **遗留观察**：`nginx -t` 成功但保留既有 duplicate `server_name _` warning；公网路由和版本证据已实证正确，未改动非 IM 站点配置。
+- **后续收口**：生产切换时观察到的 duplicate `server_name _` warning 已在后续 Nginx 站点名硬化中消除；公网路由与发布 SHA 保持不变。
 - **结论**：P0 单城集中式 IM 已完成一次可追溯生产切换与 API/SSE 级真实验收；当前不把本轮结果扩展为 native Waku、标准 MLS/E2EE 或跨城完成。
+
+### Nginx 站点名冲突收口（2026-08-13）
+
+- **根因证据**：AWS 北京 RHEL 系 `/etc/nginx/nginx.conf` 自带 `server_name _;`；IM 的 `/etc/nginx/conf.d/lobster-chat.conf` 再次声明 `_`，因此 `nginx -t` 对 IPv4/IPv6 各报一条 conflicting server name warning，非 duplicate default server。
+- **实现合同**：`install-server.sh` 新增 `NGINX_SERVER_NAME` 单名称配置与字符/长度校验；默认生成 `server_name "";`，显式生产域名使用带引号值，`listen ... default_server` 行为保持不变。
+- **测试合同**：静态合同、隔离 install-layout smoke、显式域名渲染和恶意指令值 fail-closed 均通过；部署文档要求生产安装显式传正式域名。
+- **生产验证**：变更前配置备份到 `/srv/backups/lobster-chat-nginx-20260813-0948.conf`；仅修改 IM server block 后 `nginx -t` 无 warning、reload 成功，本机 health/version 与公网 release smoke 通过，运行 Gateway SHA 仍为 `6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d`。
+- **范围边界**：未修改发行版默认 server block、Gateway 状态、邮件密钥或 Cloudflare 配置；不代表 P5 transport/MLS 已推进。
 
 ### S0 源控救援与门禁去抖（2026-08-12）
 

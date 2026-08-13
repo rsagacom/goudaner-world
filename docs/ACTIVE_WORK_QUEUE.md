@@ -24,6 +24,17 @@ Last updated: 2026-08-13
 
 后续日常维护以 `docs/DEPLOYMENT.md` 当前生产状态和备份/回滚章节为准；下一主战场仍是独立授权的 P5 native Waku/标准 MLS 选型，不与已完成的单城生产收口混合。
 
+## 2026-08-13 Nginx 站点名冲突收口
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 根因 | 已确认 | AWS 北京为 RHEL 系 Nginx 布局，发行版主配置自带 `server_name _;`；IM 安装器再次生成同名 catch-all，导致 IPv4/IPv6 各一条 conflicting server name warning。`default_server` 没有重复。 |
+| 安装器 | 已修复 | 新增受校验的 `NGINX_SERVER_NAME`；未设置时写出官方默认语义的空 server name，生产可显式传正式域名；含空白或 Nginx 语法字符的值在写配置前 fail-closed。 |
+| 防回归 | 已通过 | install-server unit、install-layout unit、隔离 layout smoke 和脚本语法通过；smoke 同时验证显式域名渲染与指令注入值被拒绝。 |
+| 生产 | 已完成 | 变更前配置保存为 `/srv/backups/lobster-chat-nginx-20260813-0948.conf`；IM 站点改为正式域名后 `nginx -t` 无 warning，reload 成功，本机 health/version 与公网 release smoke 通过。Gateway 二进制和状态未改。 |
+
+该项只收口单城生产运维噪音与下次安装的防回归，不改变 P5 native Waku/标准 MLS 的独立授权边界。
+
 ## 2026-08-13 匿名 shell 投影隐私收口
 
 | 项目 | 状态 | 说明 |

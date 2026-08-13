@@ -22,6 +22,8 @@ def main() -> int:
     assert 'WEB_ARTIFACT="$ARTIFACT_ROOT/lobster-web-shell.tar.gz"' in text
     assert 'RELEASE_MANIFEST="$ARTIFACT_ROOT/release-manifest.json"' in text
     assert 'SMOKE_GIT_SHA="1111111111111111111111111111111111111111"' in text
+    assert 'NGINX_SERVER_NAME="chat.example.com"' in text
+    assert 'INVALID_NAME_LOG="$STATE_ROOT/invalid-server-name.log"' in text
     assert 'cat >"$FAKE_BIN/systemctl"' in text
     assert 'cat >"$FAKE_BIN/nginx"' in text
     assert 'cat >"$FAKE_BIN/curl"' in text
@@ -30,6 +32,9 @@ def main() -> int:
     assert 'sha256_file()' in text
     assert '>"$RELEASE_MANIFEST"' in text
     assert 'RELEASE_MANIFEST="$RELEASE_MANIFEST"' in text
+    assert 'NGINX_SERVER_NAME="$NGINX_SERVER_NAME"' in text
+    assert "NGINX_SERVER_NAME='chat.example.com; include /tmp/unsafe.conf'" in text
+    assert 'assert_contains "$INVALID_NAME_LOG" "invalid NGINX_SERVER_NAME"' in text
     assert 'bash "$ROOT_DIR/scripts/install-server.sh"' in text
     assert '[[ -x "$INSTALL_ROOT/bin/lobster-waku-gateway" ]]' in text
     assert '[[ -f "$INSTALL_ROOT/web/index.html" ]]' in text
@@ -39,6 +44,7 @@ def main() -> int:
     assert '[[ -L "$NGINX_LINK_DEBIAN" ]]' in text
     assert 'assert_contains "$SYSTEMD_UNIT" "ExecStart=$INSTALL_ROOT/bin/lobster-waku-gateway --host 127.0.0.1 --port 8787 --state-dir $STATE_DIR"' in text
     assert 'assert_contains "$NGINX_SITE_DEBIAN" "root $INSTALL_ROOT/web;"' in text
+    assert 'assert_contains "$NGINX_SITE_DEBIAN" "server_name \\"$NGINX_SERVER_NAME\\";"' in text
     assert 'assert_contains "$NGINX_SITE_DEBIAN" "proxy_pass http://127.0.0.1:8787;"' in text
     assert 'assert_contains "$LOG_FILE" "systemctl enable --now $SERVICE_NAME"' in text
     assert 'assert_contains "$LOG_FILE" "nginx -t"' in text

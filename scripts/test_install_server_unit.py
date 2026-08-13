@@ -25,6 +25,7 @@ def main() -> int:
     assert 'LISTEN_HOST="${LISTEN_HOST:-127.0.0.1}"' in text
     assert 'LISTEN_PORT="${LISTEN_PORT:-8787}"' in text
     assert 'PUBLIC_PORT="${PUBLIC_PORT:-80}"' in text
+    assert 'NGINX_SERVER_NAME="${NGINX_SERVER_NAME:-}"' in text
     assert 'HOST_TARGET_OVERRIDE="${HOST_TARGET_OVERRIDE:-}"' in text
     assert 'DEFAULT_SYSTEMD_UNIT="/etc/systemd/system/${SERVICE_NAME}.service"' in text
     assert 'DEFAULT_NGINX_SITE_DEBIAN="/etc/nginx/sites-available/lobster-chat"' in text
@@ -35,6 +36,8 @@ def main() -> int:
     assert "need_cmd tar" in text
     assert "need_cmd curl" in text
     assert "need_cmd python3" in text
+    assert "validate_nginx_server_name()" in text
+    assert "invalid NGINX_SERVER_NAME" in text
     assert "detect_target_triple()" in text
     assert 'Linux:x86_64) echo "x86_64-unknown-linux-gnu"' in text
     assert 'Darwin:arm64|Darwin:aarch64) echo "aarch64-apple-darwin"' in text
@@ -79,6 +82,8 @@ def main() -> int:
     assert "resolve_nginx_site_path()" in text
     assert 'cat > "$NGINX_SITE_PATH" <<EOF' in text
     assert 'listen $PUBLIC_PORT default_server;' in text
+    assert 'server_name "$NGINX_SERVER_NAME";' in text
+    assert "server_name _;" not in text
     assert 'proxy_pass http://$LISTEN_HOST:$LISTEN_PORT;' in text
     assert 'proxy_set_header Authorization \\$http_authorization;' in text
     assert 'location = /health' in text

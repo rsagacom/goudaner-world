@@ -714,26 +714,32 @@ What the smoke covers and what still needs a real server check:
 Install on a Linux server from source:
 
 ```bash
-sudo ./scripts/install-server.sh
+sudo NGINX_SERVER_NAME=chat.example.com ./scripts/install-server.sh
 ```
 
 Install on a Linux server from a prebuilt target-matched artifact:
 
 ```bash
-sudo GATEWAY_ARTIFACT=./dist/lobster-waku-gateway-x86_64-unknown-linux-gnu.tar.gz \
+sudo NGINX_SERVER_NAME=chat.example.com \
+  GATEWAY_ARTIFACT=./dist/lobster-waku-gateway-x86_64-unknown-linux-gnu.tar.gz \
   ./scripts/install-server.sh
 ```
 
 Install on a Linux server from gateway + H5 artifacts only:
 
 ```bash
-sudo GATEWAY_ARTIFACT=./dist/lobster-waku-gateway-x86_64-unknown-linux-gnu.tar.gz \
+sudo NGINX_SERVER_NAME=chat.example.com \
+  GATEWAY_ARTIFACT=./dist/lobster-waku-gateway-x86_64-unknown-linux-gnu.tar.gz \
   WEB_ARTIFACT=./dist/lobster-web-shell.tar.gz \
   ./scripts/install-server.sh
 ```
 
 The installer now refuses to use a gateway artifact whose filename target triple
 does not match the current host.
+
+`NGINX_SERVER_NAME` accepts one DNS-style name. If omitted, the generated default
+server uses Nginx's empty server-name value instead of the commonly duplicated `_`
+placeholder.
 
 If `WEB_ARTIFACT` is omitted, `install-server.sh` still copies the H5 shell from the checked-out workspace.
 

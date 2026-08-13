@@ -15,6 +15,7 @@ RELEASE_MANIFEST="${RELEASE_MANIFEST:-}"
 LISTEN_HOST="${LISTEN_HOST:-127.0.0.1}"
 LISTEN_PORT="${LISTEN_PORT:-8787}"
 PUBLIC_PORT="${PUBLIC_PORT:-80}"
+NGINX_SERVER_NAME="${NGINX_SERVER_NAME:-}"
 HOST_TARGET_OVERRIDE="${HOST_TARGET_OVERRIDE:-}"
 DEFAULT_SYSTEMD_UNIT="/etc/systemd/system/${SERVICE_NAME}.service"
 DEFAULT_NGINX_SITE_DEBIAN="/etc/nginx/sites-available/lobster-chat"
@@ -32,6 +33,21 @@ need_cmd() {
     echo "missing command: $1" >&2
     exit 1
   }
+}
+
+validate_nginx_server_name() {
+  if [[ -z "$NGINX_SERVER_NAME" ]]; then
+    return
+  fi
+
+  if (( ${#NGINX_SERVER_NAME} > 253 )) \
+    || [[ "$NGINX_SERVER_NAME" == *[!A-Za-z0-9._-]* ]] \
+    || [[ "$NGINX_SERVER_NAME" == .* ]] \
+    || [[ "$NGINX_SERVER_NAME" == -* ]] \
+    || [[ "$NGINX_SERVER_NAME" == *..* ]]; then
+    echo "invalid NGINX_SERVER_NAME: expected one DNS name without whitespace or nginx syntax" >&2
+    exit 1
+  fi
 }
 
 cargo_version_number() {
@@ -222,6 +238,7 @@ need_cmd tar
 need_cmd uname
 need_cmd curl
 need_cmd python3
+validate_nginx_server_name
 
 stop_conflicting_gateway_processes() {
   if ! command -v pgrep >/dev/null 2>&1; then
@@ -346,7 +363,7 @@ cat > "$NGINX_SITE_PATH" <<EOF
 server {
     listen $PUBLIC_PORT default_server;
     listen [::]:$PUBLIC_PORT default_server;
-    server_name _;
+    server_name "$NGINX_SERVER_NAME";
 
     root $WEB_DIR;
     index index.html;
