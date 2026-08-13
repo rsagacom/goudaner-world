@@ -12,6 +12,9 @@
 - 完整门禁：`RUN_PREFLIGHT=0 INCLUDE_PROVIDER_FEDERATION=1 scripts/smoke-release-gate.sh`
 - 当前可部署安全修复制品：release run `31640540602` 产出的 `6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d`；该 run 的 verify、x86_64、aarch64 三个 job 均通过
 - 当前制品目录：`/Volumes/AJW-Data/Projects/lobster-chat-release-6c0dc6a-run31640540602`；两个 target 的 `SHA256SUMS`、manifest、ELF 架构和脱敏边界均已独立复核
+- 当前生产状态（2026-08-13）：已在 AWS 北京 `aws-beijing`（实际架构 `x86_64`）部署上述 release；公网 `/v1/version` 与 `/release-manifest.json` 均精确指向该 Git SHA
+- 当前生产备份：`/srv/backups/lobster-chat-state-20260813-005851.tar.gz`；备份包含 `timelines/`，归档完整性已验证
+- 当前生产验收：真实邮件 OTP、双居民公共房间/私聊 API+SSE 矩阵、编辑/撤回、搜索、logout、Gateway 重启后 session/消息恢复、公网 smoke 均通过；未记录邮箱、token、challenge 或验证码值
 - H5 主入口：`index.html`（主城群聊）、`creative.html`（住宅/私聊）、`admin-ds.html`（管理后台）
 
 ## 2. 支持环境

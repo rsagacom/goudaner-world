@@ -4,14 +4,25 @@ Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
-## 2026-08-13 下一阶段执行规划
+## 2026-08-13 生产切换与真实验收已完成
 
 | 轨道 | 当前状态 | 下一动作与门禁 |
 | --- | --- | --- |
-| 单城生产收口 | 已具备执行条件，待授权 | 按 `docs/DEVELOPMENT_BLUEPRINT.md` 的 0→6 阶段执行：固定 manifest → 目标机只读预检 → 备份/安装 → 本机与公网 SHA 追溯 → 真实 OTP/双居民矩阵 → 回滚判定；任何门禁失败即停在当前阶段。 |
-| 生产权限边界 | 保持 | Atlas `host.aws-ec2-beijing` 的 `agent_execution_allowed=false`；当前未 SSH、未重启、未切换生产。需用户明确授权目标主机操作后才进入第 2 阶段。 |
+| 单城生产收口 | 已完成 | release `6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d` 已部署；备份、安装、服务恢复、公网 SHA 追溯、真实 OTP、双居民 IM、重启恢复和 logout 均通过。 |
+| 生产权限边界 | 本次已获授权并完成 | Atlas canonical scheduling 事实仍保留 `agent_execution_allowed=false`；本次由用户明确授权并登记 task/lease 后执行，未修改该长期调度事实。 |
 | P5 跨城/加密 | 暂缓 | 不把 HTTP federation/AES-GCM 骨架称为 native Waku/标准 MLS；开源调研、依赖选型和 Proposal/ADR 需另行授权。 |
 | 低价值 polish | 降级 | DMARC/empty-note 可单独排期，不插入生产切换主链。 |
+
+| 生产证据 | 结果 |
+| --- | --- |
+| 目标主机 | `aws-beijing`，Amazon Web Services 北京生产主机，实际 `x86_64` |
+| 备份 | `/srv/backups/lobster-chat-state-20260813-005851.tar.gz`，5,576 bytes，含 `timelines/`，可解压 |
+| 服务 | `lobster-waku-gateway`、`lobster-mailer`、`nginx`、`cloudflared` 均 active/enabled |
+| 公网 | `/health`、`/v1/version`、JSON manifest、CORS、匿名 state/events 隐私、无 Bearer 401 全部通过 |
+| 真实居民链路 | 两个既有居民真实 OTP mailer-webhook、公共房间/私聊收发、编辑、撤回、搜索、SSE、presence、重启恢复和 logout 全部通过 |
+| 安全边界 | `dev_code` 未返回；日志未发现高置信度 Bearer/API key/OTP 模式；master key 仅保存于目标机 root-only 配置文件 |
+
+后续日常维护以 `docs/DEPLOYMENT.md` 当前生产状态和备份/回滚章节为准；下一主战场仍是独立授权的 P5 native Waku/标准 MLS 选型，不与已完成的单城生产收口混合。
 
 ## 2026-08-13 匿名 shell 投影隐私收口
 

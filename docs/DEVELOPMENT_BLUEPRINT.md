@@ -361,6 +361,17 @@
 - **防回归**：新增 shell 与 admin 的房主/非房主回归测试；Gateway 319/319，完整 release gate（Rust workspace/Clippy、CLI/TUI、Web 1412、双浏览器、provider federation、发布脚本和 panic scan）全绿。
 - **部署边界**：仅本地代码、测试和文档已验证，未 SSH、未部署生产；P5 native Waku/标准 MLS 仍须用户批准开源调研后再进入选型。
 
+### 单城 IM 生产切换与真实双居民验收（2026-08-13）
+
+- **发布锚点**：使用 release run `31640540602` 的 `6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d`；目标机通过只读预检确认实际为 `x86_64`，安装使用 `x86_64-unknown-linux-gnu` Gateway/Web 制品。
+- **备份与部署**：先完成 `/srv/backups/lobster-chat-state-20260813-005851.tar.gz` 一致性备份，再由 `install-server.sh` 校验 manifest/checksum 后安装；Gateway、Mailer、Nginx、Cloudflared 均 active/enabled。
+- **配置边界**：目标机原有生产配置保留；因新版本 readiness 要求而缺失的 `LOBSTER_SECURE_SESSION_MASTER_KEY` 以随机值补齐，仅写入 root-only `/etc/lobster-chat/gateway.env`，未写入仓库、日志、Atlas 或回复。
+- **公网验收**：`production-readiness.sh CHECK_PUBLIC=1` 和 `smoke-public-ingress.sh` 均通过；公网 `/v1/version` 与 JSON `release-manifest.json` 精确指向发布 SHA，CORS、管理摘要/ logout 401、匿名 shell state/events 不泄露 `dm:` 均通过。
+- **真实居民验收**：两个既有居民通过真实邮件 OTP 完成 verify；响应均为 `mailer-webhook` 且无 `dev_code`。已完成双方 auth session、presence、公共房间和私聊收发、编辑、撤回、搜索、认证 SSE、未授权搜索 401、logout 及旧 token 失效验证。
+- **持久化验收**：Gateway 重启后两份 Bearer session 仍可恢复，编辑/撤回消息状态保持，版本仍为目标 release；随后注销临时验收 session。
+- **遗留观察**：`nginx -t` 成功但保留既有 duplicate `server_name _` warning；公网路由和版本证据已实证正确，未改动非 IM 站点配置。
+- **结论**：P0 单城集中式 IM 已完成一次可追溯生产切换与 API/SSE 级真实验收；当前不把本轮结果扩展为 native Waku、标准 MLS/E2EE 或跨城完成。
+
 ### S0 源控救援与门禁去抖（2026-08-12）
 
 - **未提交生产 WIP 已收口**：8 月 2 日场景交互、私宅空态、admin-ds 热点去重和备份 timer 已按功能形成原子提交，不再只存在于工作树/生产目录
@@ -396,6 +407,8 @@
 剩余 app.js 候选 3/4/5（消息 payload 已做；房间状态/连接/同步文案、shellMode 视图状态文案）收益小（各 15-28 行）且多耦合运行时状态或 DOM，边际递减。
 
 ### 下一阶段执行规划（2026-08-13；生产收口优先）
+
+> 执行状态（2026-08-13）：本规划的 0→6 阶段已完成；当前生产状态、备份、真实 OTP/双居民验收和 Atlas 收尾以本页上方“单城 IM 生产切换与真实双居民验收”及 `docs/DEPLOYMENT.md` 为准。下方保留原始执行规划作为可重复 runbook。
 
 下一阶段不再以继续拆 `app.js` 或增加低收益 UI polish 为主，而是把已经通过本地门禁的单城 IM 版本安全地变成**可追溯、可验收、可回滚的生产发布**。每一阶段必须满足退出条件后才能进入下一阶段；任何失败都停在当前阶段，不带故障进入真实居民验收。
 
