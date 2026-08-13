@@ -85,9 +85,11 @@
 
 ### P5: 真实 transport、加密与跨城
 
-1. 单城中心化稳定后，再接真实 Waku/远程 gateway。
-2. MLS/加密按明确边界推进，不阻塞单城 IM。
-3. 跨城/去中心化作为后续增强，不作为当前真实可用的前置条件。
+1. 单城中心化稳定后，再接真实 Waku/远程 gateway。2026-08-13 已完成限时开源调研，transport PoC 推荐 `Logos Delivery node + loopback REST sidecar`；当前未引入依赖、未部署节点。
+2. MLS/加密按明确边界推进，不阻塞单城 IM。首选用 OpenMLS 做受控 PoC，`mls-rs` 保留为备选；现有 AES-GCM skeleton 不得称为标准 MLS。
+3. 首发范围默认为 DM/显式私密房间，公共城市房间保持服务器可治理模式；安全房间禁止静默回退明文。
+4. P5 按 P5.0 合同审批 → P5.1 双 Waku 节点 lab → P5.2 native MLS → P5.3 H5 WASM/TUI 互操作 → P5.4 shadow canary → P5.5 私密房间 opt-in 推进。
+5. 详细决策、威胁边界、退出条件和回滚门见 [`docs/adr/0001-p5-native-waku-and-standard-mls.md`](adr/0001-p5-native-waku-and-standard-mls.md)。该 ADR 当前为 Proposed，须在 Atlas Proposal 获批后才能进入依赖/代码 spike。
 
 ## Phase 1: Skeleton
 
@@ -126,6 +128,9 @@
 - provider connect / disconnect endpoints with persisted upstream bridge config
 - world snapshot bundle endpoint with checksum metadata for mirror-city sync and cached projections
 - real network adapter second
+- native adapter candidate: Logos Delivery node official REST API, loopback-only and feature-gated
+- versioned protobuf envelope with opaque bucketed content topics; never place resident/conversation identifiers in topics
+- Gateway delivery ledger remains authoritative; Light Push acknowledgement and Waku Store are not final-delivery/canonical-state proofs
 
 ## Phase 4: MLS security
 
@@ -134,6 +139,10 @@
 - persisted 1v1 session skeleton state via gateway
 - encrypted payload boundary
 - epoch management
+- RFC 9420 adapter candidate: OpenMLS first, mls-rs fallback; custom AES-GCM skeleton remains migration-only
+- MLS credentials are per-device and bound by the existing resident authentication service
+- application plaintext and epoch secrets remain device-local; Gateway stores only encrypted envelopes and delivery/auth metadata
+- first rollout is opt-in DM/private rooms, with no plaintext fallback and no server-side search/moderation/AI claim
 
 ## Phase 5: AI sidecar
 

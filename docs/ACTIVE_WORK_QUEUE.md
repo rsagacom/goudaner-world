@@ -4,13 +4,26 @@ Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-13 P5 原生 Waku / 标准 MLS 限时调研
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 授权边界 | 已确认 | 用户已允许执行 P5 限时开源调研；本轮只形成 ADR/Proposal/落地门禁，不等于批准引入依赖、新基础设施或生产切换。 |
+| 当前真相 | 已复核 | `transport-waku` 仍是 in-memory/HTTP federation，`crypto-mls` 仍是自研 AES-GCM/HKDF skeleton；不得对外称 native Waku 或 RFC 9420 MLS。 |
+| transport 推荐 | Proposed | `logos-messaging/logos-delivery` 独立节点 + loopback 官方 REST sidecar；Gateway 保留 auth/policy/routing/密文投递账本真源。 |
+| MLS 推荐 | Proposed | OpenMLS `0.8.1+` 进入优先 PoC，`mls-rs 0.55.x` 保留备选；H5 WASM 仍需两浏览器 + TUI 的真实互操作验证。 |
+| 产品默认边界 | Proposed | 首阶段只做 DM/显式私密房间；公共城市房间维持服务器可治理模式；安全房间禁止静默明文降级。 |
+| 资源门 | 已发现 | 现生产节点低于 Waku 官方部署建议的内存基线，P5.1 必须使用独立实验节点；不在本轮创建或改配基础设施。 |
+| 执行计划 | 已形成 | 见 [`docs/adr/0001-p5-native-waku-and-standard-mls.md`](adr/0001-p5-native-waku-and-standard-mls.md)：P5.0 审批、P5.1 双节点 lab、P5.2 native MLS、P5.3 H5/TUI 互操作、P5.4 shadow、P5.5 opt-in。 |
+| 下一门禁 | 待审批 | Atlas Proposal `proposal.38c8236eb16492f31a94` 未获批前不修改 Cargo/npm 依赖、不改 wire format、不部署 Waku 节点；获批后从 P5.1 的 feature-gated lab 开始。 |
+
 ## 2026-08-13 生产切换与真实验收已完成
 
 | 轨道 | 当前状态 | 下一动作与门禁 |
 | --- | --- | --- |
 | 单城生产收口 | 已完成 | release `6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d` 已部署；备份、安装、服务恢复、公网 SHA 追溯、真实 OTP、双居民 IM、重启恢复和 logout 均通过。 |
 | 生产权限边界 | 本次已获授权并完成 | Atlas canonical scheduling 事实仍保留 `agent_execution_allowed=false`；本次由用户明确授权并登记 task/lease 后执行，未修改该长期调度事实。 |
-| P5 跨城/加密 | 暂缓 | 不把 HTTP federation/AES-GCM 骨架称为 native Waku/标准 MLS；开源调研、依赖选型和 Proposal/ADR 需另行授权。 |
+| P5 跨城/加密 | 调研完成，待 Proposal 审批 | 不把 HTTP federation/AES-GCM 骨架称为 native Waku/标准 MLS；候选和分阶段门禁已写入 ADR，未引入依赖或改生产。 |
 | 低价值 polish | 降级 | DMARC/empty-note 可单独排期，不插入生产切换主链。 |
 
 | 生产证据 | 结果 |

@@ -398,7 +398,7 @@
 | P2 后台运维 | 100% | admin-ds 写操作护栏和注册账号审计投影完成；LOBSTER_SUPER_ADMINS 补齐后 ban/unban 恢复演练与审计留痕 2026-08-01 生产实操通过；备份/恢复演练通过；备份 2026-08-02 起脚本化+每日 timer |
 | P3 技术债 | ~95% | app.js 当前 7524 行；admin-ds 热点编辑器 2026-08-02 去重合一；本轮补齐 Gateway shell fail-closed 与合法空投影语义；剩余候选 3/4/5 各 15-28 行且耦合运行时状态，蓝图维持"不做机械搬运"结论 |
 | P4 TUI/CLI parity | 100% | CLI/TUI、居民主链、terminal 与 provider federation 已纳入完整 release gate；2026-08-02 完整门禁复验通过 |
-| P5 跨城/加密 | 15% | 后置（PRODUCT_CHARTER 延后） |
+| P5 跨城/加密 | 20% | 限时开源调研与 Proposed ADR 已完成；真实双节点 transport、RFC 9420 MLS、H5/TUI 互操作和生产 canary 均未开始 |
 
 ### 关键发现：6-26~28 WIP 曾未提交
 
@@ -407,7 +407,7 @@
 ### 下一步候选（按优先级）
 
 1. **单城集中式 IM 已完成面保持**：P0/P1/P2/P4 全部收口并生产验证；日常按 release gate + 备份 timer 维持
-2. **P5 跨城/MLS 加密**：PRODUCT_CHARTER 后置项，是"完全落地"路线上的下一个主战场；启动前需单独评审边界（真实 Waku transport、MLS 1v1/群、跨城发现）
+2. **P5 跨城/MLS 加密**：PRODUCT_CHARTER 后置项，是“完全落地”路线上的下一个主战场；2026-08-13 已完成限时开源调研并形成 Proposed ADR，下一动作是审批后执行隔离的双 Waku 节点 lab，而不是直接修改生产协议
 3. **可选加固（不阻塞）**：DMARC TXT（Cloudflare）、empty-note 视觉统一（低价值，已降级）
 
 （已完成的候选：生产环境复验 2026-08-01；P1 空间交互 polish、备份脚本化/定期化 2026-08-02。）
@@ -518,7 +518,7 @@ EXPECT_RELEASE_GIT_SHA=6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d \
 
 #### 7. P5 保持独立授权门
 
-P5 不与本次单城生产切换混合。当前 HTTP gateway federation 与自研 AES-GCM `crypto-mls` 骨架不得包装成 native Waku 或标准 MLS。只有用户另行明确允许限时开源调研后，才运行 Atlas reuse gate，围绕真实 Waku transport、MLS 1:1/群组库、密钥存储/迁移、跨城发现和互操作性形成 Proposal/ADR，再用最小 spike 验证 transport + 加密端到端链路；在此之前不新增依赖、不改生产协议面。
+P5 不与本次单城生产切换混合。当前 HTTP gateway federation 与自研 AES-GCM `crypto-mls` 骨架不得包装成 native Waku 或标准 MLS。用户已于 2026-08-13 允许限时开源调研，Atlas reuse gate、候选矩阵、威胁边界和分阶段执行门已形成 [`ADR-0001`](adr/0001-p5-native-waku-and-standard-mls.md)。ADR 当前仍为 Proposed：Atlas Proposal 未获批准前不新增依赖、不改 wire format、不创建基础设施、不动生产；批准后也只从 feature-gated 双节点 lab 开始。
 
 ### 未入主线的实验产物（保留 untracked）
 
