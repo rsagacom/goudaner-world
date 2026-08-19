@@ -1,10 +1,10 @@
 # ADR-0001: P5 原生 Waku 与标准 MLS 接入候选
 
-- 状态：**Proposed（待 Atlas Proposal 审批，不代表已采纳）**
+- 状态：**Accepted for P5.1 lab（仅批准隔离实验，不代表生产采纳）**
 - 日期：2026-08-13
-- Atlas Proposal：`proposal.38c8236eb16492f31a94`（pending）
-- 范围：开源调研、架构边界、最小验证计划
-- 非范围：引入依赖、修改生产协议、开通新基础设施、生产发布
+- Atlas Proposal：`proposal.38c8236eb16492f31a94`（approved，2026-08-13）
+- 范围：开源调研、架构边界、P5.1 最小验证计划与隔离实现
+- 非范围：P5.2 标准 MLS、生产依赖采纳、修改生产协议、开通生产基础设施、生产发布
 
 ## 1. 结论摘要
 
@@ -16,7 +16,7 @@ P5 推荐按两个彼此解耦的适配层推进：
 4. Gateway 继续是身份、权限、目录、投递账本和密文信封的唯一服务端真源；MLS 明文和 epoch secret 必须只存在于成员设备，不能再由 Gateway 持有或备份。
 5. 现有 `transport-waku` 是 HTTP federation/in-memory 适配层，现有 `crypto-mls` 是自研 AES-GCM/HKDF 骨架。二者只能作为迁移接口和测试夹具，不能更名包装为原生 Waku 或 RFC 9420 MLS。
 
-该结论只批准最小实验路线，不批准生产切换。
+该结论只批准最小实验路线，不批准生产切换。P5.1 于 2026-08-13 启动后按用户要求暂停；当前代码和节点构建均未通过退出条件。
 
 ## 2. 当前实现真相
 
@@ -114,6 +114,8 @@ H5 的 MLS 状态先由专用 Web Worker 隔离，PoC 只使用临时状态。�
 - 实现版本化 protobuf envelope、固定 opaque topics、send/receive event polling、Store recovery、幂等和持久化游标。
 - 验收：A→B、B→A 各 100 条；重复/乱序无重复投影；sidecar 重启后从 Gateway ledger + Store 收敛；日志 secret scan 通过。
 - 停止：丢消息无法由 ledger 恢复、topic 暴露业务 ID、REST 绑定非 loopback 或节点资源不可控。
+- 上游版本门：当前稳定版 `v0.38.1` 尚无 Messaging REST；本实验固定官方 master commit `23b0d31e848812ad54f5d5f390854cb8dd26fe89`。生产候选必须改为包含 Messaging REST 的正式发行版，或单独审批、审计并固定源码版本。
+- 2026-08-13 暂停点：本地 adapter/release-gate 为未验收 WIP；官方节点构建因 GitHub TLS EOF 退出；节点未启动，100+100、重启/Store 恢复、资源与脱敏检查均未执行。
 
 ### P5.2：OpenMLS native PoC（3–5 个工作日）
 
@@ -158,7 +160,7 @@ H5 的 MLS 状态先由专用 Web Worker 隔离，PoC 只使用临时状态。�
 4. 历史：新设备默认不自动获得加入前历史。
 5. 恢复：先做设备到设备迁移；不提供服务端群密钥托管。
 
-这些值须经 Atlas Proposal 批准后才成为实施决策。
+这些值已随 Atlas Proposal 获批，成为 P5.1 隔离实验的实施决策；P5.2 和任何生产使用仍需独立批准。
 
 ## 8. 一手资料
 

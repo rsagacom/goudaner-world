@@ -40,6 +40,10 @@ jobs:
         working-directory: .
         run: cargo test --workspace --quiet
 
+      - name: Native Waku REST adapter tests
+        working-directory: .
+        run: cargo test -p transport-waku --features native-waku-rest --quiet
+
       - name: Web shell tests
         run: npm test
 

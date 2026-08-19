@@ -85,11 +85,12 @@
 
 ### P5: 真实 transport、加密与跨城
 
-1. 单城中心化稳定后，再接真实 Waku/远程 gateway。2026-08-13 已完成限时开源调研，transport PoC 推荐 `Logos Delivery node + loopback REST sidecar`；当前未引入依赖、未部署节点。
+1. 单城中心化稳定后，再接真实 Waku/远程 gateway。2026-08-13 已完成限时开源调研并批准隔离 P5.1；transport PoC 采用 `Logos Delivery node + loopback REST sidecar`。当前只有默认关闭、尚未验收的本地代码 WIP，未部署节点、未修改生产。
 2. MLS/加密按明确边界推进，不阻塞单城 IM。首选用 OpenMLS 做受控 PoC，`mls-rs` 保留为备选；现有 AES-GCM skeleton 不得称为标准 MLS。
 3. 首发范围默认为 DM/显式私密房间，公共城市房间保持服务器可治理模式；安全房间禁止静默回退明文。
 4. P5 按 P5.0 合同审批 → P5.1 双 Waku 节点 lab → P5.2 native MLS → P5.3 H5 WASM/TUI 互操作 → P5.4 shadow canary → P5.5 私密房间 opt-in 推进。
-5. 详细决策、威胁边界、退出条件和回滚门见 [`docs/adr/0001-p5-native-waku-and-standard-mls.md`](adr/0001-p5-native-waku-and-standard-mls.md)。该 ADR 当前为 Proposed，须在 Atlas Proposal 获批后才能进入依赖/代码 spike。
+5. 详细决策、威胁边界、退出条件和回滚门见 [`docs/adr/0001-p5-native-waku-and-standard-mls.md`](adr/0001-p5-native-waku-and-standard-mls.md)。Atlas Proposal 已批准 P5.1 隔离实验；P5.2、生产基础设施与切换仍需各自门禁。
+6. P5.1 暂停点：官方 master `23b0d31e848812ad54f5d5f390854cb8dd26fe89` 的节点构建因 GitHub TLS EOF 未完成；adapter 尚未接入 `lib.rs`，未跑 feature/workspace 测试，也未执行双节点 100+100、重启/Store 恢复与日志脱敏验收。恢复时必须从这些未完成项继续，不能把 WIP 计为 native Waku 已落地。
 
 ## Phase 1: Skeleton
 

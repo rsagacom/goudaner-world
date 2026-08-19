@@ -55,12 +55,14 @@ run_logged "tui tests" cargo test -p lobster-tui || overall_status=1
 
 section "6. Rust Workspace 测试"
 run_logged "workspace tests" cargo test --workspace || overall_status=1
+run_logged "native Waku REST adapter tests" cargo test -p transport-waku --features native-waku-rest || overall_status=1
 
 section "7. Rust 格式检查"
 run_logged "rust fmt" cargo fmt --check || overall_status=1
 
 section "8. Rust Lint"
 run_logged "rust lint" cargo clippy --workspace -- -D warnings || overall_status=1
+run_logged "native Waku REST adapter lint" cargo clippy -p transport-waku --features native-waku-rest -- -D warnings || overall_status=1
 
 section "9. Rust 生产 panic 扫描"
 run_logged "rust production panic scan unit" python3 "$ROOT_DIR/scripts/test_rust_production_panic_scan_unit.py" || overall_status=1

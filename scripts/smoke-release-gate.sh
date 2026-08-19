@@ -56,8 +56,14 @@ if [[ "$SKIP_BUILD" != "1" ]]; then
     "rust workspace tests" \
     cargo test --manifest-path "$ROOT_DIR/Cargo.toml" --workspace --quiet
   run_step \
+    "native Waku REST adapter tests" \
+    cargo test --manifest-path "$ROOT_DIR/Cargo.toml" -p transport-waku --features native-waku-rest --quiet
+  run_step \
     "rust lint" \
     cargo clippy --manifest-path "$ROOT_DIR/Cargo.toml" --workspace -- -D warnings
+  run_step \
+    "native Waku REST adapter lint" \
+    cargo clippy --manifest-path "$ROOT_DIR/Cargo.toml" -p transport-waku --features native-waku-rest -- -D warnings
   run_step \
     "building shared debug binaries" \
     cargo build --manifest-path "$ROOT_DIR/Cargo.toml" -p lobster-waku-gateway -p lobster-cli -p lobster-tui

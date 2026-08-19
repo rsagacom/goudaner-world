@@ -70,8 +70,14 @@ jobs:
       - name: Rust clippy
         run: cargo clippy --workspace -- -D warnings
 
+      - name: Native Waku REST adapter clippy
+        run: cargo clippy -p transport-waku --features native-waku-rest -- -D warnings
+
       - name: Workspace tests
         run: cargo test --workspace --quiet
+
+      - name: Native Waku REST adapter tests
+        run: cargo test -p transport-waku --features native-waku-rest --quiet
 
       - name: CLI smoke
         run: scripts/smoke-cli-channel.sh

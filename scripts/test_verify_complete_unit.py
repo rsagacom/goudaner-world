@@ -85,10 +85,14 @@ def main() -> int:
     assert 'run_logged "cli tests" cargo test -p lobster-cli || overall_status=1' in text
     assert 'run_logged "tui tests" cargo test -p lobster-tui || overall_status=1' in text
     assert 'run_logged "workspace tests" cargo test --workspace || overall_status=1' in text
+    assert 'run_logged "native Waku REST adapter tests" cargo test -p transport-waku --features native-waku-rest || overall_status=1' in text
     assert 'run_logged "rust fmt" cargo fmt --check || overall_status=1' in text
     assert 'run_logged "rust lint" cargo clippy --workspace -- -D warnings || overall_status=1' in text
-    assert text.index('run_logged "workspace tests"') < text.index('run_logged "rust fmt"')
+    assert 'run_logged "native Waku REST adapter lint" cargo clippy -p transport-waku --features native-waku-rest -- -D warnings || overall_status=1' in text
+    assert text.index('run_logged "workspace tests"') < text.index('run_logged "native Waku REST adapter tests"')
+    assert text.index('run_logged "native Waku REST adapter tests"') < text.index('run_logged "rust fmt"')
     assert text.index('run_logged "rust fmt"') < text.index('run_logged "rust lint"')
+    assert text.index('run_logged "rust lint"') < text.index('run_logged "native Waku REST adapter lint"')
     assert 'run_logged "rust production panic scan unit" python3 "$ROOT_DIR/scripts/test_rust_production_panic_scan_unit.py" || overall_status=1' in text
     assert 'run_logged "rust production panic scan" python3 "$ROOT_DIR/scripts/rust-production-panic-scan.py" || overall_status=1' in text
     assert text.index('run_logged "rust production panic scan unit"') < text.index('run_logged "rust production panic scan"')
@@ -103,8 +107,10 @@ def main() -> int:
     assert "FAIL: frontend" in log
     assert "PASS: gateway build" in log
     assert "PASS: workspace tests" in log
+    assert "PASS: native Waku REST adapter tests" in log
     assert "PASS: rust fmt" in log
     assert "PASS: rust lint" in log
+    assert "PASS: native Waku REST adapter lint" in log
     assert "PASS: rust production panic scan unit" in log
     assert "PASS: rust production panic scan" in log
     assert "PASS: workspace status" in log

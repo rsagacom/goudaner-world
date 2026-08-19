@@ -4,18 +4,31 @@ Last updated: 2026-08-13
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-08-13 P5.1 原生 Waku lab 暂停交接
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 决策门 | 已通过 | 用户已批准 Atlas Proposal `proposal.38c8236eb16492f31a94`，只授权隔离的 P5.1 双节点实验；不包含生产部署、协议切换或 P5.2 MLS 实现。 |
+| 上游事实 | 已复核 | Logos Delivery 稳定版 `v0.38.1` 尚无 Messaging REST；实验必须固定到包含该 API 的官方 master commit `23b0d31e848812ad54f5d5f390854cb8dd26fe89`。生产门仍要求使用包含 Messaging REST 的正式发行版，或另行批准固定源码版本。 |
+| 本地代码 | WIP，未验收 | `transport-waku` 已出现默认关闭的 `native-waku-rest` feature、REST adapter、opaque protobuf envelope、持久化 ledger、Store 恢复和双节点 lab 示例；`lib.rs` 尚未接线，feature cargo test/clippy、workspace 回归和真实节点联调均未完成。 |
+| release gate | 局部通过 | CI/release/smoke/verify 脚本已加入 feature-gated test/clippy 草稿；3 个 Python 合同单测、shell 语法和 `git diff --check` 已通过，但整条 release gate 尚未运行。 |
+| 节点构建 | 未完成 | 隔离开发机已固定官方源码并将 Rust/Nim 工具链放在外盘；构建在 Nimble 拉取 `nim-stew` 标签时遇到 GitHub TLS EOF 后退出，未生成 `logosdeliverynode`，未启动任何 Waku 节点。禁止用 `--noSSLCheck` 绕过证书校验。 |
+| 运行边界 | 已保持 | 生产主机、生产 Gateway、DNS/TLS 和居民数据均未修改；开发机也没有遗留运行中的实验节点或构建进程。 |
+| Git 状态 | 暂停保留 | 代码、Cargo lock、release gate 与本交接文档保留在本地未提交工作树；因实现尚未验收，本轮不提交、不推送 GitHub。 |
+| 恢复入口 | 待用户命令 | 先审查并接线 `native_rest`，完成 feature/default 回归；再安全恢复官方节点构建，启动 loopback-only A/B 节点，执行双向各 100 条、重启 + Store 恢复、去重、资源与日志脱敏验收；全部通过后才更新 ADR/蓝图、提交并等待 CI。 |
+
 ## 2026-08-13 P5 原生 Waku / 标准 MLS 限时调研
 
 | 项目 | 状态 | 说明 |
 | --- | --- | --- |
 | 授权边界 | 已确认 | 用户已允许执行 P5 限时开源调研；本轮只形成 ADR/Proposal/落地门禁，不等于批准引入依赖、新基础设施或生产切换。 |
 | 当前真相 | 已复核 | `transport-waku` 仍是 in-memory/HTTP federation，`crypto-mls` 仍是自研 AES-GCM/HKDF skeleton；不得对外称 native Waku 或 RFC 9420 MLS。 |
-| transport 推荐 | Proposed | `logos-messaging/logos-delivery` 独立节点 + loopback 官方 REST sidecar；Gateway 保留 auth/policy/routing/密文投递账本真源。 |
-| MLS 推荐 | Proposed | OpenMLS `0.8.1+` 进入优先 PoC，`mls-rs 0.55.x` 保留备选；H5 WASM 仍需两浏览器 + TUI 的真实互操作验证。 |
-| 产品默认边界 | Proposed | 首阶段只做 DM/显式私密房间；公共城市房间维持服务器可治理模式；安全房间禁止静默明文降级。 |
+| transport 推荐 | P5.1 已批准 | `logos-messaging/logos-delivery` 独立节点 + loopback 官方 REST sidecar；Gateway 保留 auth/policy/routing/密文投递账本真源。批准范围仅限隔离实验。 |
+| MLS 推荐 | 待 P5.2 单独执行 | OpenMLS `0.8.1+` 进入优先 PoC，`mls-rs 0.55.x` 保留备选；H5 WASM 仍需两浏览器 + TUI 的真实互操作验证。 |
+| 产品默认边界 | 已采纳为实验边界 | 首阶段只做 DM/显式私密房间；公共城市房间维持服务器可治理模式；安全房间禁止静默明文降级。 |
 | 资源门 | 已发现 | 现生产节点低于 Waku 官方部署建议的内存基线，P5.1 必须使用独立实验节点；不在本轮创建或改配基础设施。 |
 | 执行计划 | 已形成 | 见 [`docs/adr/0001-p5-native-waku-and-standard-mls.md`](adr/0001-p5-native-waku-and-standard-mls.md)：P5.0 审批、P5.1 双节点 lab、P5.2 native MLS、P5.3 H5/TUI 互操作、P5.4 shadow、P5.5 opt-in。 |
-| 下一门禁 | 待审批 | Atlas Proposal `proposal.38c8236eb16492f31a94` 未获批前不修改 Cargo/npm 依赖、不改 wire format、不部署 Waku 节点；获批后从 P5.1 的 feature-gated lab 开始。 |
+| 下一门禁 | P5.1 暂停 | Atlas Proposal 已批准，feature-gated lab 已开始但未验收；后续按本页最新“P5.1 原生 Waku lab 暂停交接”继续，生产仍需独立审批。 |
 
 ## 2026-08-13 生产切换与真实验收已完成
 

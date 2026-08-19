@@ -391,6 +391,16 @@
 
 ### 真实进度（2026-08-13）
 
+### P5.1 暂停交接（2026-08-13）
+
+- Atlas Proposal `proposal.38c8236eb16492f31a94` 已批准，决策只覆盖隔离的 P5.1 双节点 lab；生产部署、P5.2 标准 MLS 和协议切换不在本次授权内。
+- 官方上游核验确认：稳定版 `v0.38.1` 尚无 Messaging REST，实验固定 Logos Delivery master commit `23b0d31e848812ad54f5d5f390854cb8dd26fe89`；生产必须等待包含该 API 的正式发行版，或重新审批固定源码版本。
+- 当前本地工作树有默认关闭的 `native-waku-rest` feature、REST adapter、opaque protobuf envelope、原子 `0600` ledger、Store cursor/dedup 恢复和 lab 示例草稿；该代码尚未通过主 agent 审查，`lib.rs` 尚未接线，cargo feature/default/full gate 均未验收。
+- release gate 的 feature test/clippy 接线草稿已落盘；相关 Python 合同单测、shell 语法和 `git diff --check` 已通过。这只能证明脚本合同，不代表 Rust adapter 或真实 Waku 链路通过。
+- 隔离开发机已把源码、工具链和日志放在外盘；节点构建在 Nimble 读取 GitHub `nim-stew` tags 时因 TLS EOF 退出，未生成节点二进制，未启动 A/B 节点。不得使用 `--noSSLCheck` 规避证书验证。
+- 暂停时生产环境完全未动，开发机没有遗留实验节点/构建进程；WIP 未提交、未推送，等待用户下一次明确继续命令。
+- 恢复顺序固定为：代码审查与 `lib.rs` 接线 → feature/default/workspace 门禁 → 安全恢复官方节点构建 → loopback-only 双节点 A/B → 双向各 100 条 → adapter/sidecar 重启与 Store 恢复 → 去重/资源/日志脱敏检查 → 文档/Atlas 收口 → 脱敏提交、推送并等待 CI。任一阶段失败都停在该阶段。
+
 | 模块 | 估算 | 说明 |
 |------|------:|------|
 | P0 单城 IM 闭环 | 100% | 私宅确权、好友流、认证、消息与双浏览器 smoke 已验证；生产主机/域名/邮件链路 2026-08-01 全部复验通过（真实 OTP 双邮箱投递、双居民私聊 8/8） |
@@ -398,7 +408,7 @@
 | P2 后台运维 | 100% | admin-ds 写操作护栏和注册账号审计投影完成；LOBSTER_SUPER_ADMINS 补齐后 ban/unban 恢复演练与审计留痕 2026-08-01 生产实操通过；备份/恢复演练通过；备份 2026-08-02 起脚本化+每日 timer |
 | P3 技术债 | ~95% | app.js 当前 7524 行；admin-ds 热点编辑器 2026-08-02 去重合一；本轮补齐 Gateway shell fail-closed 与合法空投影语义；剩余候选 3/4/5 各 15-28 行且耦合运行时状态，蓝图维持"不做机械搬运"结论 |
 | P4 TUI/CLI parity | 100% | CLI/TUI、居民主链、terminal 与 provider federation 已纳入完整 release gate；2026-08-02 完整门禁复验通过 |
-| P5 跨城/加密 | 20% | 限时开源调研与 Proposed ADR 已完成；真实双节点 transport、RFC 9420 MLS、H5/TUI 互操作和生产 canary 均未开始 |
+| P5 跨城/加密 | 22% | P5.0 Proposal 已批准，P5.1 有未验收 adapter/build WIP；真实双节点 transport、RFC 9420 MLS、H5/TUI 互操作和生产 canary 均未通过 |
 
 ### 关键发现：6-26~28 WIP 曾未提交
 
@@ -407,7 +417,7 @@
 ### 下一步候选（按优先级）
 
 1. **单城集中式 IM 已完成面保持**：P0/P1/P2/P4 全部收口并生产验证；日常按 release gate + 备份 timer 维持
-2. **P5 跨城/MLS 加密**：PRODUCT_CHARTER 后置项，是“完全落地”路线上的下一个主战场；2026-08-13 已完成限时开源调研并形成 Proposed ADR，下一动作是审批后执行隔离的双 Waku 节点 lab，而不是直接修改生产协议
+2. **P5 跨城/MLS 加密**：PRODUCT_CHARTER 后置项，是“完全落地”路线上的下一个主战场；P5.0 已审批，P5.1 暂停在 adapter 审查/节点构建之前，下一动作按上方暂停交接恢复隔离双节点 lab，而不是修改生产协议
 3. **可选加固（不阻塞）**：DMARC TXT（Cloudflare）、empty-note 视觉统一（低价值，已降级）
 
 （已完成的候选：生产环境复验 2026-08-01；P1 空间交互 polish、备份脚本化/定期化 2026-08-02。）
@@ -518,7 +528,7 @@ EXPECT_RELEASE_GIT_SHA=6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d \
 
 #### 7. P5 保持独立授权门
 
-P5 不与本次单城生产切换混合。当前 HTTP gateway federation 与自研 AES-GCM `crypto-mls` 骨架不得包装成 native Waku 或标准 MLS。用户已于 2026-08-13 允许限时开源调研，Atlas reuse gate、候选矩阵、威胁边界和分阶段执行门已形成 [`ADR-0001`](adr/0001-p5-native-waku-and-standard-mls.md)。ADR 当前仍为 Proposed：Atlas Proposal 未获批准前不新增依赖、不改 wire format、不创建基础设施、不动生产；批准后也只从 feature-gated 双节点 lab 开始。
+P5 不与本次单城生产切换混合。当前 HTTP gateway federation 与自研 AES-GCM `crypto-mls` 骨架不得包装成 native Waku 或标准 MLS。用户已于 2026-08-13 允许限时开源调研并批准 Atlas Proposal `proposal.38c8236eb16492f31a94`；[`ADR-0001`](adr/0001-p5-native-waku-and-standard-mls.md) 已采纳为 P5.1 隔离实验合同。该批准不覆盖 P5.2、生产基础设施或生产切换；feature-gated lab 未完成真实验收前不得宣称 native Waku 已落地。
 
 ### 未入主线的实验产物（保留 untracked）
 

@@ -14,6 +14,7 @@ def main() -> int:
     assert "machine: x86_64" in text
     assert "machine: aarch64" in text
     assert "cargo test --workspace --quiet" in text
+    assert "cargo test -p transport-waku --features native-waku-rest --quiet" in text
     assert "npm test" in text
     assert "HOST_TARGET_OVERRIDE: ${{ matrix.target }}" in text
     assert "GATEWAY_BINARY_PATH: ${{ github.workspace }}/target/${{ matrix.target }}/release/lobster-waku-gateway" in text

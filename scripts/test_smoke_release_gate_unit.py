@@ -62,10 +62,16 @@ def main() -> int:
     assert 'export no_proxy="${no_proxy:+$no_proxy,}127.0.0.1,localhost"' in text
     assert text.index("need_cmd cargo") < text.index('"rust fmt"')
     assert '"rust workspace tests"' in text
+    assert '"native Waku REST adapter tests"' in text
+    assert 'cargo test --manifest-path "$ROOT_DIR/Cargo.toml" -p transport-waku --features native-waku-rest --quiet' in text
     assert 'run_step \\\n    "rust lint" \\\n    cargo clippy --manifest-path "$ROOT_DIR/Cargo.toml" --workspace -- -D warnings' in text
-    assert text.index('"rust workspace tests"') < text.index('"rust lint"')
+    assert '"native Waku REST adapter lint"' in text
+    assert 'cargo clippy --manifest-path "$ROOT_DIR/Cargo.toml" -p transport-waku --features native-waku-rest -- -D warnings' in text
+    assert text.index('"rust workspace tests"') < text.index('"native Waku REST adapter tests"')
+    assert text.index('"native Waku REST adapter tests"') < text.index('"rust lint"')
+    assert text.index('"rust lint"') < text.index('"native Waku REST adapter lint"')
     assert text.index('"rust fmt"') < text.index('"rust workspace tests"')
-    assert text.index('"rust lint"') < text.index('cargo build --manifest-path "$ROOT_DIR/Cargo.toml" -p lobster-waku-gateway -p lobster-cli -p lobster-tui')
+    assert text.index('"native Waku REST adapter lint"') < text.index('cargo build --manifest-path "$ROOT_DIR/Cargo.toml" -p lobster-waku-gateway -p lobster-cli -p lobster-tui')
     assert 'run_step "makefile smoke unit" python3 "$ROOT_DIR/scripts/test_makefile_unit.py"' in text
     assert 'run_shell_step "cli channel smoke" "$ROOT_DIR/scripts/smoke-cli-channel.sh"' in text
     assert 'run_step "cli channel smoke unit" python3 "$ROOT_DIR/scripts/test_smoke_cli_channel_unit.py"' in text
