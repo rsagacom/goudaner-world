@@ -404,7 +404,8 @@
 
 ### R2 增量写第一步 + PWA 最小版（2026-09-05）
 
-- **R2 append-only journal（`crates/chat-storage/src/timeline_journal.rs`）**：追加从"每条消息全量重写 `<id>.postcard`"降为 O(帧) 的 CRC 帧追加；帧 = 手工定长头 `[len u32 LE][crc32 u32 LE]` + postcard 条目。满 128 帧自动压实进快照；edit/recall/archive 仍走快照重写（低频）并删 journal 保快照唯一权威。加载 = 快照（含三代 legacy）+ journal 重放，`message_id` 去重覆盖"快照已写、journal 未删"崩溃窗口；撕裂尾/坏帧加载时截断修复。追加失败回滚 = 内存 pop + journal 截回追加前长度，此前帧保持持久。**Trait、postcard 格式、文件布局零迁移**，Gateway/TUI/CLI 无感知。chat-storage **26/26**（+8 用例）。零新依赖。
+- **R2 append-only journal（`crates/chat-storage/src/timeline_journal.rs`）**：追加从"每条消息全量重写 `<id>.postcard`"降为 O(帧) 的 CRC 帧追加；帧 = 手工定长头 `[len u32 LE][crc32 u32 LE]` + postcard 条目。压实双预算：满 128 帧**或 journal ≥1MiB**（图片消息后纯帧数会漏算大对象）自动折叠进快照；edit/recall/archive 仍走快照重写（低频）并删 journal 保快照唯一权威。加载 = 快照（含三代 legacy）+ journal 重放，`message_id` 去重覆盖"快照已写、journal 未删"崩溃窗口；撕裂尾/坏帧加载时截断修复。追加失败回滚 = 内存 pop + journal 截回追加前长度，此前帧保持持久。**Trait、postcard 格式、文件布局零迁移**，Gateway/TUI/CLI 无感知。chat-storage **27/27**（+9 用例）。零新依赖。
+- **R2 压测**（`cargo test -p chat-storage --release -- --ignored --nocapture`，5,000 条实测）：journal 追加 ~8.6ms/条（fsync 主导、**常数不随 timeline 增长**）；旧快照路径 5k 条已 ~10ms/条且线性增长——悬崖消除得到量化。opt-in `#[ignore]` 基准，不进 CI。
 - **PWA 最小版（`899cb48`）**：manifest.webmanifest（standalone + 暗色）+ 纯 Node zlib 生成的像素龙虾图标（192/512 any、512 maskable 80% 安全区、`scripts/generate-pwa-icons.mjs` 可确定性重生成）+ index/creative 页面接线 + `shell-install-hint.js` 加桌引导（决策纯函数 + fake-dom 可测 chip；beforeinstallprompt/iOS 分支、一次性关闭、桌面克制不提示）。无 service worker——推送属 WebPush 独立批次，且 Rust web-push 依赖需用户批准（reuse prompt 已发起，见优先序表序 2）。Web **1445/1445**。
 - **部署边界**：R2 与 PWA 均仅本地验证，未 SSH、未部署生产。
 

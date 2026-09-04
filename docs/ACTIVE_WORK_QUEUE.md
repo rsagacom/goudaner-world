@@ -13,7 +13,7 @@ Last updated: 2026-09-05
 | 加载与修复 | 已完成 | `load_timeline` = 快照（当前/三代 legacy 编解码）+ journal 重放，按 `message_id` 去重（崩溃窗口"快照已写、journal 未删"不会产生重复）；撕裂尾/CRC 损坏帧在加载时截断修复，仅丢弃坏帧之后的内容；纯 journal（尚无快照）的会话也能恢复。 |
 | 兼容边界 | 不变 | `TimelineStore` trait、postcard 快照格式、`<id>.postcard` 文件布局零迁移；旧数据（无 journal）读取路径不变；Gateway/TUI/CLI 无感知。 |
 | 防回归 | 全绿 | chat-storage **26/26**（+8：journal-only 重开、阈值压实、撕裂尾修复、坏帧截停、edit/recall 折叠快照、崩溃窗口去重、archive 清 journal）；workspace 全测试绿（Gateway 330、chat-core 24、TUI 236 等）；clippy `-D warnings`、fmt、panic 扫描干净。 |
-| 下一步（本项未完） | 登记 | 后续可做：压实阈值按字节而非帧数、journal 只读巡检工具、Gateway 层面追加路径压测（`recent_messages` 仍是内存全量克隆，属 R1 范畴不混入）。生产部署随下一发布批次，需单独授权。 |
+| 下一步（本项未完） | 登记 | 第二步已完成（2026-09-05）：压实触发扩为 帧数≥128 **或 journal ≥1MiB**（图片消息后纯帧数会漏算大对象），决策抽为纯函数 `journal_should_compact` + 单测（27/27，提交 `ea070da`）；压测已落地（提交 `331ef7a`）：`cargo test -p chat-storage --release -- --ignored --nocapture`，5,000 条实测 journal 追加 ~8.6ms/条（fsync 主导、常数）vs 旧快照路径 5k 条 ~10ms/条且线性增长，悬崖消除量化入档。剩余可做：Gateway 层追加路径压测、`recent_messages` 内存快照化（属 R1 不混入）。生产部署随下一发布批次，需单独授权。 |
 
 ## 2026-09-05 PWA manifest 最小版 + 加桌引导（899cb48 已推送，未部署）
 
