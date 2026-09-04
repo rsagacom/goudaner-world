@@ -167,7 +167,7 @@ test("不支持的浏览器环境隐藏推送钮", async () => {
     document: doc,
     navigatorRef,
     windowRef,
-    gatewayUrl: "https://chat.example.com",
+    getGatewayUrl: () => "https://chat.example.com",
     getSessionToken: () => null,
   });
   const state = await client.init();
@@ -217,7 +217,7 @@ test("支持环境显示开关，toggle 流程走订阅与上报", async () => {
       document: doc,
       navigatorRef,
       windowRef: { ...windowRef, fetch: fakeFetch },
-      gatewayUrl: "https://chat.example.com",
+      getGatewayUrl: () => "https://chat.example.com",
       getSessionToken: () => "token-1",
     });
     // fetch 注入到全局（客户端内部直接用 fetch）

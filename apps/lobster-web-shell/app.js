@@ -1780,6 +1780,7 @@ function openMessageActionSheetForTarget(target) {
   });
 }
 
+let pushClientInstance = null;
 const messageActionSheet = createMessageActionSheet({ document });
 
 if (timelineEl) {
@@ -1788,7 +1789,7 @@ if (timelineEl) {
     wireAttachmentLightbox(createAttachmentLightbox({ document }), { document }).element,
   );
   initInstallHint({ document });
-  initPushClient({ document, gatewayUrl, getSessionToken: () => getSessionToken() });
+  pushClientInstance = initPushClient({ document, gatewayUrl: () => gatewayUrl, getSessionToken: () => getSessionToken() });
   let messageLongPressTimer = null;
   const cancelMessageLongPress = () => clearTimeout(messageLongPressTimer);
   timelineEl.addEventListener("contextmenu", (event) => {
@@ -7030,6 +7031,8 @@ async function loadInitialRuntimeState() {
   updateInitialAuthStatus();
   await loadGatewayBootstrap();
   gatewayUrl = resolveGatewayUrl();
+  // 网关地址/身份就绪后刷新推送开关状态（挂载时地址尚未解析，按钮先休眠）
+  void pushClientInstance?.refresh();
   await refreshFromGateway();
 }
 

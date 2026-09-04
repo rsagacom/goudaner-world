@@ -49,7 +49,7 @@ export function createPushClient({
   document: doc = document,
   navigatorRef = navigator,
   windowRef = window,
-  gatewayUrl,
+  getGatewayUrl = () => null,
   getSessionToken,
   onStateChange = () => {},
 } = {}) {
@@ -71,6 +71,8 @@ export function createPushClient({
   }
 
   async function gatewayCall(path, payload) {
+    const gatewayUrl = getGatewayUrl();
+    if (!gatewayUrl) throw new Error("网关未连接");
     const headers = { "Content-Type": "application/json" };
     const token = typeof getSessionToken === "function" ? getSessionToken() : null;
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -101,6 +103,8 @@ export function createPushClient({
     }
     const registration = await navigatorRef.serviceWorker.register("./sw.js");
     await navigatorRef.serviceWorker.ready;
+    const gatewayUrl = getGatewayUrl();
+    if (!gatewayUrl) throw new Error("网关未连接");
     const keyResponse = await fetch(`${gatewayUrl}/v1/push/vapid-public-key`);
     if (!keyResponse.ok) throw new Error("推送公钥获取失败");
     const keyPayload = await keyResponse.json();
@@ -133,6 +137,7 @@ export function createPushClient({
     element: button,
     refresh,
     async state() {
+      if (!getGatewayUrl()) return "unsupported";
       const secureContext = windowRef.isSecureContext !== false;
       const pushSupported = typeof windowRef.PushManager !== "undefined";
       const serviceWorkerSupported = Boolean(navigatorRef.serviceWorker);

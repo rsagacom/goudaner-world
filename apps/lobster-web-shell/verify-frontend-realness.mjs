@@ -276,6 +276,22 @@ async function verifySceneHotspotSizes(page, baseUrl) {
   }
 }
 
+async function verifyPushToggleDormant(page, baseUrl) {
+  // WebPush 开关休眠合同（蓝图序 2）：静态预览/无可达网关时按钮必须保持
+  // 隐藏不骚扰（fail-closed 网关解析 → unsupported）；sw.js 与 PWA 图标
+  // 必须可从同源取得，且 sw.js 注册了 push 事件监听。
+  await page.goto(`${baseUrl}/creative.html?verify=frontend-realness-push`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(300);
+  const toggleHidden = await page.$eval("[data-push-toggle]", (el) => el.hidden);
+  assert(toggleHidden === true, "push toggle must stay dormant without a reachable gateway");
+  const swResponse = await page.request.get(`${baseUrl}/sw.js`);
+  assert(swResponse.status() === 200, "sw.js must be served");
+  const swBody = await swResponse.text();
+  assert(swBody.includes('addEventListener("push"'), "sw.js must listen for push");
+  const iconResponse = await page.request.get(`${baseUrl}/assets/icons/icon-192.png`);
+  assert(iconResponse.status() === 200, "PWA icon must be served");
+}
+
 async function verifyNoJavascriptErrors(page, baseUrl) {
   // 守护所有 shell 页面桌面+移动加载无未捕获 JS 异常（如 admin ensureConversationCallout
   // insertBefore 无 parentElement 守卫导致的 DOMException 崩溃，2026-06-17 修复）。
@@ -487,6 +503,7 @@ try {
   await verifyAdminDs(page, baseUrl);
   await verifySceneHotspotSizes(page, baseUrl);
   await verifyNoJavascriptErrors(page, baseUrl);
+  await verifyPushToggleDormant(page, baseUrl);
   await verifySceneEditorAccess(page, baseUrl);
   await verifyCreativeMobileRelationshipActions(page, baseUrl);
   await verifySceneEditorMobile(page, baseUrl);
@@ -494,7 +511,7 @@ try {
   await verifySceneEditorDayNight(page, baseUrl);
   await verifySceneEditorHotspotList(page, baseUrl);
   await verifySceneEditorUndoRedo(page, baseUrl);
-  console.log("frontend realness: composer, hotspot labels, shared scene rails, day/night backgrounds, formal admin, fixed hotspot sizes (64x34), zero uncaught JS errors, scene-editor owner-only access, mobile relationship actions, mobile touch, day/night preview, hotspot list and undo/redo passed");
+  console.log("frontend realness: composer, hotspot labels, shared scene rails, day/night backgrounds, formal admin, fixed hotspot sizes (64x34), zero uncaught JS errors, scene-editor owner-only access, mobile relationship actions, mobile touch, day/night preview, hotspot list and undo/redo, push toggle dormant passed");
 } finally {
   await browser.close();
   await close(server);

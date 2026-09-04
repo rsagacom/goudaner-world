@@ -13358,3 +13358,58 @@ fn push_delivery_covers_cli_agent_channel() {
     );
     assert!(body.len() > 86 + 16);
 }
+
+#[test]
+#[ignore = "benchmark: run explicitly with cargo test -p lobster-waku-gateway --release --ignored -- --nocapture"]
+fn bench_gateway_http_append_journal_throughput() {
+    // R2 收尾压测：经真实 loopback HTTP 栈（tiny_http → dispatch → 校验 →
+    // timeline journal 追加 → conversations 持久化）度量单条消息端到端成本，
+    // 并验证重启后从 快照+journal 完整恢复。只断言正确性，不做时间断言。
+    let temp = tempdir().expect("temp dir");
+    let storage_root = temp.path().join("gateway");
+    let runtime = GatewayRuntime::open(&storage_root, 4096, None).expect("runtime");
+    let server = start_local_gateway_http_server(runtime);
+
+    let total = 2_000u32;
+    // 限流合同为 30 条/分钟/发送者：用 70 个轮换发送者模拟 70 个真实用户，
+    // 在首个 60 秒窗口内完成全部投递（每发送者 ≤30 条）。
+    let senders = 70u32;
+    let started = std::time::Instant::now();
+    for index in 0..total {
+        let (status, _) = http_json(
+            "POST",
+            &server.base_url,
+            "/v1/shell/message",
+            Some(&serde_json::json!({
+                "room_id": "room:world:lobby",
+                "sender": format!("qa-bench-{}", index % senders),
+                "text": format!("benchmark message {index} with realistic payload padding ~"),
+                "device_id": "bench",
+                "language_tag": "zh-CN"
+            })),
+        );
+        assert_eq!(status, 200, "append {index} failed");
+    }
+    let elapsed = started.elapsed();
+    println!(
+        "\n=== R2 gateway append bench ({total} messages via real HTTP stack) ==="
+    );
+    println!(
+        "append: total {elapsed:?}, ~{:.0} µs/message",
+        elapsed.as_micros() as f64 / total as f64
+    );
+    drop(server);
+
+    // 重启恢复：快照 + journal 重放必须还原全部消息
+    let reopen_started = std::time::Instant::now();
+    let reopened = GatewayRuntime::open(&storage_root, 4096, None).expect("reopen runtime");
+    println!(
+        "reopen (snapshot+journal replay): {:?}",
+        reopen_started.elapsed()
+    );
+    let recovered = reopened
+        .timeline_store
+        .recent_messages(&ConversationId("room:world:lobby".into()), total as usize)
+        .len();
+    assert_eq!(recovered as u32, total, "all messages must survive reopen");
+}
