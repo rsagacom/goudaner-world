@@ -30,6 +30,15 @@ use crate::StorageResult;
 
 /// Fold the journal back into the snapshot once it holds this many frames.
 pub(crate) const JOURNAL_COMPACT_THRESHOLD: usize = 128;
+/// …or once its byte size passes this cap — 128 frames of 5MB image messages
+/// would otherwise mean a ~640MB journal to replay on every open.
+pub(crate) const JOURNAL_COMPACT_MAX_BYTES: u64 = 1024 * 1024;
+
+/// Compaction decision (pure, unit-tested): fold the journal into the snapshot
+/// when the frame count or the byte size crosses its budget.
+pub(crate) fn journal_should_compact(frames: usize, journal_bytes: u64) -> bool {
+    frames >= JOURNAL_COMPACT_THRESHOLD || journal_bytes >= JOURNAL_COMPACT_MAX_BYTES
+}
 
 const FRAME_HEADER_BYTES: usize = 8; // len: u32 LE + crc32: u32 LE
 
@@ -218,4 +227,18 @@ pub(crate) fn journal_frame_count(journal_path: &Path) -> usize {
         offset = payload_end;
     }
     count
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compaction_triggers_on_frame_count_or_byte_budget() {
+        assert!(!journal_should_compact(0, 0));
+        assert!(!journal_should_compact(JOURNAL_COMPACT_THRESHOLD - 1, 0));
+        assert!(journal_should_compact(JOURNAL_COMPACT_THRESHOLD, 0));
+        assert!(!journal_should_compact(1, JOURNAL_COMPACT_MAX_BYTES - 1));
+        assert!(journal_should_compact(1, JOURNAL_COMPACT_MAX_BYTES));
+    }
 }

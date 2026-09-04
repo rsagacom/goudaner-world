@@ -700,13 +700,16 @@ impl TimelineStore for FileTimelineStore {
             return Err(format!("append message persist failed, rolled back: {e}"));
         }
         // Compaction: fold the journal into the snapshot once it grows past
-        // the threshold so replay cost stays bounded.
+        // the frame or byte budget so replay cost stays bounded.
         let frames = self
             .journal_frame_counts
             .entry(conversation_id.clone())
             .or_insert(frames_before);
         *frames += 1;
-        if *frames >= timeline_journal::JOURNAL_COMPACT_THRESHOLD {
+        let journal_bytes = std::fs::metadata(&journal_path)
+            .map(|meta| meta.len())
+            .unwrap_or(0);
+        if timeline_journal::journal_should_compact(*frames, journal_bytes) {
             self.persist_timeline(&conversation_id)?;
         }
         Ok(())
