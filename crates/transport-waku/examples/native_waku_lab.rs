@@ -1,14 +1,13 @@
-#[path = "../src/native_rest.rs"]
-mod native_rest;
-
 use std::collections::BTreeMap;
 use std::env;
 use std::path::PathBuf;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use native_rest::{NativeRestError, NativeWakuRestClient, OpaqueEncryptedEnvelope, ReceivedBatch};
 use serde::Serialize;
+use transport_waku::native_rest::{
+    NativeRestError, NativeWakuRestClient, OpaqueEncryptedEnvelope, ReceivedBatch,
+};
 
 const NODE_A_URL_ENV: &str = "LOBSTER_WAKU_LAB_NODE_A_URL";
 const NODE_B_URL_ENV: &str = "LOBSTER_WAKU_LAB_NODE_B_URL";
@@ -99,7 +98,7 @@ fn main() {
     };
     match output {
         Ok(ref json) => println!("{json}"),
-        Err(_) => println!("{}", r#"{"status":"error","errorCode":"json_encoding"}"#),
+        Err(_) => println!(r#"{{"status":"error","errorCode":"json_encoding"}}"#),
     }
     if failed || output.is_err() {
         std::process::exit(1);
@@ -136,7 +135,7 @@ fn run() -> Result<SuccessSummary, LabError> {
         random_bytes(TEST_CIPHERTEXT_BYTES)?,
     )?
     .routing_token_sha256();
-    let topic = native_rest::content_topic_for_routing_token(&routing_token)?;
+    let topic = transport_waku::native_rest::content_topic_for_routing_token(&routing_token)?;
     node_a.subscribe(std::slice::from_ref(&topic))?;
     node_b.subscribe(std::slice::from_ref(&topic))?;
 

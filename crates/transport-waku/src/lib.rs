@@ -4,6 +4,12 @@ use std::time::Duration;
 use chat_core::{ConversationId, MessageEnvelope, MessageId};
 use serde::{Deserialize, Serialize};
 
+/// Native Logos Delivery REST adapter (P5.1 isolated lab).
+/// Feature-gated and default-off; production transport remains the
+/// in-memory / HTTP federation adapter until P5.4/P5.5 gates pass.
+#[cfg(feature = "native-waku-rest")]
+pub mod native_rest;
+
 fn http_agent() -> ureq::Agent {
     ureq::AgentBuilder::new()
         .timeout_connect(Duration::from_secs(10))
