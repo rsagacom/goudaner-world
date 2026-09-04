@@ -291,6 +291,17 @@ async function verifyPushToggleDormant(page, baseUrl) {
   const iconResponse = await page.request.get(`${baseUrl}/assets/icons/icon-192.png`);
   assert(iconResponse.status() === 200, "PWA icon must be served");
 
+  // install-hint 休眠合同：无 SW/未安装/未触发的 headless 环境中，加桌引导
+  // chip 必须保持隐藏（与推送钮同为"不骚扰"合同）；manifest 链接必须存在。
+  const manifestLink = await page.$eval('link[rel="manifest"]', (el) => el.getAttribute("href"));
+  assert(manifestLink === "./manifest.webmanifest", "manifest link must point at manifest.webmanifest");
+  const hintState = await page.evaluate(() => {
+    const chip = document.querySelector(".install-hint-chip");
+    return { present: Boolean(chip), hidden: chip ? chip.hidden : null };
+  });
+  assert(hintState.present === true, "install hint chip should be mounted on chat pages");
+  assert(hintState.hidden === true, "install hint chip must stay hidden without an install prompt");
+
   // 优雅降级：授予通知权限后程序化点击开关（无可达网关）——
   // 订阅链路必须在"网关未连接"处优雅失败：按钮回落休眠、无未捕获异常。
   const errors = [];
@@ -522,7 +533,7 @@ try {
   await verifySceneEditorDayNight(page, baseUrl);
   await verifySceneEditorHotspotList(page, baseUrl);
   await verifySceneEditorUndoRedo(page, baseUrl);
-  console.log("frontend realness: composer, hotspot labels, shared scene rails, day/night backgrounds, formal admin, fixed hotspot sizes (64x34), zero uncaught JS errors, scene-editor owner-only access, mobile relationship actions, mobile touch, day/night preview, hotspot list and undo/redo, push toggle dormant and graceful degrade passed");
+  console.log("frontend realness: composer, hotspot labels, shared scene rails, day/night backgrounds, formal admin, fixed hotspot sizes (64x34), zero uncaught JS errors, scene-editor owner-only access, mobile relationship actions, mobile touch, day/night preview, hotspot list and undo/redo, push toggle dormant/graceful degrade and install hint dormant passed");
 } finally {
   await browser.close();
   await close(server);

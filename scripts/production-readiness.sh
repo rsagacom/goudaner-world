@@ -74,6 +74,23 @@ if [[ "$CHECK_PUBLIC" == "1" ]]; then
     [[ "$version_git_sha" == "$EXPECT_RELEASE_GIT_SHA" ]] \
       || fail "public runtime git_sha does not match EXPECT_RELEASE_GIT_SHA"
   fi
+  # WebPush 合同（2026-09-05）：公钥公开可读、订阅写未授权 401
+  vapid_json="$(curl -fsS "$base/v1/push/vapid-public-key")" \
+    || fail "public vapid public key probe failed"
+  printf '%s' "$vapid_json" | grep -q '"public_key"' \
+    || fail "public vapid public key payload missing public_key"
+  subscribe_status="$(curl -sS -o /dev/null -w '%{http_code}' \
+    -X POST "$base/v1/push/subscribe" \
+    -H 'Content-Type: application/json' \
+    -d '{"endpoint":"https://push.example/abc","keys":{"p256dh":"K","auth":"A"}}')"
+  [[ "$subscribe_status" == "401" ]] \
+    || fail "anonymous push subscribe must return 401 (got $subscribe_status)"
+  unsubscribe_status="$(curl -sS -o /dev/null -w '%{http_code}' \
+    -X POST "$base/v1/push/unsubscribe" \
+    -H 'Content-Type: application/json' \
+    -d '{"endpoint":"https://push.example/abc"}')"
+  [[ "$unsubscribe_status" == "401" ]] \
+    || fail "anonymous push unsubscribe must return 401 (got $unsubscribe_status)"
   echo "production config and public probes/version traceability passed"
 else
   echo "production config readiness passed (public checks skipped)"

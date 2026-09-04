@@ -57,6 +57,10 @@ trap - EXIT
 [[ -s "$ARCHIVE" ]] || fail "archive is empty: $ARCHIVE"
 archive_listing="$(tar -tzf "$ARCHIVE")" || fail "archive failed listing: $ARCHIVE"
 grep -q "timelines/" <<<"$archive_listing" || fail "archive missing timelines/: $ARCHIVE"
+# 附件目录（图片消息资产）：存在即必须在档
+if [[ -d "$STATE_DIR/attachments" ]]; then
+  grep -q "attachments/" <<<"$archive_listing" || fail "archive missing attachments/: $ARCHIVE"
+fi
 tar -tzf "$ARCHIVE" > /dev/null || fail "archive failed integrity read: $ARCHIVE"
 
 # 关键状态文件在档校验（2026-09-05 WebPush）：存在即必须在档，防止存储布局

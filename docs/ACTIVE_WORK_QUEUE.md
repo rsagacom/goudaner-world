@@ -35,7 +35,10 @@ Last updated: 2026-09-05
 | 单测 | 已完成 | `test_backup_state_unit.py` 4 用例：原 SIGPIPE 回归 + WebPush 文件在档 + **PATH 注入 tar 包装器的 fail-closed 测试**（打包瞬间抽走订阅文件，断言脚本报 `archive missing critical state file` 且关键文件被还原）+ 未启用推送时不误报。 |
 | 优雅降级探针 | 已完成 | realness 新增：授予权限后程序化点击推送钮（无可达网关）——订阅链路必须在"网关未连接"处优雅失败，按钮回落休眠、零未捕获异常；同时断言 sw.js/图标同源可取且注册 push 监听。 |
 | 运维文档 | 已完成 | DEPLOYMENT.md 新增 §10：两个状态文件清单与丢失后果、备份/恢复要求（与 auth-state 同批还原、VAPID 私钥不轮换）、端点安全合同、仅私聊推送范围、iOS A2HS 前置（16.4+）；原 §10 顺延为 §11。 |
-| 验证基线 | 全绿 | 备份单测 4/4；Web 1452/1452 + layout + realness（含新探针）；脚本语法/panic 扫描/fmt 干净。 |
+| WebPush 合同扩面 | 已完成 | `production-readiness.sh` CHECK_PUBLIC=1 与 `smoke-shell-direct-http.sh` 补齐 WebPush 端点合同：公钥 200+public_key、匿名 subscribe/unsubscribe 401（production-readiness 与 smoke-public-ingress 同一口径）；direct-http 顺带断言 dev bypass 不豁免订阅写。 |
+| attachments 在档校验 | 已完成 | backup-state.sh 增加"attachments/ 目录存在即必须在档"检查（图片消息资产与 timelines 同级）；单测补 attachments/a.png 在档断言，备份单测 4/4。 |
+| install-hint 休眠探针 | 已完成 | realness 新增：manifest 链接指向 manifest.webmanifest、加桌引导 chip 在无安装提示的 headless 环境必须保持隐藏（不骚扰合同）。 |
+| 验证基线 | 全绿 | 备份单测 4/4；Web 1452/1452 + layout + realness（含推送休眠/优雅降级/加桌休眠探针）；脚本语法/panic 扫描/fmt 干净。 |
 
 ## 2026-09-05 R2 增量写第一步：timeline append-only journal（本地全绿，未部署）
 

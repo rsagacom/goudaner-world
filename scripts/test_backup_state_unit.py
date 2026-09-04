@@ -56,6 +56,9 @@ class BackupStateTests(unittest.TestCase):
             # WebPush 状态（2026-09-05）：订阅与 VAPID 私钥必须入档
             (state_dir / "push-subscriptions.json").write_text("[]", encoding="utf-8")
             (state_dir / "vapid-signing-key.json").write_text('{"pkcs8": []}', encoding="utf-8")
+            # 附件目录（图片消息资产）存在即必须在档
+            (state_dir / "attachments").mkdir()
+            (state_dir / "attachments" / "a.png").write_bytes(b"png")
             backup_dir.mkdir()
 
             env = os.environ.copy()
@@ -73,6 +76,15 @@ class BackupStateTests(unittest.TestCase):
                 text=True,
             )
             self.assertIn("archive verified", completed.stdout)
+            archives = list(backup_dir.glob("lobster-chat-state-*.tar.gz"))
+            self.assertEqual(len(archives), 1)
+            listing = subprocess.run(
+                ["tar", "-tzf", str(archives[0])],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            self.assertIn("attachments/a.png", listing)
 
     def test_backup_fails_closed_when_critical_file_missing_from_archive(self):
         # PATH 注入 tar 包装器：打包瞬间把 push-subscriptions.json 移走，

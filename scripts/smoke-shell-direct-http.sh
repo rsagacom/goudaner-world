@@ -408,6 +408,28 @@ if [[ "$blocked_code" != "400" ]]; then
 fi
 json_assert "$(cat "$blocked_file")" "blocked-response"
 
+echo "== webpush endpoints (direct) =="
+vapid_file="$STATE_ROOT/vapid-key.json"
+curl -fsS "$GATEWAY_URL/v1/push/vapid-public-key" >"$vapid_file"
+json_assert "$(cat "$vapid_file")" "vapid-key"
+grep -q '"public_key"' "$vapid_file" || {
+  echo "vapid key payload missing public_key" >&2
+  exit 1
+}
+# dev bypass 下订阅写操作仍必须拒绝匿名调用（401）
+push_code="$(
+  curl -sS -o "$STATE_ROOT/push-401.json" -w '%{http_code}' \
+    -X POST "$GATEWAY_URL/v1/push/subscribe" \
+    -H 'content-type: application/json' \
+    -d '{"endpoint":"https://push.example/abc","keys":{"p256dh":"K","auth":"A"}}'
+)"
+if [[ "$push_code" != "401" ]]; then
+  echo "expected anonymous push subscribe to fail with 401, got $push_code" >&2
+  cat "$STATE_ROOT/push-401.json" >&2
+  exit 1
+fi
+json_assert "$(cat "$STATE_ROOT/push-401.json")" "push-401-response"
+
 echo "== shell direct HTTP smoke passed =="
 echo "gateway: $GATEWAY_URL"
 echo "message: $SMOKE_TEXT"
