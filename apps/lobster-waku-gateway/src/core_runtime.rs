@@ -30,6 +30,7 @@ impl GatewayRuntime {
             connection_state: WakuConnectionState::Disconnected,
             endpoint: None,
             subscriptions: Vec::new(),
+            attachments_root: storage_root.join("attachments"),
             cursors: HashMap::new(),
             history_limit,
             governance_path: storage_root.join("governance-state.json"),
@@ -1270,6 +1271,10 @@ impl GatewayRuntime {
                     entry.envelope.conversation_id.0, entry.envelope.message_id.0
                 );
                 let moderation_status = self.message_moderation.get(&mod_key).cloned();
+                let (text, attachment) = self.shell_projection_fields(
+                    &entry.envelope.body.plain_text,
+                    entry.recalled_at_ms.is_some(),
+                );
                 ShellRoomMessage {
                     message_id: entry.envelope.message_id.0,
                     reply_to_message_id: entry.envelope.reply_to_message_id.map(|m| m.0),
@@ -1283,11 +1288,8 @@ impl GatewayRuntime {
                     timestamp_ms: entry.envelope.timestamp_ms,
                     timestamp_label: Self::relative_label(now_ms, entry.envelope.timestamp_ms),
                     delivery_status: "delivered".to_string(),
-                    text: if entry.recalled_at_ms.is_some() {
-                        "消息已撤回".into()
-                    } else {
-                        entry.envelope.body.plain_text
-                    },
+                    text,
+                    attachment,
                     moderation_status,
                 }
             })
@@ -1338,6 +1340,10 @@ impl GatewayRuntime {
                             entry.envelope.conversation_id.0, entry.envelope.message_id.0
                         );
                         let moderation_status = self.message_moderation.get(&mod_key).cloned();
+                        let (text, attachment) = self.shell_projection_fields(
+                            &entry.envelope.body.plain_text,
+                            entry.recalled_at_ms.is_some(),
+                        );
                         ShellRoomMessage {
                             message_id: entry.envelope.message_id.0,
                             reply_to_message_id: entry
@@ -1357,11 +1363,8 @@ impl GatewayRuntime {
                                 entry.envelope.timestamp_ms,
                             ),
                             delivery_status: "delivered".into(),
-                            text: if entry.recalled_at_ms.is_some() {
-                                "消息已撤回".into()
-                            } else {
-                                entry.envelope.body.plain_text
-                            },
+                            text,
+                            attachment,
                             moderation_status,
                         }
                     })

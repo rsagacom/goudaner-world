@@ -7,6 +7,7 @@ use tiny_http::{Method, Request, Response, StatusCode};
 
 use crate::{
     GatewayRuntime, GatewayStateNotifier,
+    http_attachment_routes::{handle_get_shell_attachment, handle_post_shell_attachment},
     http_auth_routes::{
         handle_get_auth_session, handle_post_auth_logout, handle_post_auth_preflight,
         handle_post_request_email_otp, handle_post_request_mobile_otp,
@@ -218,6 +219,9 @@ pub(crate) fn dispatch_http_request(
         (Method::Get, "/v1/shell/messages/search") => {
             handle_get_message_search(runtime, request, &query_params)
         }
+        (Method::Get, path) if path.starts_with("/v1/shell/attachment/") => {
+            handle_get_shell_attachment(runtime, path)
+        }
         (Method::Get, "/v1/world") => handle_get_world(runtime),
         (Method::Get, "/v1/cities") => handle_get_cities(runtime),
         (Method::Get, "/v1/residents") => handle_get_residents(runtime, &query_params),
@@ -254,6 +258,7 @@ pub(crate) fn dispatch_http_request(
         (Method::Post, "/v1/shell/message") => {
             handle_post_shell_message(runtime, notifier, request)
         }
+        (Method::Post, "/v1/shell/attachment") => handle_post_shell_attachment(runtime, request),
         (Method::Post, "/v1/shell/scene") => handle_post_shell_scene(runtime, notifier, request),
         (Method::Post, "/v1/shell/message/recall") => {
             handle_post_shell_message_recall(runtime, notifier, request)

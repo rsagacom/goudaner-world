@@ -39,7 +39,7 @@ test("hub page is now main-city group chat page with canvas and timeline", async
   assert.match(html, /id="composer"/);
   assert.match(html, /styles\.base\.css\?v=20260731-ui-refresh-r4/);
   assert.match(html, /styles\.scene\.css\?v=20260731-ui-refresh-r4/);
-  assert.match(html, /styles\.chat\.css\?v=20260904-empty-note-unify/);
+  assert.match(html, /styles\.chat\.css\?v=20260904-image-attachments/);
   assert.match(html, /styles\.css\?v=20260731-ui-refresh-r4/);
   assert.match(html, /styles\.user-shell\.css\?v=20260802-locked-card/);
   assert.match(html, /styles\.pixel-map\.css\?v=20260802-scene-canvas-cqh/);
@@ -100,7 +100,7 @@ test("admin page has collapsible management navigation and tool groups", async (
   assert.match(html, /<title>我和狗蛋儿的家 · 管理后台<\/title>/);
   assert.match(html, /href="\.\/styles\.base\.css\?v=20260731-ui-refresh-r4"/);
   assert.match(html, /href="\.\/styles\.scene\.css\?v=20260731-ui-refresh-r4"/);
-  assert.match(html, /href="\.\/styles\.chat\.css\?v=20260904-empty-note-unify"/);
+  assert.match(html, /href="\.\/styles\.chat\.css\?v=20260904-image-attachments"/);
   assert.match(html, /href="\.\/styles\.css\?v=20260731-ui-refresh-r4"/);
   assert.match(html, /href="\.\/styles\.user-shell\.css\?v=20260802-locked-card"/);
   assert.match(html, /管理后台/);
@@ -2443,7 +2443,7 @@ test("sendMessage delegates local send side effects and gateway send lifecycle",
   const sendSource = await readShellModule("shell-message-send.js");
   const sendRenderer = sliceBetween(
     source,
-    "async function sendMessage(text, { quickAction = \"\" } = {}) {",
+    "async function sendMessage(text, { quickAction = \"\", attachmentId = \"\" } = {}) {",
     "async function editMessage(roomId, messageId, text) {",
   );
 
@@ -2451,14 +2451,15 @@ test("sendMessage delegates local send side effects and gateway send lifecycle",
   assert.match(source, /function clearComposerAfterSend\(roomId, text\) \{/);
   assert.match(source, /function renderAfterSend\(\{ composerFirst = false \} = \{\}\) \{/);
   assert.match(source, /function commitLocalSend\(roomId, text, quickAction\) \{/);
-  assert.match(source, /function gatewayMessagePayload\(roomId, text, quickAction\) \{/);
+  assert.match(source, /function gatewayMessagePayload\(roomId, text, quickAction, attachmentId = ""\) \{/);
   assert.match(source, /function prepareGatewaySend\(roomId, text, quickAction\) \{/);
   assert.match(source, /function handleGatewaySendFailure\(roomId, pendingEchoId, posted, error\) \{/);
   assert.match(source, /function finishGatewaySendAttempt\(\) \{/);
 
   assert.match(source, /import \{ createMessageSendController \} from "\.\/shell-message-send\.js"/);
   assert.match(source, /const messageSendController = createMessageSendController\(\{/);
-  assert.match(sendRenderer, /return messageSendController\.send\(text, \{ quickAction \}\)/);
+  assert.match(sendRenderer, /return messageSendController\.send\(text, \{ quickAction, attachmentId \}\)/);
+
   assert.match(sendSource, /if \(!roomId \|\| sending\) return false/);
   assert.match(sendSource, /throw errorFrom\(/);
   assert.doesNotMatch(sendRenderer, /room\.messages\.push/);

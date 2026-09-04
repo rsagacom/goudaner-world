@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="./styles.tokens.css?v=20260731-ui-refresh-r4" />
     <link rel="stylesheet" href="./styles.base.css?v=20260731-ui-refresh-r4" />
     <link rel="stylesheet" href="./styles.scene.css?v=20260731-ui-refresh-r4" />
-    <link rel="stylesheet" href="./styles.chat.css?v=20260904-empty-note-unify" />
+    <link rel="stylesheet" href="./styles.chat.css?v=20260904-image-attachments" />
     <link rel="stylesheet" href="./styles.css?v=20260731-ui-refresh-r4" />
     <link rel="stylesheet" href="./styles.user-shell.css?v=20260802-locked-card" />
     <link rel="stylesheet" href="./styles.pixel-map.css?v=20260802-scene-canvas-cqh" />
@@ -182,6 +182,20 @@
               >
                 颜
               </button>
+              <button
+                type="button"
+                class="composer-attachment-trigger"
+                data-attachment-trigger
+                aria-label="发送图片"
+              >
+                图
+              </button>
+              <input
+                type="file"
+                id="composer-attachment-input"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                hidden
+              />
               <textarea
                 id="composer-input"
                 placeholder="在主城里说点什么…"

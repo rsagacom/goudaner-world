@@ -4,11 +4,13 @@
    currentIdentity / languageTag 通过 deps 注入，脱离全局即可单测。
    ============================================================ */
 
-export function gatewayMessagePayloadForState(roomId, text, quickAction, deps) {
+export function gatewayMessagePayloadForState(roomId, text, quickAction, deps, attachmentId = "") {
+  const attachment = typeof attachmentId === "string" ? attachmentId.trim() : "";
   return {
     room_id: roomId,
     sender: deps.currentIdentity(),
     text,
+    attachment_id: attachment || undefined,
     quick_action: quickAction || undefined,
     device_id: "browser-shell",
     language_tag: deps.languageTag || "zh-CN",

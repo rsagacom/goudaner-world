@@ -14,6 +14,7 @@ test("gatewayMessagePayload: 完整字段", () => {
     room_id: "room-1",
     sender: "resident-a",
     text: "hello",
+    attachment_id: undefined,
     quick_action: "quick",
     device_id: "browser-shell",
     language_tag: "zh-CN",

@@ -75,7 +75,7 @@ test("message send controller keeps local preview sends outside the gateway life
   assert.equal(result, true);
   assert.deepEqual(calls, [[
     "local",
-    { roomId: "room-1", text: "本地消息", quickAction: "续聊" },
+    { roomId: "room-1", text: "本地消息", quickAction: "续聊", attachmentId: "" },
     false,
   ]]);
   assert.equal(controller.isSending(), false);

@@ -24,13 +24,13 @@ export function createMessageSendController({
     return sending;
   }
 
-  async function send(text, { quickAction = "" } = {}) {
+  async function send(text, { quickAction = "", attachmentId = "" } = {}) {
     const context = getContext() || {};
     const roomId = typeof context.roomId === "string" ? context.roomId : "";
     if (!roomId || sending) return false;
     if (context.loginRequired) throw new Error("请先登录后发送");
 
-    const request = { roomId, text, quickAction };
+    const request = { roomId, text, quickAction, attachmentId };
     if (!context.gatewayConnected) {
       return Boolean(await commitLocal(request));
     }

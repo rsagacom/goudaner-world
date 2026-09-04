@@ -13,6 +13,32 @@ import {
 } from "./shell-quick-action-labels.js";
 import { parseStructuredQuickActionMessage } from "./shell-quick-action-preview.js";
 
+function resolveAttachmentSrc(url, attachmentBase) {
+  const raw = typeof url === "string" ? url.trim() : "";
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw) || raw.startsWith("data:") || raw.startsWith("blob:")) {
+    return raw;
+  }
+  const base = typeof attachmentBase === "string" ? attachmentBase.replace(/\/+$/, "") : "";
+  return base ? `${base}${raw.startsWith("/") ? raw : `/${raw}`}` : raw;
+}
+
+export function messageAttachmentDomSpec(message, options = {}) {
+  const attachment = message?.attachment;
+  const src = resolveAttachmentSrc(attachment?.url, options.attachmentBase);
+  if (!src) return null;
+  return {
+    tag: "img",
+    className: "message-attachment",
+    attrs: {
+      src,
+      alt: "图片消息",
+      loading: "lazy",
+      "data-attachment-mime": typeof attachment.mime_type === "string" ? attachment.mime_type : "",
+    },
+  };
+}
+
 function quickActionChipSpec({ className, action, label }) {
   return {
     tag: "span",
@@ -97,6 +123,14 @@ export function messageBodyDomSpec(message, options = {}) {
 
   const shell = messageBodyShellSpec(structured, action);
   if (!structured) {
+    const attachmentSpec = messageAttachmentDomSpec(message, options);
+    if (attachmentSpec) {
+      shell.children = [attachmentSpec];
+      if (typeof message?.text === "string" && message.text.trim()) {
+        shell.children.push({ tag: "div", className: "message-attachment-caption", text: message.text });
+      }
+      return shell;
+    }
     shell.text = message?.text;
     return shell;
   }

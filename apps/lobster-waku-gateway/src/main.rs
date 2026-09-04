@@ -27,6 +27,7 @@ use transport_waku::{
     WakuConnectionState, WakuEndpointConfig, WakuGatewayRequest, WakuGatewayResponse,
     WakuLightConfig, WakuPeerMode, WakuSyncCursor,
 };
+mod attachment_runtime;
 
 mod auth_runtime;
 mod city_runtime;
@@ -39,6 +40,7 @@ mod federation_read;
 mod gateway_models;
 mod governance_mutation_runtime;
 mod governance_runtime;
+mod http_attachment_routes;
 mod http_auth_routes;
 mod http_city_write_routes;
 mod http_device_routes;

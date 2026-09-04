@@ -3888,6 +3888,11 @@ function buildNodeFromSpec(spec) {
   const node = document.createElement(spec.tag || "div");
   if (spec.className) node.className = spec.className;
   if (spec.extraClass) node.classList.add(spec.extraClass);
+  if (spec.attrs) {
+    for (const [key, value] of Object.entries(spec.attrs)) {
+      if (value !== undefined && value !== null) node.setAttribute(key, value);
+    }
+  }
   if (spec.text !== undefined && spec.text !== null) node.textContent = spec.text;
   if (spec.dataset) {
     for (const [key, value] of Object.entries(spec.dataset)) {
@@ -5416,6 +5421,7 @@ function createTimelinePendingMessageArticleNode(room, message, rowSpec, quickCo
   article.appendChild(createTimelinePendingMessageHeaderNode(rowSpec, message, quickContext));
   article.appendChild(createMessageBodyNode(message, {
     quickState: quickContext.quickState,
+    attachmentBase: gatewayUrl,
   }));
   const pendingActions = createTimelinePendingRetryActionsNode(room, message, rowSpec);
   if (pendingActions) {
@@ -5552,6 +5558,7 @@ function createTimelineMessageArticleNode(message, room, messages, rowSpec, quic
   }
   const body = createMessageBodyNode(message, {
     quickState: quickContext.quickState,
+    attachmentBase: gatewayUrl,
   });
   article.appendChild(body);
   return article;
@@ -6436,18 +6443,15 @@ function commitLocalSend(roomId, text, quickAction) {
   followTimelineToLatest = true;
   delete roomSendErrors[roomId];
   clearComposerAfterSend(roomId, text);
-  renderAfterSend();
-  focusComposerAfterSend();
   return true;
 }
 
-function gatewayMessagePayload(roomId, text, quickAction) {
+function gatewayMessagePayload(roomId, text, quickAction, attachmentId = "") {
   return gatewayMessagePayloadForState(roomId, text, quickAction, {
     currentIdentity,
     languageTag: navigator.language,
-  });
+  }, attachmentId);
 }
-
 function prepareGatewaySend(roomId, text, quickAction) {
   followTimelineToLatest = true;
   const pendingEchoId = enqueuePendingEcho(roomId, text, quickAction);
@@ -6470,10 +6474,65 @@ function finishGatewaySendAttempt() {
   focusComposerAfterSend();
 }
 
-async function sendMessage(text, { quickAction = "" } = {}) {
-  return messageSendController.send(text, { quickAction });
+async function sendMessage(text, { quickAction = "", attachmentId = "" } = {}) {
+  return messageSendController.send(text, { quickAction, attachmentId });
 }
 
+async function uploadImageAttachment(file) {
+  if (!gatewayUrl) throw new Error("请先连接网关后再发送图片");
+  if (!(file instanceof File)) throw new Error("请选择一张图片");
+  if (!/^image\/(png|jpe?g|gif|webp)$/i.test(file.type)) {
+    throw new Error("仅支持 png / jpg / gif / webp 图片");
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error("图片过大：单张最大 5MB");
+  }
+  const headers = { "Content-Type": file.type };
+  const sessionToken = getSessionToken();
+  if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
+  const response = await fetch(`${gatewayUrl}/v1/shell/attachment`, {
+    method: "POST",
+    headers,
+    body: file,
+  });
+  const text = await response.text();
+  let parsed = null;
+  try {
+    parsed = text ? JSON.parse(text) : null;
+  } catch {
+    // ignore parse errors
+  }
+  if (!response.ok) {
+    const message = gatewayErrorMessage(parsed, text, response.status);
+    handleGatewayAuthFailure(response.status);
+    throw new Error(message);
+  }
+  if (!parsed?.attachment_id) throw new Error("图片上传失败");
+  return parsed;
+}
+
+async function submitComposerAttachment() {
+  if (composerSubmitBlocked()) return false;
+  const input = document.querySelector("#composer-attachment-input");
+  const file = input?.files?.[0];
+  if (!file) return false;
+  const draftText = (composerInputEl?.value || "").trim();
+  try {
+    composerSendEl.disabled = true;
+    const uploaded = await uploadImageAttachment(file);
+    await sendMessage(draftText, { attachmentId: uploaded.attachment_id });
+    if (composerInputEl) composerInputEl.value = "";
+    renderComposerSubmitSurfaces();
+    return true;
+  } catch (error) {
+    const message = localizedRuntimeError(error, "图片发送失败");
+    renderComposerSubmitFailure(activeRoomId, message);
+    return false;
+  } finally {
+    if (input) input.value = "";
+    updateComposerState();
+  }
+}
 async function editMessage(roomId, messageId, text) {
   if (!gatewayUrl) {
     throw new Error("请先连接网关后再编辑消息");
@@ -7027,6 +7086,13 @@ async function main() {
 composerFormEl?.addEventListener("submit", async (event) => {
   event.preventDefault();
   await submitComposerMessage();
+});
+
+document.querySelector("[data-attachment-trigger]")?.addEventListener("click", () => {
+  document.querySelector("#composer-attachment-input")?.click();
+});
+document.querySelector("#composer-attachment-input")?.addEventListener("change", async (event) => {
+  await submitComposerAttachment();
 });
 
 for (const button of personalRoomPolicyButtons) {

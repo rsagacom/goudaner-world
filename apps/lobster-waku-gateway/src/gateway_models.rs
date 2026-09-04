@@ -32,7 +32,25 @@ pub(crate) struct ShellRoomMessage {
     pub(crate) delivery_status: String,
     pub(crate) text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) attachment: Option<ShellMessageAttachment>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) moderation_status: Option<String>,
+}
+/// Structured projection of an `attachment://<id>` message reference.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct ShellMessageAttachment {
+    pub(crate) url: String,
+    pub(crate) mime_type: String,
+    pub(crate) byte_size: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct AttachmentUploadResponse {
+    pub(crate) ok: bool,
+    pub(crate) attachment_id: String,
+    pub(crate) url: String,
+    pub(crate) mime_type: String,
+    pub(crate) byte_size: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -387,6 +405,8 @@ pub(crate) struct ShellMessageRequest {
     pub(crate) room_id: String,
     pub(crate) sender: String,
     pub(crate) text: String,
+    #[serde(default)]
+    pub(crate) attachment_id: Option<String>,
     pub(crate) reply_to_message_id: Option<String>,
     pub(crate) device_id: Option<String>,
     pub(crate) language_tag: Option<String>,
@@ -422,6 +442,8 @@ pub(crate) struct ShellMessageResponse {
     pub(crate) message_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) reply_to_message_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) attachment: Option<ShellMessageAttachment>,
     pub(crate) delivered_at_ms: i64,
     pub(crate) delivery_status: String,
     pub(crate) sender: String,
@@ -1611,6 +1633,7 @@ pub(crate) struct GatewayRuntime {
     pub(crate) connection_state: WakuConnectionState,
     pub(crate) endpoint: Option<WakuEndpointConfig>,
     pub(crate) subscriptions: Vec<TopicSubscription>,
+    pub(crate) attachments_root: PathBuf,
     pub(crate) cursors: HashMap<String, WakuSyncCursor>,
     pub(crate) history_limit: usize,
     pub(crate) governance_path: PathBuf,

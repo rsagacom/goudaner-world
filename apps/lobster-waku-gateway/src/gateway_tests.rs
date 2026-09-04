@@ -1080,6 +1080,7 @@ fn shell_messages_publish_to_upstream_provider() {
                 reply_to_message_id: None,
                 device_id: Some("browser".into()),
                 language_tag: Some("zh-CN".into()),
+                attachment_id: None,
             })
             .expect("append shell message");
 
@@ -1646,6 +1647,7 @@ fn personal_room_registered_all_allows_registered_scene_without_message_history(
             device_id: Some("browser-a".into()),
             language_tag: Some("zh-CN".into()),
             reply_to_message_id: None,
+            attachment_id: None,
         })
         .expect("owner writes private room note");
 
@@ -1703,6 +1705,7 @@ fn personal_room_friends_only_allows_accepted_friend_scene_without_message_histo
             device_id: Some("browser-a".into()),
             language_tag: Some("zh-CN".into()),
             reply_to_message_id: None,
+            attachment_id: None,
         })
         .expect("owner writes private room note");
 
@@ -2162,6 +2165,7 @@ fn runtime_persists_shell_messages_across_restart() {
                 reply_to_message_id: None,
                 device_id: Some("browser".into()),
                 language_tag: Some("en".into()),
+                attachment_id: None,
             })
             .expect("append shell message");
     }
@@ -2774,6 +2778,7 @@ fn frozen_public_room_blocks_resident_posts() {
         reply_to_message_id: None,
         device_id: Some("browser".into()),
         language_tag: Some("en".into()),
+        attachment_id: None,
     });
     assert!(blocked.is_err());
 
@@ -2784,6 +2789,7 @@ fn frozen_public_room_blocks_resident_posts() {
         reply_to_message_id: None,
         device_id: Some("browser".into()),
         language_tag: Some("en".into()),
+        attachment_id: None,
     });
     assert!(allowed.is_ok());
 }
@@ -2803,6 +2809,7 @@ fn shell_message_rejects_visitor_sender_before_login() {
             reply_to_message_id: None,
             device_id: Some("browser".into()),
             language_tag: Some("zh-CN".into()),
+            attachment_id: None,
         })
         .expect_err("visitor shell sender should be rejected before login");
 
@@ -2826,6 +2833,7 @@ fn shell_message_response_and_projection_expose_stable_message_contract() {
             reply_to_message_id: None,
             device_id: Some("browser".into()),
             language_tag: Some("zh-CN".into()),
+            attachment_id: None,
         })
         .expect("append shell message");
 
@@ -2858,6 +2866,7 @@ fn shell_message_response_and_projection_expose_stable_message_contract() {
             reply_to_message_id: None,
             device_id: Some("browser".into()),
             language_tag: Some("zh-CN".into()),
+            attachment_id: None,
         })
         .expect_err("blank shell message should be rejected");
     assert!(blank.contains("text"));
@@ -8190,6 +8199,7 @@ fn sanctioned_resident_cannot_send_messages() {
         reply_to_message_id: None,
         device_id: None,
         language_tag: None,
+        attachment_id: None,
     });
     assert!(result.is_err());
     assert!(
@@ -8876,6 +8886,7 @@ fn resident_can_export_private_and_public_history() {
             reply_to_message_id: None,
             device_id: Some("browser".into()),
             language_tag: Some("en".into()),
+            attachment_id: None,
         })
         .expect("append public message");
 
@@ -8896,6 +8907,7 @@ fn resident_can_export_private_and_public_history() {
             reply_to_message_id: None,
             device_id: Some("browser".into()),
             language_tag: Some("en".into()),
+            attachment_id: None,
         })
         .expect("append private message");
 
@@ -10233,6 +10245,7 @@ fn recall_rejects_non_sender() {
             reply_to_message_id: None,
             device_id: None,
             language_tag: None,
+            attachment_id: None,
         })
         .expect("send message");
 
@@ -10293,6 +10306,7 @@ fn edit_and_recall_state_persists_across_restart() {
                 reply_to_message_id: None,
                 device_id: None,
                 language_tag: None,
+                attachment_id: None,
             })
             .expect("send message");
         message_id = response.message_id;
@@ -10350,6 +10364,7 @@ fn shell_state_caps_recent_messages_at_32() {
                 device_id: Some("test".into()),
                 language_tag: Some("zh-CN".into()),
                 reply_to_message_id: None,
+                attachment_id: None,
             })
             .expect("publish message");
     }
@@ -10388,6 +10403,7 @@ fn shell_message_edit_does_not_increment_unread() {
             device_id: Some("test".into()),
             language_tag: Some("zh-CN".into()),
             reply_to_message_id: None,
+            attachment_id: None,
         })
         .expect("publish");
 
@@ -11039,6 +11055,7 @@ fn admin_ops_persist_across_restart() {
                 reply_to_message_id: None,
                 device_id: Some("browser".into()),
                 language_tag: Some("en".into()),
+                attachment_id: None,
             })
             .expect("append moderation target");
         moderated_message_id = message.message_id.clone();
@@ -12891,6 +12908,7 @@ fn message_search_requires_auth_and_only_returns_viewer_visible_messages() {
             reply_to_message_id: None,
             device_id: Some("browser".into()),
             language_tag: Some("en".into()),
+            attachment_id: None,
         })
         .expect("append private message");
     let server = start_local_gateway_http_server(runtime);
@@ -12935,4 +12953,154 @@ fn message_search_requires_auth_and_only_returns_viewer_visible_messages() {
     );
     assert_eq!(carol_status, 200);
     assert!(carol_results.as_array().expect("carol results").is_empty());
+}
+
+#[test]
+fn attachment_upload_send_project_download_roundtrip() {
+    let temp = tempdir().expect("temp dir");
+    let mut runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
+
+    let png_bytes: Vec<u8> = vec![
+        0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, b'I', b'H', b'D', b'R',
+    ];
+    let (attachment_id, mime_type, byte_size) = runtime
+        .save_image_attachment(png_bytes.clone(), Some("image/png"))
+        .expect("save attachment");
+    assert_eq!(mime_type, "image/png");
+    assert_eq!(byte_size as usize, png_bytes.len());
+    assert!(crate::attachment_runtime::validate_attachment_id(
+        &attachment_id
+    ));
+
+    let response = runtime
+        .append_shell_message(ShellMessageRequest {
+            room_id: "room:world:lobby".into(),
+            sender: "rsaga".into(),
+            text: "看这张图".into(),
+            attachment_id: Some(attachment_id.clone()),
+            reply_to_message_id: None,
+            device_id: Some("browser".into()),
+            language_tag: Some("zh-CN".into()),
+        })
+        .expect("send attachment message");
+    assert!(response.attachment.is_some());
+    assert_eq!(
+        response.attachment.expect("attachment").url,
+        format!("/v1/shell/attachment/{attachment_id}")
+    );
+    assert_eq!(response.text, "看这张图");
+
+    let messages = runtime.shell_recent_messages(&ConversationId("room:world:lobby".into()), 10);
+    let projected = messages
+        .iter()
+        .find(|message| message.message_id == response.message_id)
+        .expect("projected attachment message");
+    assert_eq!(projected.text, "看这张图");
+    let attachment = projected.attachment.as_ref().expect("projected attachment");
+    assert_eq!(attachment.mime_type, "image/png");
+    assert_eq!(attachment.byte_size as usize, png_bytes.len());
+
+    let (downloaded, downloaded_mime) = runtime
+        .load_image_attachment(&attachment_id)
+        .expect("download attachment");
+    assert_eq!(downloaded, png_bytes);
+    assert_eq!(downloaded_mime, "image/png");
+}
+
+#[test]
+fn attachment_upload_rejects_non_image_bytes() {
+    let temp = tempdir().expect("temp dir");
+    let runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
+
+    let result = runtime.save_image_attachment(b"not an image at all".to_vec(), None);
+    assert!(result.is_err());
+    let result = runtime.save_image_attachment(
+        vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A],
+        Some("image/jpeg"),
+    );
+    assert!(result.is_err(), "declared mime must match sniffed magic");
+}
+
+#[test]
+fn attachment_message_rejects_unknown_id_and_edit() {
+    let temp = tempdir().expect("temp dir");
+    let mut runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
+
+    let result = runtime.append_shell_message(ShellMessageRequest {
+        room_id: "room:world:lobby".into(),
+        sender: "rsaga".into(),
+        text: String::new(),
+        attachment_id: Some("0123456789abcdef0123456789abcdef".into()),
+        reply_to_message_id: None,
+        device_id: Some("browser".into()),
+        language_tag: Some("zh-CN".into()),
+    });
+    assert!(result.is_err());
+
+    let (attachment_id, _, _) = runtime
+        .save_image_attachment(vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A], None)
+        .expect("save");
+    let response = runtime
+        .append_shell_message(ShellMessageRequest {
+            room_id: "room:world:lobby".into(),
+            sender: "rsaga".into(),
+            text: String::new(),
+            attachment_id: Some(attachment_id),
+            reply_to_message_id: None,
+            device_id: Some("browser".into()),
+            language_tag: Some("zh-CN".into()),
+        })
+        .expect("send");
+    assert_eq!(response.text, "", "empty caption is allowed for images");
+
+    let edit = runtime.edit_shell_message(EditShellMessageRequest {
+        room_id: "room:world:lobby".into(),
+        message_id: response.message_id.clone(),
+        actor: "rsaga".into(),
+        text: "try to edit".into(),
+        actor_address: None,
+    });
+    assert!(edit.is_err(), "attachment messages cannot be edited");
+}
+
+#[test]
+fn attachment_projection_hidden_after_recall() {
+    let temp = tempdir().expect("temp dir");
+    let mut runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
+
+    let (attachment_id, _, _) = runtime
+        .save_image_attachment(vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A], None)
+        .expect("save");
+    let response = runtime
+        .append_shell_message(ShellMessageRequest {
+            room_id: "room:world:lobby".into(),
+            sender: "rsaga".into(),
+            text: "caption".into(),
+            attachment_id: Some(attachment_id),
+            reply_to_message_id: None,
+            device_id: None,
+            language_tag: None,
+        })
+        .expect("send");
+
+    runtime
+        .recall_shell_message(RecallShellMessageRequest {
+            room_id: "room:world:lobby".into(),
+            message_id: response.message_id.clone(),
+            actor: "rsaga".into(),
+            actor_address: None,
+        })
+        .expect("recall");
+
+    let messages = runtime.shell_recent_messages(&ConversationId("room:world:lobby".into()), 10);
+    let projected = messages
+        .iter()
+        .find(|message| message.message_id == response.message_id)
+        .expect("recalled message still listed");
+    assert!(projected.is_recalled);
+    assert!(
+        projected.attachment.is_none(),
+        "recalled messages drop the image"
+    );
+    assert_eq!(projected.text, "消息已撤回");
 }

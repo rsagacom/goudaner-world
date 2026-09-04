@@ -24,6 +24,22 @@ impl GatewayRuntime {
         let message_id = MessageId(request.message_id);
         let actor = IdentityId(request.actor);
         let text = Self::normalize_message_text(request.text)?;
+        let lookup_limit = self.history_limit.max(64);
+        let original_has_attachment = self
+            .timeline_store
+            .recent_messages(&conversation_id, lookup_limit)
+            .into_iter()
+            .any(|entry| {
+                entry.envelope.message_id.0 == message_id.0
+                    && entry
+                        .envelope
+                        .body
+                        .plain_text
+                        .starts_with(attachment_runtime::ATTACHMENT_URL_PREFIX)
+            });
+        if original_has_attachment {
+            return Err("attachment messages cannot be edited; recall and resend instead".into());
+        }
         self.validate_authenticated_sender(&actor)?;
         let edited_at_ms = Self::now_ms();
         let entry = self
@@ -212,7 +228,38 @@ impl GatewayRuntime {
         let reply_to_message_id_response = reply_to_message_id
             .as_ref()
             .map(|message_id| message_id.0.clone());
-        let text = Self::normalize_message_text(request.text)?;
+        let attachment_id = request
+            .attachment_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| value.to_string());
+        let text = match &attachment_id {
+            Some(_) => {
+                // Image messages may carry an empty caption; still enforce length.
+                let caption = request.text.trim().to_string();
+                if caption.chars().count() > MAX_MESSAGE_TEXT_CHARS {
+                    return Err(format!(
+                        "message text too long: max {MAX_MESSAGE_TEXT_CHARS} chars"
+                    ));
+                }
+                caption
+            }
+            None => Self::normalize_message_text(request.text)?,
+        };
+        let attachment = match &attachment_id {
+            Some(id) => {
+                let projection = self
+                    .attachment_projection(id)
+                    .ok_or_else(|| format!("unknown attachment: {id}"))?;
+                Some(projection)
+            }
+            None => None,
+        };
+        let plain_text = match &attachment_id {
+            Some(id) => attachment_runtime::attachment_reference(id, &text),
+            None => text.clone(),
+        };
         self.validate_authenticated_sender(&sender)?;
         self.validate_public_room_post(&conversation_id, &sender)?;
         self.validate_direct_message_post(&conversation_id, &sender)?;
@@ -226,10 +273,22 @@ impl GatewayRuntime {
             reply_to_message_id,
             sender_device: DeviceId(request.device_id.unwrap_or_else(|| "mobile-web".into())),
             sender_profile: ClientProfile::mobile_web(),
-            payload_type: PayloadType::Text,
+            payload_type: if attachment_id.is_some() {
+                PayloadType::AttachmentRef
+            } else {
+                PayloadType::Text
+            },
             body: MessageBody {
-                preview: text.clone(),
-                plain_text: text,
+                preview: if attachment_id.is_some() {
+                    if response_text.is_empty() {
+                        "[图片]".into()
+                    } else {
+                        format!("[图片] {response_text}")
+                    }
+                } else {
+                    response_text.clone()
+                },
+                plain_text,
                 language_tag: request.language_tag.unwrap_or_else(|| "zh-CN".into()),
             },
             ciphertext: vec![],
@@ -243,6 +302,7 @@ impl GatewayRuntime {
             conversation_id: conversation_id.0,
             message_id,
             reply_to_message_id: reply_to_message_id_response,
+            attachment,
             delivered_at_ms: timestamp_ms,
             delivery_status: "delivered".into(),
             sender: sender_id,
