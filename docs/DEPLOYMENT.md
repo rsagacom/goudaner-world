@@ -343,6 +343,7 @@ sudo systemctl start lobster-waku-gateway
 - 推送范围 = 仅私聊（dm:/个人房间参与者）；公共房间消息不推送（避免全城轰炸）。
 - **iOS Safari 必须先"添加到主屏幕"（A2HS）才有 Web Push 能力**（iOS 16.4+，从主屏幕图标启动后生效）——H5 的加桌引导（PWA manifest）是其前置。
 - 端到端验收（真实 FCM/APNs 投递）需生产 HTTPS 环境完成，见 §7 验收清单的延伸。
+- 本地互操作冒烟已常设于完整 release gate：`node scripts/smoke-webpush-e2e.mjs`（dev inline OTP 注册 → WebCrypto 订阅密钥 → Agent 通道触发 → 假推送服务捕获帧 → 浏览器 WebCrypto 按 RFC 8291 解密断言）。
 
 ## 11. 明确后置范围
 

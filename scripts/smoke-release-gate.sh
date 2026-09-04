@@ -92,6 +92,7 @@ run_step "web shell smoke unit" python3 "$ROOT_DIR/scripts/test_smoke_web_shell_
 run_shell_step "web shell smoke" "$ROOT_DIR/scripts/smoke-web-shell.sh"
 run_step "web dual browser smoke unit" python3 "$ROOT_DIR/scripts/test_smoke_web_dual_browser_unit.py"
 run_step "web dual browser smoke" node "$ROOT_DIR/scripts/smoke-web-dual-browser.mjs"
+run_step "webpush e2e smoke" node "$ROOT_DIR/scripts/smoke-webpush-e2e.mjs"
 run_step "terminal smoke unit" python3 "$ROOT_DIR/scripts/test_start_terminal_unit.py"
 run_step "start terminal shell unit" python3 "$ROOT_DIR/scripts/test_start_terminal_shell_unit.py"
 run_step "terminal smoke" python3 "$ROOT_DIR/scripts/test_start_terminal.py"
