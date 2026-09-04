@@ -6443,6 +6443,8 @@ function commitLocalSend(roomId, text, quickAction) {
   followTimelineToLatest = true;
   delete roomSendErrors[roomId];
   clearComposerAfterSend(roomId, text);
+  renderAfterSend();
+  focusComposerAfterSend();
   return true;
 }
 
