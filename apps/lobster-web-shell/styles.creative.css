@@ -2112,3 +2112,67 @@ body[data-room-ownership="visitor"] .creative-hud-ownership-badge--visitor {
   border: 1px solid #3a2f28;
   background: rgba(22, 16, 12, 0.55);
 }
+
+/* ============================================================
+   2026-09-05 PWA 加桌引导 chip（manifest 最小版配套，无 service
+   worker）。仅未安装 + 未关闭时出现；dark-on-dark，固定于 composer
+   上方并避开移动端 Tab Bar 安全区。
+   ============================================================ */
+.install-hint-chip {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 78px);
+  z-index: 160;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(92vw, 420px);
+  padding: 8px 10px 8px 14px;
+  border: 1px solid #3a2f28;
+  border-radius: 12px;
+  background: rgba(22, 16, 12, 0.92);
+  color: rgba(232, 222, 210, 0.92);
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.install-hint-chip[hidden] {
+  display: none;
+}
+
+.install-hint-copy {
+  flex: 1;
+}
+
+.install-hint-action {
+  appearance: none;
+  border: 1px solid rgba(232, 222, 210, 0.4);
+  background: transparent;
+  color: rgba(232, 222, 210, 0.92);
+  border-radius: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.install-hint-action:hover {
+  border-color: rgba(232, 222, 210, 0.7);
+}
+
+.install-hint-dismiss {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: rgba(232, 222, 210, 0.6);
+  min-width: 34px;
+  min-height: 34px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.install-hint-dismiss:hover {
+  color: rgba(232, 222, 210, 0.9);
+}

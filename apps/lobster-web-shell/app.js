@@ -123,6 +123,7 @@ import {
   createAttachmentLightbox,
   wireAttachmentLightbox,
 } from "./shell-attachment-lightbox.js";
+import { initInstallHint } from "./shell-install-hint.js";
 import {
   messageBodyDomSpec,
   messageQuickActionChipSpec,
@@ -1785,6 +1786,7 @@ if (timelineEl) {
   document.body.appendChild(
     wireAttachmentLightbox(createAttachmentLightbox({ document }), { document }).element,
   );
+  initInstallHint({ document });
   let messageLongPressTimer = null;
   const cancelMessageLongPress = () => clearTimeout(messageLongPressTimer);
   timelineEl.addEventListener("contextmenu", (event) => {

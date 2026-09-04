@@ -31,7 +31,7 @@ test("chat.css no longer defines a bare .empty-note rule", async () => {
 test("every app.js page references the unified creative.css cache version", async () => {
   for (const page of ["index.html", "admin.html", "creative.html", "admin-ds.html", "unified.html"]) {
     const html = await readShellModule(page);
-    assert.match(html, /styles\.creative\.css\?v=20260905-image-polish/, `${page} must bump creative.css cache version`);
+    assert.match(html, /styles\.creative\.css\?v=20260905-pwa-install/, `${page} must bump creative.css cache version`);
   }
 });
 

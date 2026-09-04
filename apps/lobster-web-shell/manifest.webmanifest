@@ -1,0 +1,31 @@
+{
+  "name": "我和狗蛋儿的家（Goudaner World）",
+  "short_name": "狗蛋儿",
+  "description": "以 Rust Gateway 为真源、H5 为主入口的单城即时通信与共建空间",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1a120e",
+  "theme_color": "#1a120e",
+  "icons": [
+    {
+      "src": "./assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
