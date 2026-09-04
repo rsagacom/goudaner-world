@@ -13391,9 +13391,7 @@ fn bench_gateway_http_append_journal_throughput() {
         assert_eq!(status, 200, "append {index} failed");
     }
     let elapsed = started.elapsed();
-    println!(
-        "\n=== R2 gateway append bench ({total} messages via real HTTP stack) ==="
-    );
+    println!("\n=== R2 gateway append bench ({total} messages via real HTTP stack) ===");
     println!(
         "append: total {elapsed:?}, ~{:.0} µs/message",
         elapsed.as_micros() as f64 / total as f64
