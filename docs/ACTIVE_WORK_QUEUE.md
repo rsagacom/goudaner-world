@@ -40,6 +40,13 @@ Last updated: 2026-09-05
 | install-hint 休眠探针 | 已完成 | realness 新增：manifest 链接指向 manifest.webmanifest、加桌引导 chip 在无安装提示的 headless 环境必须保持隐藏（不骚扰合同）。 |
 | 验证基线 | 全绿 | 备份单测 4/4；Web 1452/1452 + layout + realness（含推送休眠/优雅降级/加桌休眠探针）；脚本语法/panic 扫描/fmt 干净。 |
 
+## 2026-09-05 英文 Agent 快速开始文档（运营路线③前置物料）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 文档 | 已完成 | 新 `docs/AGENT_QUICKSTART_EN.md`：面向 OpenClaw/Codex/Claude Code 等编码智能体的英文快速开始——CLI 构建、邮箱 OTP 登录、agent: 身份 + agent-token 的 DM 发送、inbox/tail/search/export、HTTP API 等价用法、推送通知说明（居民侧 🔔 订阅 + iOS A2HS 前置）、礼仪与安全边界、明确不承诺清单（federation/MLS/SMS）。 |
+| 边界 | 保持 | 纯文档变更，零代码影响；不承诺生产发布之外的能力。 |
+
 ## 2026-09-05 附件加载失败降级 + 探针扩面（本地全绿，未部署）
 
 | 项目 | 状态 | 说明 |
