@@ -4,6 +4,17 @@ Last updated: 2026-09-04
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-09-04 P5.1 恢复：adapter 接线完成，节点构建暂停于 nim 版本矛盾
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 第 1 步 代码审查 | 已完成 | `native_rest.rs`（1939 行）逐段审查：opaque envelope 规范化解码、bucket content topic（`/goudaner-world/1/messages-XX/proto`）、loopback-only baseUrl（拒绝非环回/userinfo/路径注入）、0600 原子账本（temp+fsync+rename+dirsync）、hash/id 交叉去重、容量上限，与 ADR-0001 §4.2/§4.3 合同一致。 |
+| 第 2 步 接线与门禁 | 已完成（本地提交 `9aca689`，未推送） | `lib.rs` 增加 `#[cfg(feature = "native-waku-rest")] pub mod native_rest`；example 移除 `#[path]` 内联改为消费 lib。门禁全绿：default test 10/10；feature test 21/21（native_rest 11 个单测首次参与编译）；clippy lib+all-targets `-D warnings` 干净；workspace check/clippy/test 全绿（Gateway 323/TUI 235/CLI 148 等全过）；fmt 干净。 |
+| 第 3 步 节点构建 | 暂停（非代码问题） | 根因链已全部定位：①cachyos-ai 直连 github 传输层不稳（TLS EOF/挂死，8-13 失败同源）→ 已启用 ghfast.top git URL 重写；②`packages_official.json` 曾截断为 2290 包（官方 2918）致 lsquic/minilru/intops/dnsdisc 解析失败 → 已补全（Mac 侧投喂两处）；③`~/.nimble/pkgcache` 历史部分克隆污染 → 已清空；④**当前阻塞：lock 内部矛盾——lock 钉 `nim 2.2.4` 但同钉的 `ffi@53515de` 的 .nimble 要求 `nim >= 2.2.6`**，nimble 0.22.3 解析必然失败；上游 CI 同样用 NIM 2.2.4 + `--useSystemNim`（注释称跳过 locked nim 校验）理论应通过，未复现成功。 |
+| 恢复入口 | 待继续（任一步失败停在该步） | ①lab 装 Nim 2.2.6 并置于 PATH（`scripts/install_nim.sh 2.2.6`）后重跑 `scripts-retry-nimble-setup.sh`（已含 `-y --useSystemNim`、1800s 超时、30 次重试）验证解析；②`make rebuild-bearssl-nimbledeps rebuild-nat-libs-nimbledeps` 并确认 `nimbledeps/.nimble-setup` stamp；③`make logosdeliverynode`（注意 librln 走 toolchains 的 cargo）；④loopback A/B 双节点各 100 条（example 环境变量 `LOBSTER_WAKU_LAB_NODE_A_URL/NODE_B_URL/STATE_DIR/MESSAGE_COUNT/POLL_TIMEOUT_SECS`）；⑤sidecar/节点重启 + Store 恢复、去重、资源、日志脱敏检查；⑥更新 ADR/蓝图/本队列，脱敏提交推送并等 CI。 |
+| lab 环境固化（cachyos-ai） | 已就绪可续用 | 根目录 `/mnt/gaosu_sata/labs/lobster-chat-p5-waku/`：源码 `src/logos-delivery-23b0d31e8488`（git log 已验证 commit 23b0d31e）；`src/lobster-chat/` 最小工作区 rsync 自本地 `9aca689`；`toolchains/{cargo,rustup}`；`scripts-retry-nimble-setup.sh`；`logs/`。lab example 已在该机构建成功（crates 走 rsproxy.cn 国内镜像，配置仅写入实验室 CARGO_HOME）。Nim 在 `rsaga-migrated/home-parked/.nim/nim-2.2.4`（需补 2.2.6）。 |
+| Git/生产边界 | 保持 | 生产未触碰；GitHub 今日已有加固+文档提交（`b479349`/`f7454cc`/`e2f4fc7`，CI 全绿）；P5.1 接线提交 `9aca689` 按暂停纪律保持本地未推送，待 lab 验收后与收口文档一并推送。无遗留实验进程（构建/重试循环均已终止）。 |
+
 ## 2026-09-04 可选加固执行：empty-note 视觉统一（已完成）+ DMARC/SPF（已完成）
 
 | 项目 | 状态 | 说明 |

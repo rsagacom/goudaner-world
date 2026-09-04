@@ -396,6 +396,12 @@
 - **防回归**：新增 `test/empty-note-unify.test.mjs` 4 用例；Web 单测 **1423/1423**、layout、frontend realness 全绿；headless Chromium 三页探针计算样式与合同一致、0 未捕获错误。未部署生产，随下一发布批次上线。
 - **DMARC/SPF（已落地）**：取证修正——Resend 信封域 SPF 一直在正确位置 `send.chat.ajw.cn`（`include:amazonses.com`），DKIM 在位，真正缺的只有 DMARC。经用户授权用最小权限一次性令牌（仅 ajw.cn DNS 编辑，用后即删）添加：`_dmarc.chat.ajw.cn` TXT `v=DMARC1; p=quarantine;` 与 `chat.ajw.cn` TXT `v=spf1 include:send.chat.ajw.cn ~all`（严格对齐辅助）；Google/Cloudflare 双 DoH 复核生效，令牌已删除并验证失效。
 
+### P5.1 恢复：adapter 接线完成、节点构建暂停于 nim 版本矛盾（2026-09-04）
+
+- **第 1-2 步已完成（本地提交 `9aca689`，按暂停纪律未推送）**：`native_rest` 接线进 `lib.rs`（feature-gated），example 改为消费 lib 模块；三档门禁全绿（default 10/10、feature 21/21 含 native_rest 11 个单测、clippy lib+all-targets `-D warnings`、workspace check/clippy/test、fmt）。代码审查确认与 ADR-0001 §4.2/§4.3 一致。
+- **第 3 步节点构建暂停**，根因链四条（均非 adapter 代码问题）：cachyos-ai 直连 github 传输层不稳（已启用 ghfast.top 重写，lock sha1 兜底完整性）；`packages_official.json` 曾截断 2290/2918（已补全）；pkgcache 曾被污染（已清空）；**当前阻塞：lock 钉 `nim 2.2.4` 但同钉的 `ffi@53515de` 要求 `nim >= 2.2.6`，nimble 0.22.3 解析矛盾**（上游 CI 同参数理论应过，未复现）。
+- **lab 环境已固化**（cachyos-ai `/mnt/gaosu_sata/labs/lobster-chat-p5-waku/`）：固定源码已验证、最小 lobster 工作区、cargo/rustup 工具链、retry 脚本、lab example 构建成功（rsproxy 镜像仅入实验室 CARGO_HOME）。恢复顺序与详细环境见 `docs/ACTIVE_WORK_QUEUE.md` 顶部 2026-09-04 P5.1 区块。
+
 ### 真实进度（2026-08-13）
 
 ### P5.1 暂停交接（2026-08-13）
