@@ -260,3 +260,79 @@ test("sw.js 监听 push 与 notificationclick 并展示通知", () => {
   assert.match(sw, /addEventListener\("notificationclick"/);
   assert.match(sw, /clients\.claim/);
 });
+
+// ---- 登出静默退订（隐私加固） ----
+
+test("disableSilently 上报退订并清除浏览器订阅，失败不阻塞登出", async () => {
+  const unsubscribeSpies = { server: 0, browser: 0 };
+  const createElement = (tag) => ({
+    tagName: tag.toUpperCase(),
+    className: "",
+    hidden: false,
+    textContent: "",
+    title: "",
+    attrs: {},
+    dataset: {},
+    children: [],
+    listeners: new Map(),
+    appendChild(child) {
+      this.children.push(child);
+      return child;
+    },
+    setAttribute(name, value) {
+      this.attrs[name] = String(value);
+    },
+    getAttribute(name) {
+      return this.attrs[name] ?? null;
+    },
+    addEventListener(type, handler) {
+      this.listeners.set(type, handler);
+    },
+    click() {
+      this.listeners.get("click")?.({ target: this });
+    },
+  });
+  const subscription = {
+    endpoint: "https://push.example/abc",
+    unsubscribe: async () => {
+      unsubscribeSpies.browser += 1;
+    },
+  };
+  const registration = {
+    pushManager: { getSubscription: async () => subscription },
+  };
+  const doc = {
+    createElement: (tag) => createElement(tag),
+    querySelector: () => null,
+  };
+  const store = new Map();
+  const posted = [];
+  const client = createPushClient({
+    document: doc,
+    navigatorRef: {
+      serviceWorker: { getRegistration: async () => registration },
+    },
+    windowRef: { isSecureContext: true, PushManager: function P() {}, Notification: { permission: "granted" } },
+    getGatewayUrl: () => "https://chat.example.com",
+    getSessionToken: () => "token-9",
+    storage: {
+      getItem: (key) => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => store.set(key, String(value)),
+    },
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    posted.push({ url, body: init.body ? JSON.parse(init.body) : null, auth: init.headers?.Authorization ?? null });
+    return { ok: true, json: async () => ({ ok: true }) };
+  };
+  try {
+    await client.disableSilently();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(unsubscribeSpies.browser, 1);
+  assert.equal(posted.length, 1);
+  assert.equal(posted[0].url, "https://chat.example.com/v1/push/unsubscribe");
+  assert.equal(posted[0].auth, "Bearer token-9");
+  assert.equal(posted[0].body.endpoint, "https://push.example/abc");
+});

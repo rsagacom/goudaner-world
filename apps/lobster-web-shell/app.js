@@ -7312,6 +7312,8 @@ hudLoginToggleEl?.addEventListener("click", async () => {
   }
   hudLoginToggleEl.disabled = true;
   try {
+    // 隐私加固：先于会话吊销静默退订本浏览器的推送，防同设备跨居民泄漏
+    await pushClientInstance?.disableSilently();
     await logoutMod();
   } catch (error) {
     setAuthStatus(localizedRuntimeError(error, "退出登录失败"), true);

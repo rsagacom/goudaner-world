@@ -163,6 +163,30 @@ export function createPushClient({
         subscribed,
       });
     },
+    // 登出/换账号时的隐私退订：先于会话吊销调用（需要 Bearer），
+    // 静默失败不阻塞登出流程。
+    async disableSilently() {
+      const token = typeof getSessionToken === "function" ? getSessionToken() : null;
+      const gatewayUrl = getGatewayUrl();
+      try {
+        const registration = await navigatorRef.serviceWorker?.getRegistration("./");
+        const subscription = registration
+          ? await registration.pushManager.getSubscription()
+          : null;
+        if (!subscription) return;
+        if (gatewayUrl && token) {
+          await fetch(`${gatewayUrl}/v1/push/unsubscribe`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ endpoint: subscription.endpoint }),
+          }).catch(() => {});
+        }
+        await subscription.unsubscribe();
+      } catch {
+        // 静默失败：退出流程优先
+      }
+    },
+
     async toggle() {
       let failure = null;
       const state = await pushClient.state();
