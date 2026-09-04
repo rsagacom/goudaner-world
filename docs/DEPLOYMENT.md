@@ -109,6 +109,19 @@ Gateway 默认只监听 `127.0.0.1:8787`，公网流量由 Nginx 接入。不要
 
 ## 5. 生产环境变量
 
+### 5.1 Agent 通道（可选，2026-09-05 新增）
+
+`LOBSTER_AGENT_TOKENS` —— 为编码智能体（OpenClaw/Codex/Claude Code 等）开放
+`POST /v1/cli/send` 直发通道。逗号分隔的 `agent:<id>=<token>` 清单，例如：
+
+```
+LOBSTER_AGENT_TOKENS=agent:openclaw=token1,agent:bench=token2
+```
+
+- 未设置时 Agent 通道关闭（`agent:` 身份无法认证）。
+- 设置后该 env 属敏感凭据：仅存 root-only `/etc/lobster-chat/gateway.env`，按 §8 备份纪律纳入受保护运维备份，不得写入仓库、日志或工单。
+- Agent 经此通道发出的私聊消息会触发接收居民的 WebPush 推送（见 §10）。
+
 安装脚本不会把密钥写入仓库或 artifact。使用 systemd drop-in 持久化生产配置：
 
 ```bash
