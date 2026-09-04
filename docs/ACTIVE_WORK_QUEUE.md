@@ -1,8 +1,22 @@
 # lobster-chat Active Work Queue
 
-Last updated: 2026-09-04
+Last updated: 2026-09-05
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
+
+## 2026-09-05 图片消息收口：合同下沉 + TUI 降级 + 发送压缩 + 看原图灯箱（本地全绿，未部署）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 附件合同下沉 chat-core | 已完成 | `attachment://` 引用解析四函数（validate/split/reference/display）上移 `crates/chat-core/src/lib.rs`；Gateway `attachment_runtime.rs` 删本地重复改 `pub(crate) use` 复用；chat-core **24/24**（+4 用例）。 |
+| TUI 降级显示 | 已完成 | `timeline_entry_text`/`timeline_entry_preview` 对附件引用渲染 `[图片] caption`，正文与 web 导出不再泄漏 32 位十六进制附件 id；preview 携带原文时同样归一化；撤回优先级不变；TUI **236/236**（+1）。 |
+| H5 发送前压缩 | 已完成 | 新模块 `shell-image-compress.js`：纯函数 `imageCompressionPlan`（gif 保动画直传；png 仅超 2048px 时降尺寸保持 png；jpeg/webp 超 512KB 或 2048px 降尺寸重编码 jpeg q0.85；其余直传）+ `compressImageFile` 浏览器执行，任一步失败回退原图（fail-open）；Gateway 魔数嗅探 + 5MB 兜底不变。`uploadImageAttachment` 上传前调用，压缩后重新校验 5MB。 |
+| H5 点击看原图 | 已完成 | 新模块 `shell-attachment-lightbox.js`（action-sheet 同款工厂 + fake-dom 可测）：气泡缩略图 zoom-in，点击打开 contain 全屏灯箱，遮罩点击/Esc 关闭。**坑**：遮罩 `display:flex` 会覆盖 `hidden` 的 UA display:none，必须显式 `[hidden]{display:none}`（styles.chat.css:2944 先例）；首次遗漏被 realness 门禁的热点 hover 超时抓获，干净 HEAD 对照定位后修复。 |
+| CSS 归位 + 升版 | 已完成 | 图片消息样式真源移入 index/creative 共载的 `styles.creative.css`（修复 creative.html 图片无样式缺口）；`styles.chat.css` 留指针注释；`?v=` 统一升 `20260905-image-polish`（chat/creative/app.js 13 处 + shell-pages-static/empty-note 测试钉同步）。 |
+| panic 扫描收口 | 已完成 | 完整 release gate 首跑在 `rust production panic scan` 拦下 3 处历史遗留（74a33ca 的 `http_attachment_routes.rs` 静态头 `.expect`、9aca689 的 `native_rest.rs` 两处 `write!().expect`）：前一处改为 `or_else` + fail-closed 500 响应，后两处按 String 写入不可失败语义改 `let _ = write!(...)`；扫描通过、clippy `-D warnings` 干净、`transport-waku` feature 测试 21/21。此前两晚仅跑定向门禁未跑完整 gate，故漏网——维持"任何源码改动必须过完整 release gate"的既有纪律。 |
+| 验证基线 | 全绿 | chat-core 24/24；Gateway 330/330；TUI 236/236；Web 单测 **1437/1437**（+7：压缩决策 5 + 灯箱 2）；layout、frontend realness、真实双浏览器 smoke 通过；workspace clippy `-D warnings`、fmt 干净。 |
+| 环境修复 | 已收口 | 本机 Playwright 浏览器缓存缺失：国内源 preflight（npmmirror 二进制 404、华为云 SPA 假 200）后走官方源 OVERSEAS_FALLBACK（已入档 Atlas task `task-20260904-165620-ff5467`）；安装器下载后解压挂起，改手动 `ditto -x -k` 解压 + `INSTALLATION_COMPLETE` 标记修复（chromium-1217 + chromium_headless_shell-1217）。 |
+| 边界 | 保持 | 仅本地代码/测试/文档验证；未 SSH、未打包、未部署生产；P5.1 lab 恢复仍按暂停合同独立授权。 |
 
 ## 2026-09-04 暂停收尾：GitHub 同步完成，lab Nim 2.2.6 就绪（节点构建仍暂停）
 

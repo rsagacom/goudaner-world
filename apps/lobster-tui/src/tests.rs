@@ -13,8 +13,8 @@ use crate::terminal_submission::{
 };
 use crate::transport_sync::{merge_polled_messages, republish_pending_messages};
 use chat_core::{
-    ArchivePolicy, ClientProfile, DeliveryState, DeviceId, IdentityId, MessageBody,
-    MessageEnvelope, MessageId, PayloadType,
+    ArchivePolicy, ClientProfile, ConversationId, DeliveryState, DeviceId, IdentityId, MessageBody,
+    MessageEnvelope, MessageId, PayloadType, TimelineEntry,
 };
 use chat_storage::{FileTimelineStore, TimelineStore};
 use ratatui::layout::Rect;
@@ -1865,6 +1865,86 @@ fn append_local_message_marks_message_delivered_after_successful_publish() {
     assert_eq!(entries[0].delivery_state, DeliveryState::Delivered);
     assert_eq!(transport.published.len(), 1);
     let _ = fs::remove_dir_all(&temp_root);
+}
+
+#[test]
+fn attachment_entries_project_fallback_text_without_leaking_raw_reference() {
+    fn attachment_entry(preview: &str, plain_text: &str) -> TimelineEntry {
+        TimelineEntry {
+            envelope: MessageEnvelope {
+                message_id: MessageId("attachment-msg-1".into()),
+                conversation_id: ConversationId("room:world:lobby".into()),
+                sender: IdentityId("rsaga".into()),
+                reply_to_message_id: None,
+                sender_device: DeviceId("gateway".into()),
+                sender_profile: ClientProfile::mobile_web(),
+                payload_type: PayloadType::AttachmentRef,
+                body: MessageBody {
+                    preview: preview.into(),
+                    plain_text: plain_text.into(),
+                    language_tag: "zh-CN".into(),
+                },
+                ciphertext: vec![],
+                timestamp_ms: 1_760_000_000_000,
+                ephemeral: false,
+            },
+            delivery_state: DeliveryState::Delivered,
+            archived_at_ms: None,
+            pinned: false,
+            recalled_at_ms: None,
+            recalled_by: None,
+            edited_at_ms: None,
+            edited_by: None,
+        }
+    }
+
+    let id = "0123456789abcdef0123456789abcdef";
+    let with_caption = attachment_entry(
+        "[图片] 看这只龙虾",
+        &format!("attachment://{id}\n看这只龙虾"),
+    );
+    assert_eq!(
+        crate::message_projection::timeline_entry_text(&with_caption),
+        "[图片] 看这只龙虾"
+    );
+    assert_eq!(
+        crate::message_projection::timeline_entry_preview(&with_caption),
+        "[图片] 看这只龙虾"
+    );
+
+    let without_caption = attachment_entry("[图片]", &format!("attachment://{id}"));
+    assert_eq!(
+        crate::message_projection::timeline_entry_text(&without_caption),
+        "[图片]"
+    );
+
+    let raw_preview =
+        attachment_entry(&format!("attachment://{id}"), &format!("attachment://{id}"));
+    assert_eq!(
+        crate::message_projection::timeline_entry_preview(&raw_preview),
+        "[图片]"
+    );
+    assert!(!crate::message_projection::timeline_entry_text(&raw_preview).contains(id));
+
+    let recalled = attachment_entry("[图片]", &format!("attachment://{id}"));
+    let mut recalled = recalled;
+    recalled.recalled_at_ms = Some(1_760_000_001_000);
+    assert_eq!(
+        crate::message_projection::timeline_entry_text(&recalled),
+        "消息已撤回"
+    );
+
+    let mut plain = attachment_entry("普通文本", "普通文本");
+    plain.envelope.body.plain_text = "普通文本".into();
+    plain.envelope.body.preview = "普通文本".into();
+    assert_eq!(
+        crate::message_projection::timeline_entry_text(&plain),
+        "普通文本"
+    );
+    assert_eq!(
+        crate::message_projection::timeline_entry_preview(&plain),
+        "普通文本"
+    );
 }
 
 #[test]

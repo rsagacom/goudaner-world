@@ -112,6 +112,56 @@ pub struct MessageBody {
     pub language_tag: String,
 }
 
+/// `MessageBody::plain_text` prefix that marks an image attachment reference.
+/// The remainder is a 32-char hex id, optionally followed by `\n` + caption.
+pub const ATTACHMENT_URL_PREFIX: &str = "attachment://";
+const ATTACHMENT_ID_LEN: usize = 32;
+
+/// Attachment ids are 128 bits of CSPRNG entropy rendered as lowercase hex.
+pub fn validate_attachment_id(raw: &str) -> bool {
+    raw.len() == ATTACHMENT_ID_LEN
+        && raw
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+/// Split a stored `plain_text` value into `(attachment id, caption)`.
+/// Values without a valid attachment reference come back as `(None, plain_text)`.
+pub fn split_attachment_text(plain_text: &str) -> (Option<String>, String) {
+    let Some(rest) = plain_text.strip_prefix(ATTACHMENT_URL_PREFIX) else {
+        return (None, plain_text.to_string());
+    };
+    match rest.split_once('\n') {
+        Some((id, caption)) if validate_attachment_id(id) => {
+            (Some(id.to_string()), caption.to_string())
+        }
+        None if validate_attachment_id(rest) => (Some(rest.to_string()), String::new()),
+        _ => (None, plain_text.to_string()),
+    }
+}
+
+/// Encode an attachment reference (id + caption) for `MessageBody::plain_text`.
+pub fn attachment_reference(id: &str, caption: &str) -> String {
+    if caption.is_empty() {
+        format!("{ATTACHMENT_URL_PREFIX}{id}")
+    } else {
+        format!("{ATTACHMENT_URL_PREFIX}{id}\n{caption}")
+    }
+}
+
+/// Human-facing single-line fallback for clients that cannot render images
+/// (TUI transcript, plain exports). `None` when the text is not a valid
+/// attachment reference and must be shown as-is.
+pub fn attachment_display_text(plain_text: &str) -> Option<String> {
+    let (id, caption) = split_attachment_text(plain_text);
+    id?;
+    Some(if caption.is_empty() {
+        "[图片]".to_string()
+    } else {
+        format!("[图片] {caption}")
+    })
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageEnvelope {
     pub message_id: MessageId,
@@ -691,6 +741,54 @@ pub struct ModerationResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn attachment_reference_roundtrips_through_split() {
+        let id = "0123456789abcdef0123456789abcdef";
+        let encoded = attachment_reference(id, "看这只龙虾");
+        assert_eq!(
+            encoded,
+            "attachment://0123456789abcdef0123456789abcdef\n看这只龙虾"
+        );
+        let (parsed_id, caption) = split_attachment_text(&encoded);
+        assert_eq!(parsed_id.as_deref(), Some(id));
+        assert_eq!(caption, "看这只龙虾");
+    }
+
+    #[test]
+    fn attachment_reference_without_caption_has_no_newline() {
+        let id = "0123456789abcdef0123456789abcdef";
+        let encoded = attachment_reference(id, "");
+        assert_eq!(encoded, "attachment://0123456789abcdef0123456789abcdef");
+        let (parsed_id, caption) = split_attachment_text(&encoded);
+        assert_eq!(parsed_id.as_deref(), Some(id));
+        assert!(caption.is_empty());
+    }
+
+    #[test]
+    fn attachment_display_text_falls_back_to_caption_label() {
+        let id = "0123456789abcdef0123456789abcdef";
+        assert_eq!(
+            attachment_display_text(&attachment_reference(id, "看这只龙虾")),
+            Some("[图片] 看这只龙虾".into())
+        );
+        assert_eq!(
+            attachment_display_text(&attachment_reference(id, "")),
+            Some("[图片]".into())
+        );
+    }
+
+    #[test]
+    fn attachment_display_text_rejects_plain_text_and_bad_ids() {
+        assert_eq!(attachment_display_text("普通消息"), None);
+        assert_eq!(attachment_display_text("attachment://nothex"), None);
+        assert_eq!(
+            attachment_display_text("attachment://0123456789ABCDEF0123456789ABCDEF"),
+            None
+        );
+        assert!(!validate_attachment_id("0123"));
+        assert!(validate_attachment_id("0123456789abcdef0123456789abcdef"));
+    }
 
     #[test]
     fn wearable_profile_is_small_and_camera_capable() {

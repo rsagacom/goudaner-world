@@ -118,6 +118,11 @@ import {
   mountMessageSearchChrome,
 } from "./shell-message-search.js";
 import { createMessageActionSheet } from "./shell-message-action-sheet.js";
+import { compressImageFile } from "./shell-image-compress.js";
+import {
+  createAttachmentLightbox,
+  wireAttachmentLightbox,
+} from "./shell-attachment-lightbox.js";
 import {
   messageBodyDomSpec,
   messageQuickActionChipSpec,
@@ -1777,6 +1782,9 @@ const messageActionSheet = createMessageActionSheet({ document });
 
 if (timelineEl) {
   document.body.appendChild(messageActionSheet.element);
+  document.body.appendChild(
+    wireAttachmentLightbox(createAttachmentLightbox({ document }), { document }).element,
+  );
   let messageLongPressTimer = null;
   const cancelMessageLongPress = () => clearTimeout(messageLongPressTimer);
   timelineEl.addEventListener("contextmenu", (event) => {
@@ -6486,16 +6494,24 @@ async function uploadImageAttachment(file) {
   if (!/^image\/(png|jpe?g|gif|webp)$/i.test(file.type)) {
     throw new Error("仅支持 png / jpg / gif / webp 图片");
   }
-  if (file.size > 5 * 1024 * 1024) {
+  // 上传前压缩（大图降尺寸 + 重编码）；任何失败回退原图，
+  // Gateway 的魔数嗅探与 5MB 上限仍是最终兜底。
+  let payload = file;
+  try {
+    payload = await compressImageFile(file);
+  } catch {
+    payload = file;
+  }
+  if (payload.size > 5 * 1024 * 1024) {
     throw new Error("图片过大：单张最大 5MB");
   }
-  const headers = { "Content-Type": file.type };
+  const headers = { "Content-Type": payload.type };
   const sessionToken = getSessionToken();
   if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
   const response = await fetch(`${gatewayUrl}/v1/shell/attachment`, {
     method: "POST",
     headers,
-    body: file,
+    body: payload,
   });
   const text = await response.text();
   let parsed = null;

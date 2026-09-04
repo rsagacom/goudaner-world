@@ -402,6 +402,17 @@
 - **第 3 步节点构建暂停**，根因链四条（均非 adapter 代码问题）：cachyos-ai 直连 github 传输层不稳（已启用 ghfast.top 重写，lock sha1 兜底完整性）；`packages_official.json` 曾截断 2290/2918（已补全）；pkgcache 曾被污染（已清空）；**当前阻塞：lock 钉 `nim 2.2.4` 但同钉的 `ffi@53515de` 要求 `nim >= 2.2.6`，nimble 0.22.3 解析矛盾**（上游 CI 同参数理论应过，未复现）。
 - **lab 环境已固化**（cachyos-ai `/mnt/gaosu_sata/labs/lobster-chat-p5-waku/`）：固定源码已验证、最小 lobster 工作区、cargo/rustup 工具链、retry 脚本、lab example 构建成功（rsproxy 镜像仅入实验室 CARGO_HOME）。恢复顺序与详细环境见 `docs/ACTIVE_WORK_QUEUE.md` 顶部 2026-09-04 P5.1 区块。
 
+### 图片消息收口：附件合同下沉 + TUI 降级 + 发送压缩 + 看原图（2026-09-05）
+
+- **合同下沉**：`attachment://<id>` 引用解析（`validate_attachment_id` / `split_attachment_text` / `attachment_reference` / `attachment_display_text`）从 Gateway `attachment_runtime.rs` 上移到 `chat-core`，Gateway 与 TUI 共用单一合同，Gateway 侧删本地重复实现；chat-core **24** 单测（+4）。
+- **TUI 降级显示**：`message_projection::timeline_entry_text/preview` 检测附件引用并渲染 `[图片] caption` 兜底，TUI 时间线与 web 导出不再泄漏十六进制附件 id；preview 带原文时也归一化；TUI **236/236**（+1）。
+- **发送前压缩**（新 `shell-image-compress.js`）：纯函数 `imageCompressionPlan`（gif 保动画直传；png 只降尺寸不换格式保透明；jpeg/webp 超 512KB 或 2048px 降尺寸重编码 jpeg q0.85），`compressImageFile` 任何失败 fail-open 回退原图；Gateway 魔数嗅探 + 5MB 上限仍是最终兜底。
+- **点击看原图**（新 `shell-attachment-lightbox.js`）：气泡缩略图（cover 裁切 + zoom-in）点击打开 `object-fit: contain` 全屏灯箱，点击遮罩/Esc 关闭；遮罩必须写 `[hidden]{display:none}`（同 action-sheet 先例）——首次遗漏时全屏遮罩挡住热点 hover，被 realness 门禁当场抓获后修复。
+- **CSS 归位**：图片消息样式真源从 `styles.chat.css` 移到 index/creative 两页共载的 `styles.creative.css`（修复 creative.html 图片完全无样式的缺口）；缓存版本统一升 `?v=20260905-image-polish`（chat/creative/app.js 共 13 处 + 测试钉同步）。
+- **防回归**：Web **1437/1437**（+7）、layout、realness、真实双浏览器 smoke 全绿；Gateway **330/330**；workspace clippy `-D warnings` 零警告。
+- **部署边界**：仅本地验证，未 SSH、未部署生产。
+- **环境坑**：本机 Playwright 浏览器缓存缺失且安装器解压卡死；国内镜像（npmmirror 二进制 404、华为云 SPA 假 200）无 1.59.1 构建后走官方源 OVERSEAS_FALLBACK，安装器解压挂起改手动 `ditto -x -k` + `INSTALLATION_COMPLETE` 标记修复。
+
 ### 真实进度（2026-08-13）
 
 ### P5.1 暂停交接（2026-08-13）
@@ -440,7 +451,7 @@ Rust 55,355 行 + 前端源码 ~37,000 行 + 2,187 测试全绿 + 可追溯生�
 
 | 序 | 事项 | 理由 | 量级 | 状态 |
 |----|------|------|------|------|
-| 1 | 图片消息链路（上传端点+气泡渲染） | 运营第一缺口；M2 消息引擎从 90% 补到 97% | 1-2 周 | 🟡 切片完成 2026-09-04（`74a33ca`）：上传/下载端点 + attachment:// 引用（postcard 零迁移）+ H5 气泡渲染与 composer 上传；待做：缩略图/压缩、TUI 降级显示、生产发布 |
+| 1 | 图片消息链路（上传端点+气泡渲染） | 运营第一缺口；M2 消息引擎从 90% 补到 97% | 1-2 周 | 🟢 本地收口 2026-09-05（`74a33ca` 切片 + 合同下沉/TUI 降级/发送压缩/看原图灯箱）；待做：生产发布 |
 | 2 | WebPush 通知（Gateway 事件订阅 + Push API） | IM 留存底线，无推送勿谈运营 | 1 周 | 未开始 |
 | 3 | R3 panic 隔离 | release 移除 panic=abort + 请求边界 catch_unwind 500 兜底 + 锁投毒恢复 | 1-2 天 | ✅ 2026-09-04 完成 |
 | 4 | R2 增量写（timeline 改 append-only 帧流） | 消息量增长前修，全量重写 IO 是首个性能悬崖 | 3-5 天 | 未开始 |

@@ -2045,3 +2045,70 @@ body[data-room-ownership="visitor"] .creative-hud-ownership-badge--visitor {
   border: 1px solid #3a2f28;
   border-radius: 12px;
 }
+
+/* ============================================================
+   2026-09-05 图片消息样式真源（attachment:// 投影渲染 + composer
+   上传 + 点击看原图灯箱）。creative.html 不加载 styles.chat.css，
+   故本块必须放这里（index 与 creative 两页共载）。
+   ============================================================ */
+.message-attachment {
+  display: block;
+  max-width: min(320px, 100%);
+  max-height: 240px;
+  border-radius: 12px;
+  border: 1px solid #3a2f28;
+  background: rgba(22, 16, 12, 0.55);
+  object-fit: cover;
+  cursor: zoom-in;
+}
+
+.message-attachment-caption {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(232, 222, 210, 0.92);
+  overflow-wrap: anywhere;
+}
+
+.composer-attachment-trigger {
+  appearance: none;
+  border: 1px solid #3a2f28;
+  background: rgba(22, 16, 12, 0.55);
+  color: rgba(232, 222, 210, 0.85);
+  border-radius: 10px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.composer-attachment-trigger:hover {
+  border-color: rgba(232, 222, 210, 0.4);
+}
+
+/* 点击气泡缩略图后的全屏灯箱：object-fit: contain 看完整原图 */
+.attachment-lightbox-mask[hidden] {
+  display: none;
+}
+
+.attachment-lightbox-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(10, 7, 5, 0.92);
+  cursor: zoom-out;
+}
+
+.attachment-lightbox-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid #3a2f28;
+  background: rgba(22, 16, 12, 0.55);
+}

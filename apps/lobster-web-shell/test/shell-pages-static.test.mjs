@@ -39,11 +39,11 @@ test("hub page is now main-city group chat page with canvas and timeline", async
   assert.match(html, /id="composer"/);
   assert.match(html, /styles\.base\.css\?v=20260731-ui-refresh-r4/);
   assert.match(html, /styles\.scene\.css\?v=20260731-ui-refresh-r4/);
-  assert.match(html, /styles\.chat\.css\?v=20260904-image-attachments/);
+  assert.match(html, /styles\.chat\.css\?v=20260905-image-polish/);
   assert.match(html, /styles\.css\?v=20260731-ui-refresh-r4/);
   assert.match(html, /styles\.user-shell\.css\?v=20260802-locked-card/);
   assert.match(html, /styles\.pixel-map\.css\?v=20260802-scene-canvas-cqh/);
-  assert.match(html, /app\.js\?v=20260731-ui-refresh-r4/);
+  assert.match(html, /app\.js\?v=20260905-image-polish/);
   assert.match(html, /data-symbol-trigger/);
   assert.match(html, /composer-symbol-category/);
   assert.match(html, /高兴/);
@@ -82,10 +82,10 @@ test("creative page is the residential pixel room entry", async () => {
   assert.match(html, /data-rail-visibility="owner-only"/);
   assert.match(html, /data-personal-room-policy="friends_only"/);
   assert.match(html, /data-personal-room-policy="registered_all"/);
-  assert.match(html, /styles\.creative\.css\?v=20260904-empty-note-unify/);
+  assert.match(html, /styles\.creative\.css\?v=20260905-image-polish/);
   assert.match(html, /styles\.user-shell\.css\?v=20260802-locked-card/);
   assert.match(html, /styles\.pixel-map\.css\?v=20260802-scene-canvas-cqh/);
-  assert.match(html, /app\.js\?v=20260731-ui-refresh-r4/);
+  assert.match(html, /app\.js\?v=20260905-image-polish/);
   assert.match(html, /data-symbol-trigger/);
   assert.match(html, /composer-symbol-category/);
   assert.match(html, /卖萌/);
@@ -100,7 +100,7 @@ test("admin page has collapsible management navigation and tool groups", async (
   assert.match(html, /<title>我和狗蛋儿的家 · 管理后台<\/title>/);
   assert.match(html, /href="\.\/styles\.base\.css\?v=20260731-ui-refresh-r4"/);
   assert.match(html, /href="\.\/styles\.scene\.css\?v=20260731-ui-refresh-r4"/);
-  assert.match(html, /href="\.\/styles\.chat\.css\?v=20260904-image-attachments"/);
+  assert.match(html, /href="\.\/styles\.chat\.css\?v=20260905-image-polish"/);
   assert.match(html, /href="\.\/styles\.css\?v=20260731-ui-refresh-r4"/);
   assert.match(html, /href="\.\/styles\.user-shell\.css\?v=20260802-locked-card"/);
   assert.match(html, /管理后台/);
@@ -754,7 +754,7 @@ test("unified page is world-entry metro station with pixel scene and hotspots", 
   assert.match(html, /data-default-shell-mode="unified"/);
   assert.match(html, /data-sfc-theme="city"/);
   assert.match(html, /href="\.\/styles\.world-entry\.css\?v=20260731-ui-refresh-r4/);
-  assert.match(html, /app\.js\?v=20260731-ui-refresh-r4/);
+  assert.match(html, /app\.js\?v=20260905-image-polish/);
   assert.match(html, /href="\.\/creative\.html"/);
   assert.match(html, /href="\.\/index\.html"/);
   assert.match(html, /href="\.\/world-square\.html"/);
@@ -4945,6 +4945,6 @@ test("mobile touch targets meet the 34px floor on small screens", async () => {
   const creativeHtml = await readShellPage("creative.html");
   const worldHtml = await readShellPage("world-square.html");
   assert.match(index, /styles\.pixel-map\.css\?v=20260802-scene-canvas-cqh/);
-  assert.match(creativeHtml, /styles\.creative\.css\?v=20260904-empty-note-unify/);
+  assert.match(creativeHtml, /styles\.creative\.css\?v=20260905-image-polish/);
   assert.match(worldHtml, /styles\.world-square\.css\?v=20260802-touch-targets/);
 });

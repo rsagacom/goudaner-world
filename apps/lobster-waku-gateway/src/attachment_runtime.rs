@@ -14,10 +14,11 @@
 use std::{fs, path::PathBuf};
 
 use crate::{GatewayRuntime, gateway_models::ShellMessageAttachment};
+pub(crate) use chat_core::{
+    ATTACHMENT_URL_PREFIX, attachment_reference, split_attachment_text, validate_attachment_id,
+};
 
 pub(crate) const MAX_ATTACHMENT_BYTES: usize = 5 * 1024 * 1024;
-pub(crate) const ATTACHMENT_URL_PREFIX: &str = "attachment://";
-const ATTACHMENT_ID_LEN: usize = 32;
 const ATTACHMENT_EXTENSIONS: [&str; 4] = ["png", "jpg", "gif", "webp"];
 
 /// Sniff the canonical image mime type from magic bytes.
@@ -58,35 +59,6 @@ fn generate_attachment_id() -> Result<String, String> {
     getrandom::getrandom(&mut entropy)
         .map_err(|error| format!("attachment id entropy failed: {error}"))?;
     Ok(entropy.iter().map(|byte| format!("{byte:02x}")).collect())
-}
-
-pub(crate) fn validate_attachment_id(raw: &str) -> bool {
-    raw.len() == ATTACHMENT_ID_LEN
-        && raw
-            .bytes()
-            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
-}
-
-/// Split a stored `plain_text` value into `(attachment id, caption)`.
-pub(crate) fn split_attachment_text(plain_text: &str) -> (Option<String>, String) {
-    let Some(rest) = plain_text.strip_prefix(ATTACHMENT_URL_PREFIX) else {
-        return (None, plain_text.to_string());
-    };
-    match rest.split_once('\n') {
-        Some((id, caption)) if validate_attachment_id(id) => {
-            (Some(id.to_string()), caption.to_string())
-        }
-        None if validate_attachment_id(rest) => (Some(rest.to_string()), String::new()),
-        _ => (None, plain_text.to_string()),
-    }
-}
-
-pub(crate) fn attachment_reference(id: &str, caption: &str) -> String {
-    if caption.is_empty() {
-        format!("{ATTACHMENT_URL_PREFIX}{id}")
-    } else {
-        format!("{ATTACHMENT_URL_PREFIX}{id}\n{caption}")
-    }
 }
 
 impl GatewayRuntime {
