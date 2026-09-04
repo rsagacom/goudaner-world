@@ -12,6 +12,7 @@ Last updated: 2026-09-04
 | 缓存纪律 | 已执行 | `styles.chat.css` 与 `styles.creative.css` 的 `?v=` 统一升为 `20260904-empty-note-unify`（index/admin/creative/admin-ds/unified 共 7 处引用 + 4 处测试钉住同步）。 |
 | 防回归 | 全绿 | 新增 `test/empty-note-unify.test.mjs` 4 用例；Web 单测 **1423/1423**、layout、frontend realness 通过。 |
 | 真实浏览器验证 | 已通过 | headless Chromium 在 index/creative/unified 三页注入探针：计算样式与合同一致（居中/深底/`#3a2f28` 边框/12px 圆角），0 未捕获错误。 |
+| CI 红修复 | 已完成 | 复盘发现上一提交 `91c3bc9` 的 CI `rust-smoke` 失败：`examples/native_waku_lab.rs` E0382（match move 后复用 `output`）；按编译器建议改为 `Ok(ref json)` 借用。本地 `cargo clippy -p transport-waku --features native-waku-rest -- -D warnings`、feature 单测 10/10、`cargo fmt --check` 全绿。该 example 仍属未验收 WIP，本次只修复阻塞 CI 的编译错误，不计为 P5.1 验收通过。 |
 | 部署状态 | 未部署 | 纯 web 静态变更，随下一发布批次上线；未 SSH、未打包、未动生产。 |
 | DMARC/SPF 现状取证 | 已复核 | 今日 DoH 实测：`resend._domainkey.chat.ajw.cn` DKIM 在位；`chat.ajw.cn` 无 SPF TXT、无 MX；`_dmarc.chat.ajw.cn` 与 `_dmarc.ajw.cn` 均无 DMARC。蓝图 8-01“SPF 已写入 Verified”与当前公网事实不符，按实测修正。 |
 | 待用户 DNS 操作 | 两条记录 | ① `chat.ajw.cn` TXT `v=spf1 include:send.resend.com ~all`（`send.resend.com` 实测发布 `v=spf1 include:amazonses.com ~all`）；② `_dmarc.chat.ajw.cn` TXT `v=DMARC1; p=quarantine;`（可选追加 `rua=mailto:<报告收件邮箱>`）。本机无 Cloudflare dns:write 凭据（wrangler OAuth 已过期且仅 `zone:read` 范围），需在 Cloudflare 控制台为 ajw.cn 区域添加。 |

@@ -98,7 +98,7 @@ fn main() {
         ),
     };
     match output {
-        Ok(json) => println!("{json}"),
+        Ok(ref json) => println!("{json}"),
         Err(_) => println!("{}", r#"{"status":"error","errorCode":"json_encoding"}"#),
     }
     if failed || output.is_err() {
