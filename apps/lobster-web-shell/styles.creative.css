@@ -2199,3 +2199,18 @@ body[data-room-ownership="visitor"] .creative-hud-ownership-badge--visitor {
   border-color: rgba(232, 222, 210, 0.55);
   color: rgba(232, 222, 210, 0.98);
 }
+
+/* 附件图片加载失败占位（error 捕获委托替换，深色小盒） */
+.message-attachment-failed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  max-width: min(320px, 100%);
+  padding: 10px 14px;
+  border: 1px dashed #3a2f28;
+  border-radius: 12px;
+  background: rgba(22, 16, 12, 0.55);
+  color: rgba(232, 222, 210, 0.62);
+  font-size: 12px;
+}

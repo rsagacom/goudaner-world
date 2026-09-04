@@ -336,3 +336,65 @@ test("disableSilently 上报退订并清除浏览器订阅，失败不阻塞登�
   assert.equal(posted[0].auth, "Bearer token-9");
   assert.equal(posted[0].body.endpoint, "https://push.example/abc");
 });
+
+// ---- 附件图片加载失败占位（shell-attachment-fallback） ----
+
+const fallbackUrl = new URL("../shell-attachment-fallback.js", import.meta.url);
+const { createAttachmentErrorFallback } = await import(
+  pathToFileURL(fallbackUrl.pathname).href
+);
+
+function fallbackHarness() {
+  const nodes = [];
+  const createElement = (tag) => {
+    const el = {
+      tagName: tag.toUpperCase(),
+      className: "",
+      textContent: "",
+      children: [],
+      listeners: new Map(),
+    };
+    nodes.push(el);
+    return el;
+  };
+  const docListeners = new Map();
+  const doc = {
+    createElement,
+    addEventListener(type, handler) {
+      docListeners.set(type, handler);
+    },
+  };
+  return { doc, docListeners, nodes };
+}
+
+test("附件图片 error 被替换为加载失败占位", () => {
+  const { doc, docListeners, nodes } = fallbackHarness();
+  const handler = createAttachmentErrorFallback({ document: doc }).handleError;
+  // 模拟：破图被捕获阶段 error 命中
+  const brokenImage = {
+    tagName: "IMG",
+    classList: { contains: (name) => name === "message-attachment" },
+    replaceWith: (node) => nodes.push({ replacedBy: node }),
+  };
+  handler({ target: brokenImage });
+  const fallback = nodes.find((node) => node.className === "message-attachment-failed");
+  assert.equal(fallback.textContent, "图片无法加载");
+  assert.equal(brokenImage.replacedBy, undefined);
+  void docListeners;
+});
+
+test("非附件图片的 error 不做替换", () => {
+  const { doc, nodes } = fallbackHarness();
+  const handler = createAttachmentErrorFallback({ document: doc }).handleError;
+  let replaced = false;
+  const avatar = {
+    tagName: "IMG",
+    classList: { contains: (name) => name === "avatar-image" },
+    replaceWith: () => {
+      replaced = true;
+    },
+  };
+  handler({ target: avatar });
+  assert.equal(replaced, false);
+  assert.equal(nodes.length, 0);
+});

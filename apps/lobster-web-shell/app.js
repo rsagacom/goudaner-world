@@ -125,6 +125,7 @@ import {
 } from "./shell-attachment-lightbox.js";
 import { initInstallHint } from "./shell-install-hint.js";
 import { initPushClient } from "./shell-push-client.js";
+import { installAttachmentErrorFallback } from "./shell-attachment-fallback.js";
 import {
   messageBodyDomSpec,
   messageQuickActionChipSpec,

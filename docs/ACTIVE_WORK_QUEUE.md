@@ -40,6 +40,14 @@ Last updated: 2026-09-05
 | install-hint 休眠探针 | 已完成 | realness 新增：manifest 链接指向 manifest.webmanifest、加桌引导 chip 在无安装提示的 headless 环境必须保持隐藏（不骚扰合同）。 |
 | 验证基线 | 全绿 | 备份单测 4/4；Web 1452/1452 + layout + realness（含推送休眠/优雅降级/加桌休眠探针）；脚本语法/panic 扫描/fmt 干净。 |
 
+## 2026-09-05 附件加载失败降级 + 探针扩面（本地全绿，未部署）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 附件加载失败占位 | 已完成 | 新 `shell-attachment-fallback.js`：document 捕获阶段接管 img.message-attachment 的 error（资源 error 不冒泡），替换为深色"图片无法加载"占位（防浏览器破图标）；网关不可达/附件清理/网络错误场景的健壮性。 |
+| 探针扩面 | 已完成 | `verifyPushToggleDormant`（推送钮休眠 + sw.js/图标同源 + 优雅降级点击）、`install-hint 休眠`（manifest 链接 + chip 隐藏）已入 realness 常设探针。 |
+| 验证基线 | 全绿 | push-client 10/10（+2 降级占位）；Web 1455/1455；layout/realness 全绿。 |
+
 ## 2026-09-05 R2 增量写第一步：timeline append-only journal（本地全绿，未部署）
 
 | 项目 | 状态 | 说明 |
