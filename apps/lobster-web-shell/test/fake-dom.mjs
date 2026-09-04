@@ -53,6 +53,7 @@ export const APP_LOCAL_IMPORT_PATHS = Object.freeze([
   "./shell-image-compress.js",
   "./shell-attachment-lightbox.js",
   "./shell-install-hint.js",
+  "./shell-push-client.js",
   "./shell-room-summary.js",
   "./shell-room-context.js",
   "./shell-auth.js",

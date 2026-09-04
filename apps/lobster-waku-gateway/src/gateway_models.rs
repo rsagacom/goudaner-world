@@ -1692,7 +1692,58 @@ pub(crate) struct GatewayRuntime {
     /// Hash of the inbound gateway-to-gateway federation credential. The raw
     /// token is read from the environment only and is never persisted.
     pub(crate) federation_token_hash: Option<String>,
+    pub(crate) push_subscriptions_path: PathBuf,
+    pub(crate) push_subscriptions: HashMap<String, PushSubscriptionRecord>,
+    pub(crate) vapid_key_path: PathBuf,
+    pub(crate) vapid_key: Option<VapidSigningKey>,
+    pub(crate) dead_push_endpoints: Arc<Mutex<Vec<String>>>,
     pub(crate) dev_auth_bypass: bool,
+}
+
+/// Debug-redacted wrapper so the signing key never leaks through logs.
+#[derive(Clone)]
+pub(crate) struct VapidSigningKey {
+    pub(crate) inner: Arc<crypto_mls::webpush::VapidKeyPair>,
+}
+
+impl std::fmt::Debug for VapidSigningKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("VapidSigningKey(<redacted>)")
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct PushSubscriptionRecord {
+    pub(crate) resident_id: IdentityId,
+    pub(crate) endpoint: String,
+    pub(crate) p256dh: String,
+    pub(crate) auth: String,
+    pub(crate) created_at_ms: i64,
+}
+
+/// Per-delivery snapshot handed to the detached push worker thread.
+#[derive(Clone, Debug)]
+pub(crate) struct PushTarget {
+    pub(crate) endpoint: String,
+    pub(crate) p256dh: String,
+    pub(crate) auth: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct PushSubscribeRequest {
+    pub(crate) endpoint: String,
+    pub(crate) keys: PushSubscriptionKeys,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct PushSubscriptionKeys {
+    pub(crate) p256dh: String,
+    pub(crate) auth: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct PushUnsubscribeRequest {
+    pub(crate) endpoint: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

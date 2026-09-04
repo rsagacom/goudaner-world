@@ -10,6 +10,8 @@ use ring::{aead, digest};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
+pub mod webpush;
+
 const KEY_LEN: usize = 32;
 const NONCE_LEN: usize = 12;
 const STORAGE_SNAPSHOT_VERSION: u8 = 1;

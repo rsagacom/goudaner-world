@@ -17,6 +17,7 @@ use chat_core::{
 
 use crate::{FileTimelineStore, TimelineStore};
 
+#[cfg(test)]
 #[test]
 #[ignore = "benchmark: run explicitly with cargo test -p chat-storage --release --ignored"]
 fn bench_journal_append_vs_snapshot_rewrite() {

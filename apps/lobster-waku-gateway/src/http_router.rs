@@ -28,6 +28,9 @@ use crate::{
         handle_post_submit_safety_report, handle_post_unsanction_resident,
         handle_post_update_city_trust,
     },
+    http_push_routes::{
+        handle_get_push_vapid_public_key, handle_post_push_subscribe, handle_post_push_unsubscribe,
+    },
     http_read_routes::{
         handle_get_admin_config, handle_get_admin_conversations, handle_get_admin_invites,
         handle_get_admin_logs, handle_get_admin_messages, handle_get_admin_messages_moderation,
@@ -259,6 +262,9 @@ pub(crate) fn dispatch_http_request(
             handle_post_shell_message(runtime, notifier, request)
         }
         (Method::Post, "/v1/shell/attachment") => handle_post_shell_attachment(runtime, request),
+        (Method::Get, "/v1/push/vapid-public-key") => handle_get_push_vapid_public_key(runtime),
+        (Method::Post, "/v1/push/subscribe") => handle_post_push_subscribe(runtime, request),
+        (Method::Post, "/v1/push/unsubscribe") => handle_post_push_unsubscribe(runtime, request),
         (Method::Post, "/v1/shell/scene") => handle_post_shell_scene(runtime, notifier, request),
         (Method::Post, "/v1/shell/message/recall") => {
             handle_post_shell_message_recall(runtime, notifier, request)

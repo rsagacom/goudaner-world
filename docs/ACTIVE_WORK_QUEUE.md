@@ -4,6 +4,17 @@ Last updated: 2026-09-05
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-09-05 WebPush 推送通知全链路（本地全绿，未部署；等真实浏览器端到端）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 复用门禁 | 已按审计收口 | 审计发现 crypto-mls 已依赖 ring 0.17（覆盖 ECDH/ES256/AES-128-GCM/HKDF）、gateway 已有 ureq——零新第三方依赖即可实现 WebPush，reuse prompt 的"按现有依赖继续"分支命中，无需用户裁决新依赖采纳。 |
+| 加密层 | 已完成 | `crypto-mls/src/webpush.rs`：RFC 8291 aes128gcm（86 字节帧头 + HKDF 链 + AES-128-GCM 单记录）与 RFC 8292 VAPID ES256 JWT；**RFC 8291 §5 固定向量逐字节复现**，另含 UA 侧解密仿真回环、非法订阅密钥拒绝、VAPID 验签。crypto-mls **29/29**（+5）。 |
+| Gateway | 已完成 | 订阅/VAPID 密钥 0600 原子持久化；三端点（公钥公开 GET、订阅/退订 Bearer POST）；订阅即 ECDH 试算 fail-closed；消息 publish 后 detached 线程投递（10s 超时，404/410 死信缓冲延后剪除，不阻塞发送）。Gateway **333/333**（+3，含真实 loopback 投递断言）。 |
+| H5 | 已完成 | `sw.js`（push→通知、点击聚焦，无离线缓存）+ `shell-push-client.js`（决策纯函数 + VAPID 订阅流 + composer"铃"开关钮，index/creative）；失败文案在 refresh 后写入避免被覆盖。Web **1452/1452**（+7）。 |
+| 验证基线 | 全绿 | chat-core 24 / chat-storage 27 / crypto-mls 29 / Gateway 333 / TUI 236 / CLI 148 / Web 1452 全绿；clippy `-D warnings`、fmt、panic 扫描干净。 |
+| 边界与待办 | 登记 | 真实推送服务端到端（FCM/APNs + iOS/Android 真机 + 生产 HTTPS）随下一发布批次；生产部署需单独授权。WebPush 不含 iOS Web Push 的安装前置校验（PWA 已就绪）。 |
+
 ## 2026-09-05 R2 增量写第一步：timeline append-only journal（本地全绿，未部署）
 
 | 项目 | 状态 | 说明 |

@@ -43,7 +43,7 @@ test("hub page is now main-city group chat page with canvas and timeline", async
   assert.match(html, /styles\.css\?v=20260731-ui-refresh-r4/);
   assert.match(html, /styles\.user-shell\.css\?v=20260802-locked-card/);
   assert.match(html, /styles\.pixel-map\.css\?v=20260802-scene-canvas-cqh/);
-  assert.match(html, /app\.js\?v=20260905-pwa-install/);
+  assert.match(html, /app\.js\?v=20260905-push-client/);
   assert.match(html, /data-symbol-trigger/);
   assert.match(html, /composer-symbol-category/);
   assert.match(html, /高兴/);
@@ -82,10 +82,10 @@ test("creative page is the residential pixel room entry", async () => {
   assert.match(html, /data-rail-visibility="owner-only"/);
   assert.match(html, /data-personal-room-policy="friends_only"/);
   assert.match(html, /data-personal-room-policy="registered_all"/);
-  assert.match(html, /styles\.creative\.css\?v=20260905-pwa-install/);
+  assert.match(html, /styles\.creative\.css\?v=20260905-push-client/);
   assert.match(html, /styles\.user-shell\.css\?v=20260802-locked-card/);
   assert.match(html, /styles\.pixel-map\.css\?v=20260802-scene-canvas-cqh/);
-  assert.match(html, /app\.js\?v=20260905-pwa-install/);
+  assert.match(html, /app\.js\?v=20260905-push-client/);
   assert.match(html, /data-symbol-trigger/);
   assert.match(html, /composer-symbol-category/);
   assert.match(html, /卖萌/);
@@ -754,7 +754,7 @@ test("unified page is world-entry metro station with pixel scene and hotspots", 
   assert.match(html, /data-default-shell-mode="unified"/);
   assert.match(html, /data-sfc-theme="city"/);
   assert.match(html, /href="\.\/styles\.world-entry\.css\?v=20260731-ui-refresh-r4/);
-  assert.match(html, /app\.js\?v=20260905-pwa-install/);
+  assert.match(html, /app\.js\?v=20260905-push-client/);
   assert.match(html, /href="\.\/creative\.html"/);
   assert.match(html, /href="\.\/index\.html"/);
   assert.match(html, /href="\.\/world-square\.html"/);
@@ -4945,6 +4945,6 @@ test("mobile touch targets meet the 34px floor on small screens", async () => {
   const creativeHtml = await readShellPage("creative.html");
   const worldHtml = await readShellPage("world-square.html");
   assert.match(index, /styles\.pixel-map\.css\?v=20260802-scene-canvas-cqh/);
-  assert.match(creativeHtml, /styles\.creative\.css\?v=20260905-pwa-install/);
+  assert.match(creativeHtml, /styles\.creative\.css\?v=20260905-push-client/);
   assert.match(worldHtml, /styles\.world-square\.css\?v=20260802-touch-targets/);
 });

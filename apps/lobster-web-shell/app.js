@@ -124,6 +124,7 @@ import {
   wireAttachmentLightbox,
 } from "./shell-attachment-lightbox.js";
 import { initInstallHint } from "./shell-install-hint.js";
+import { initPushClient } from "./shell-push-client.js";
 import {
   messageBodyDomSpec,
   messageQuickActionChipSpec,
@@ -1787,6 +1788,7 @@ if (timelineEl) {
     wireAttachmentLightbox(createAttachmentLightbox({ document }), { document }).element,
   );
   initInstallHint({ document });
+  initPushClient({ document, gatewayUrl, getSessionToken: () => getSessionToken() });
   let messageLongPressTimer = null;
   const cancelMessageLongPress = () => clearTimeout(messageLongPressTimer);
   timelineEl.addEventListener("contextmenu", (event) => {

@@ -13104,3 +13104,193 @@ fn attachment_projection_hidden_after_recall() {
     );
     assert_eq!(projected.text, "消息已撤回");
 }
+
+// ---- WebPush（蓝图序 2）：订阅持久化、VAPID 密钥稳定、真实投递 ----
+
+fn push_test_keys() -> (String, String) {
+    // RFC 8291 §5 的合法 P-256 公钥（非法点会让 ECDH 拒绝，投递无法验证）
+    let p256dh = crypto_mls::webpush::base64url_decode(
+        "BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4",
+    )
+    .expect("rfc ua public key");
+    let auth = crypto_mls::webpush::base64url_decode("BTBZMqHH6r4Tts7J_aSIgg").expect("rfc auth");
+    (
+        crypto_mls::webpush::base64url_encode(&p256dh),
+        crypto_mls::webpush::base64url_encode(&auth),
+    )
+}
+
+#[test]
+fn push_subscription_and_vapid_key_persist_across_reopen() {
+    let temp = tempdir().expect("temp dir");
+    let root = temp.path().join("gateway");
+    let endpoint = "https://push.example/fcm/send/abc";
+
+    let public_before = {
+        let mut runtime = GatewayRuntime::open(&root, 64, None).expect("open runtime");
+        let public_before = runtime
+            .vapid_public_key_base64url()
+            .expect("vapid key generated on first open");
+        let (p256dh, auth) = push_test_keys();
+        runtime
+            .push_subscribe(&IdentityId("alice".into()), endpoint, &p256dh, &auth)
+            .expect("subscribe");
+        // 远程 HTTP 端点必须被拒绝（生产合同）
+        assert!(
+            runtime
+                .push_subscribe(
+                    &IdentityId("alice".into()),
+                    "http://push.example/abc",
+                    &p256dh,
+                    &auth
+                )
+                .is_err()
+        );
+        // 非法订阅密钥必须被拒绝
+        assert!(
+            runtime
+                .push_subscribe(&IdentityId("alice".into()), endpoint, "short", &auth)
+                .is_err()
+        );
+        public_before
+    };
+
+    let mut restored = GatewayRuntime::open(&root, 64, None).expect("reopen runtime");
+    assert_eq!(
+        restored.vapid_public_key_base64url().as_deref(),
+        Some(public_before.as_str()),
+        "VAPID 私钥必须跨重启稳定，否则浏览器订阅全部失效"
+    );
+    assert_eq!(
+        restored
+            .push_subscription_resident(endpoint)
+            .map(|resident| resident.0.clone()),
+        Some("alice".into())
+    );
+
+    restored.push_unsubscribe(endpoint).expect("unsubscribe");
+    assert!(restored.push_subscription_resident(endpoint).is_none());
+    drop(restored);
+    let final_runtime = GatewayRuntime::open(&root, 64, None).expect("final reopen");
+    assert!(final_runtime.push_subscription_resident(endpoint).is_none());
+}
+
+#[test]
+fn push_delivery_posts_encrypted_frame_to_subscriber_endpoint() {
+    let server = tiny_http::Server::http("127.0.0.1:0").expect("bind test push service");
+    let port = server
+        .server_addr()
+        .to_ip()
+        .expect("test push service address")
+        .port();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut request = match server.recv() {
+            Ok(request) => request,
+            Err(error) => {
+                eprintln!("push-test: recv failed: {error}");
+                return;
+            }
+        };
+        eprintln!("push-test: accepted connection");
+        let method = request.method().to_string();
+        let headers: Vec<(String, String)> = request
+            .headers()
+            .iter()
+            .map(|header| {
+                (
+                    header.field.as_str().as_str().to_string(),
+                    header.value.as_str().to_string(),
+                )
+            })
+            .collect();
+        let mut body = Vec::new();
+        request.as_reader().read_to_end(&mut body).unwrap();
+        eprintln!("push-test: read body {} bytes", body.len());
+        let response =
+            tiny_http::Response::from_string("").with_status_code(tiny_http::StatusCode(201));
+        let _ = request.respond(response);
+        eprintln!("push-test: responded 201");
+        let _ = tx.send((method, headers, body));
+    });
+
+    let temp = tempdir().expect("temp dir");
+    let mut runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
+
+    let alice = IdentityId("alice".into());
+    let bob = IdentityId("bob".into());
+    let dm = runtime.resolve_direct_conversation_id(&alice, &bob);
+    runtime
+        .ensure_direct_conversation(&dm, &[alice.clone(), bob.clone()])
+        .expect("ensure dm");
+
+    let endpoint = format!("http://127.0.0.1:{port}/push/send/abc");
+    let (p256dh, auth) = push_test_keys();
+    runtime
+        .push_subscribe(&bob, &endpoint, &p256dh, &auth)
+        .expect("subscribe bob");
+
+    runtime
+        .append_shell_message(ShellMessageRequest {
+            room_id: dm.0.clone(),
+            sender: "alice".into(),
+            text: "推送这条".into(),
+            attachment_id: None,
+            reply_to_message_id: None,
+            device_id: Some("browser".into()),
+            language_tag: Some("zh-CN".into()),
+        })
+        .expect("send message");
+
+    let (method, headers, body) = rx
+        .recv_timeout(std::time::Duration::from_secs(60))
+        .expect("push delivery should reach the subscriber endpoint");
+    assert_eq!(method, "POST");
+    let header_value = |name: &str| {
+        headers
+            .iter()
+            .find(|(field, _)| field.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.clone())
+    };
+    assert_eq!(
+        header_value("Content-Encoding").as_deref(),
+        Some("aes128gcm")
+    );
+    assert_eq!(header_value("TTL").as_deref(), Some("86400"));
+    let authorization = header_value("Authorization").expect("vapid authorization header");
+    assert!(authorization.starts_with("vapid t="), "{authorization}");
+    assert!(authorization.contains("k="), "{authorization}");
+    // aes128gcm 帧：86 字节头 + 载荷 + 分隔符 + 16 字节 tag
+    assert!(body.len() > 86 + 16);
+    assert_eq!(&body[16..20], &4096u32.to_be_bytes());
+    assert_eq!(body[20], 65);
+}
+
+#[test]
+fn webpush_crypto_smoke_in_gateway_binary() {
+    let ua_public = crypto_mls::webpush::base64url_decode(
+        "BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4",
+    )
+    .expect("ua key");
+    let auth = crypto_mls::webpush::base64url_decode("BTBZMqHH6r4Tts7J_aSIgg").expect("auth");
+    eprintln!("smoke: main thread encrypt");
+    let frame = crypto_mls::webpush::encrypt_message(b"smoke", &ua_public, &auth).expect("encrypt");
+    eprintln!("smoke: encrypted {} bytes", frame.len());
+    assert!(frame.len() > 86);
+
+    eprintln!("smoke: spawning worker thread encrypt");
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        eprintln!("smoke: worker calling encrypt_message");
+        let result = crypto_mls::webpush::encrypt_message(b"smoke", &ua_public, &auth);
+        eprintln!("smoke: worker done");
+        let _ = tx.send(result);
+    });
+    match rx.recv_timeout(std::time::Duration::from_secs(5)) {
+        Ok(result) => {
+            let frame2 = result.expect("worker encrypt");
+            eprintln!("smoke: worker encrypted {} bytes", frame2.len());
+        }
+        Err(_) => eprintln!("smoke: WORKER THREAD TIMED OUT"),
+    }
+}

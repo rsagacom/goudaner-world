@@ -402,6 +402,14 @@
 - **第 3 步节点构建暂停**，根因链四条（均非 adapter 代码问题）：cachyos-ai 直连 github 传输层不稳（已启用 ghfast.top 重写，lock sha1 兜底完整性）；`packages_official.json` 曾截断 2290/2918（已补全）；pkgcache 曾被污染（已清空）；**当前阻塞：lock 钉 `nim 2.2.4` 但同钉的 `ffi@53515de` 要求 `nim >= 2.2.6`，nimble 0.22.3 解析矛盾**（上游 CI 同参数理论应过，未复现）。
 - **lab 环境已固化**（cachyos-ai `/mnt/gaosu_sata/labs/lobster-chat-p5-waku/`）：固定源码已验证、最小 lobster 工作区、cargo/rustup 工具链、retry 脚本、lab example 构建成功（rsproxy 镜像仅入实验室 CARGO_HOME）。恢复顺序与详细环境见 `docs/ACTIVE_WORK_QUEUE.md` 顶部 2026-09-04 P5.1 区块。
 
+### WebPush 推送通知全链路（2026-09-05）
+
+- **依赖审计先行**：crypto-mls 已依赖 ring 0.17（agreement=ECDH P-256、signature=ES256、aead=AES-128-GCM、hkdf），gateway 已有 ureq——RFC 8291 加密 + RFC 8292 VAPID 零新依赖实现，reuse 门禁按"按现有依赖继续"分支处理。
+- **加密原语（`crypto-mls/src/webpush.rs`）**：RFC 8291 aes128gcm（ECDH→HKDF→AES-128-GCM→86 字节帧头）+ RFC 8292 VAPID ES256 JWT；**RFC 8291 §5 固定密钥向量逐字节复现**（锁定全部 info 串/记录布局/帧头），另含浏览器侧解密仿真回环、非法订阅密钥拒绝、VAPID 签名验签与 claims 结构测试。crypto-mls **29/29**（+5）。
+- **Gateway（`push_runtime.rs` + 三端点）**：订阅持久化 `push-subscriptions.json` + VAPID 私钥 `vapid-signing-key.json`（均 0600 原子写，密钥 Debug 脱敏包装）；`GET /v1/push/vapid-public-key`（公开）、`POST /v1/push/subscribe|unsubscribe`（Bearer，订阅即 ECDH 试算 fail-closed 拒绝非法曲线点）；消息 publish 后向其他参与者投递（detached 线程 + 10s 超时，404/410 经死信缓冲在下次投递时剪除，永不阻塞发送路径）。生产合同：端点必须 HTTPS（loopback http 仅 dev/test）。Gateway **333/333**（+3：持久化重开/密钥稳定/真实 loopback 投递断言帧头与 VAPID 头）。
+- **H5（`sw.js` + `shell-push-client.js`）**：最小 service worker（push→showNotification、notificationclick→聚焦/打开、无离线缓存）；客户端决策纯函数（unsupported/denied/subscribed/unsubscribed）+ VAPID 订阅流 + 开关钮（composer"铃"钮，index/creative）；`pushCapabilityState`/`urlBase64ToUint8Array`/`buildSubscribePayload` 均可单测。新 `test/push-client.test.mjs` 7 用例；Web **1452/1452**。
+- **部署边界**：推送端到端（真实 FCM/APNs 网关、iOS/Android 真机）需生产 HTTPS 环境验收，随下一发布批次；本轮全部仅本地验证。
+
 ### R2 增量写第一步 + PWA 最小版（2026-09-05）
 
 - **R2 append-only journal（`crates/chat-storage/src/timeline_journal.rs`）**：追加从"每条消息全量重写 `<id>.postcard`"降为 O(帧) 的 CRC 帧追加；帧 = 手工定长头 `[len u32 LE][crc32 u32 LE]` + postcard 条目。压实双预算：满 128 帧**或 journal ≥1MiB**（图片消息后纯帧数会漏算大对象）自动折叠进快照；edit/recall/archive 仍走快照重写（低频）并删 journal 保快照唯一权威。加载 = 快照（含三代 legacy）+ journal 重放，`message_id` 去重覆盖"快照已写、journal 未删"崩溃窗口；撕裂尾/坏帧加载时截断修复。追加失败回滚 = 内存 pop + journal 截回追加前长度，此前帧保持持久。**Trait、postcard 格式、文件布局零迁移**，Gateway/TUI/CLI 无感知。chat-storage **27/27**（+9 用例）。零新依赖。
@@ -459,7 +467,7 @@ Rust 55,355 行 + 前端源码 ~37,000 行 + 2,187 测试全绿 + 可追溯生�
 | 序 | 事项 | 理由 | 量级 | 状态 |
 |----|------|------|------|------|
 | 1 | 图片消息链路（上传端点+气泡渲染） | 运营第一缺口；M2 消息引擎从 90% 补到 97% | 1-2 周 | 🟢 本地收口 2026-09-05（`74a33ca` 切片 + 合同下沉/TUI 降级/发送压缩/看原图灯箱，见进度日志）；待做：生产发布 |
-| 2 | WebPush 通知（Gateway 事件订阅 + Push API） | IM 留存底线，无推送勿谈运营 | 1 周 | ⏸ 未开始——Rust 侧需引入 web-push/p256 类依赖，已按门禁发起 `atlasctl reuse prompt --capability webpush-gateway-notifications`，等用户裁决后才能进入调研/选型 |
+| 2 | WebPush 通知（Gateway 事件订阅 + Push API） | IM 留存底线，无推送勿谈运营 | 1 周 | 🟢 本地收口 2026-09-05（审计结论：ring/ureq 树内已覆盖，零新依赖；RFC 8291 §5 逐字节向量通过）；待做：真实浏览器/推送服务端到端验收、生产发布 |
 | 3 | R3 panic 隔离 | release 移除 panic=abort + 请求边界 catch_unwind 500 兜底 + 锁投毒恢复 | 1-2 天 | ✅ 2026-09-04 完成 |
 | 4 | R2 增量写（timeline 改 append-only 帧流） | 消息量增长前修，全量重写 IO 是首个性能悬崖 | 3-5 天 | 🟡 第一步完成 2026-09-05：journal 帧流 + 阈值压实 + 撕裂尾修复落地 chat-storage（26 测试，trait/格式零迁移）；待做：字节级压实阈值、压测、生产发布 |
 | 5 | PWA manifest 最小版 + 加桌引导 | 移动端安装入口 | 1 天 | ✅ 2026-09-05 完成（manifest+像素图标+iOS/Android 引导 chip，无 service worker）；生产发布随下一批次 |

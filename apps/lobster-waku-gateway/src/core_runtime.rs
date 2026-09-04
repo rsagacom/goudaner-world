@@ -46,6 +46,8 @@ impl GatewayRuntime {
             personal_room_access_policies_path: storage_root
                 .join("personal-room-access-policies.json"),
             resident_relationships_path: storage_root.join("resident-relationships.json"),
+            push_subscriptions_path: storage_root.join("push-subscriptions.json"),
+            vapid_key_path: storage_root.join("vapid-signing-key.json"),
             audit_log_path: storage_root.join("audit-log.json"),
             device_state_path: storage_root.join("device-state.json"),
             timeline_store,
@@ -78,6 +80,9 @@ impl GatewayRuntime {
             resident_permission_groups: HashMap::new(),
             personal_room_access_policies: HashMap::new(),
             resident_relationships: HashMap::new(),
+            push_subscriptions: HashMap::new(),
+            vapid_key: None,
+            dead_push_endpoints: Arc::new(Mutex::new(Vec::new())),
             audit_events: Vec::new(),
             audit_counter: 0,
             agent_token_hashes: Self::agent_token_hashes_default(),
@@ -99,6 +104,7 @@ impl GatewayRuntime {
         runtime.load_permission_groups()?;
         runtime.load_personal_room_access_policies()?;
         runtime.load_resident_relationships()?;
+        runtime.load_push_state()?;
         runtime.load_audit_log()?;
         runtime.ensure_default_world_safety()?;
         if cli_provider_url.is_some() {

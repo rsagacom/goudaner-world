@@ -261,11 +261,22 @@ impl GatewayRuntime {
             None => text.clone(),
         };
         self.validate_authenticated_sender(&sender)?;
+
         self.validate_public_room_post(&conversation_id, &sender)?;
         self.validate_direct_message_post(&conversation_id, &sender)?;
         self.validate_reply_reference(&conversation_id, reply_to_message_id.as_ref())?;
         let message_id = self.next_message_id();
         let response_text = text.clone();
+        let push_preview = if attachment_id.is_some() {
+            if response_text.is_empty() {
+                "[图片]".to_string()
+            } else {
+                format!("[图片] {response_text}")
+            }
+        } else {
+            response_text.clone()
+        };
+        let push_sender = sender.clone();
         let message = MessageEnvelope {
             message_id: MessageId(message_id.clone()),
             conversation_id: conversation_id.clone(),
@@ -296,6 +307,8 @@ impl GatewayRuntime {
             ephemeral: false,
         };
         self.publish_message(message)?;
+        // 蓝图序 2：居民消息成功落库后向其他参与者推送（fire-and-forget）
+        self.deliver_message_push(&conversation_id, &push_sender, &push_preview);
 
         Ok(ShellMessageResponse {
             ok: true,
