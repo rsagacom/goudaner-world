@@ -409,6 +409,7 @@
 - **Gateway（`push_runtime.rs` + 三端点）**：订阅持久化 `push-subscriptions.json` + VAPID 私钥 `vapid-signing-key.json`（均 0600 原子写，密钥 Debug 脱敏包装）；`GET /v1/push/vapid-public-key`（公开）、`POST /v1/push/subscribe|unsubscribe`（Bearer，订阅即 ECDH 试算 fail-closed 拒绝非法曲线点）；消息 publish 后向其他参与者投递（detached 线程 + 10s 超时，404/410 经死信缓冲在下次投递时剪除，永不阻塞发送路径）。生产合同：端点必须 HTTPS（loopback http 仅 dev/test）。Gateway **333/333**（+3：持久化重开/密钥稳定/真实 loopback 投递断言帧头与 VAPID 头）。
 - **H5（`sw.js` + `shell-push-client.js`）**：最小 service worker（push→showNotification、notificationclick→聚焦/打开、无离线缓存）；客户端决策纯函数（unsupported/denied/subscribed/unsubscribed）+ VAPID 订阅流 + 开关钮（composer"铃"钮，index/creative）；`pushCapabilityState`/`urlBase64ToUint8Array`/`buildSubscribePayload` 均可单测。新 `test/push-client.test.mjs` 7 用例；Web **1452/1452**。
 - **部署边界**：推送端到端（真实 FCM/APNs 网关、iOS/Android 真机）需生产 HTTPS 环境验收，随下一发布批次；本轮全部仅本地验证。
+- **推送范围决策**：仅私聊（dm:/个人房间参与者）触发推送；公共房间消息不推送——全城广播推送等于轰炸，等真实用户信号再设计提及/订阅类机制。CLI/Agent 通道（`send_cli_message`）与 H5 通道同等触发，保证 OpenClaw/Codex 直发的消息也能通知到人。
 
 ### R2 增量写第一步 + PWA 最小版（2026-09-05）
 

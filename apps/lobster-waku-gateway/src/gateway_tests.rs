@@ -13294,3 +13294,67 @@ fn webpush_crypto_smoke_in_gateway_binary() {
         Err(_) => eprintln!("smoke: WORKER THREAD TIMED OUT"),
     }
 }
+
+#[test]
+fn push_delivery_covers_cli_agent_channel() {
+    let server = tiny_http::Server::http("127.0.0.1:0").expect("bind test push service");
+    let port = server
+        .server_addr()
+        .to_ip()
+        .expect("test push service address")
+        .port();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut request = server.recv().expect("recv push request");
+        let headers: Vec<(String, String)> = request
+            .headers()
+            .iter()
+            .map(|header| {
+                (
+                    header.field.as_str().as_str().to_string(),
+                    header.value.as_str().to_string(),
+                )
+            })
+            .collect();
+        let mut body = Vec::new();
+        request.as_reader().read_to_end(&mut body).unwrap();
+        let response =
+            tiny_http::Response::from_string("").with_status_code(tiny_http::StatusCode(201));
+        let _ = request.respond(response);
+        let _ = tx.send((headers, body));
+    });
+
+    let temp = tempdir().expect("temp dir");
+    let mut runtime = GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime");
+
+    // rsaga 的浏览器订阅（CLI/Agent 通道发出的消息同样应触发推送）
+    let endpoint = format!("http://127.0.0.1:{port}/push/send/cli");
+    let (p256dh, auth) = push_test_keys();
+    runtime
+        .push_subscribe(&IdentityId("rsaga".into()), &endpoint, &p256dh, &auth)
+        .expect("subscribe rsaga");
+
+    runtime
+        .send_cli_message(CliSendRequest {
+            from: "agent:openclaw".into(),
+            to: "user:rsaga".into(),
+            text: "agent 定时提醒".into(),
+            client_tag: Some("openclaw".into()),
+        })
+        .expect("cli send");
+
+    let (headers, body) = rx
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .expect("cli-originated message should push to the subscriber endpoint");
+    let header_value = |name: &str| {
+        headers
+            .iter()
+            .find(|(field, _)| field.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.clone())
+    };
+    assert_eq!(
+        header_value("Content-Encoding").as_deref(),
+        Some("aes128gcm")
+    );
+    assert!(body.len() > 86 + 16);
+}

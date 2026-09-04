@@ -353,6 +353,8 @@ impl GatewayRuntime {
         };
 
         let message_id = self.next_message_id();
+        let push_sender = sender.clone();
+        let push_preview = text.clone();
         let message = MessageEnvelope {
             message_id: MessageId(message_id.clone()),
             conversation_id: conversation_id.clone(),
@@ -371,6 +373,8 @@ impl GatewayRuntime {
             ephemeral: false,
         };
         self.publish_message(message)?;
+        // CLI/Agent 通道与 H5 通道同等触发推送（fire-and-forget）
+        self.deliver_message_push(&conversation_id, &push_sender, &push_preview);
 
         Ok(CliSendResponse {
             ok: true,

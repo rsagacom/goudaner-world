@@ -14,6 +14,8 @@ Last updated: 2026-09-05
 | H5 | 已完成 | `sw.js`（push→通知、点击聚焦，无离线缓存）+ `shell-push-client.js`（决策纯函数 + VAPID 订阅流 + composer"铃"开关钮，index/creative）；失败文案在 refresh 后写入避免被覆盖。Web **1452/1452**（+7）。 |
 | 验证基线 | 全绿 | chat-core 24 / chat-storage 27 / crypto-mls 29 / Gateway 333 / TUI 236 / CLI 148 / Web 1452 全绿；clippy `-D warnings`、fmt、panic 扫描干净。 |
 | 边界与待办 | 登记 | 真实推送服务端到端（FCM/APNs + iOS/Android 真机 + 生产 HTTPS）随下一发布批次；生产部署需单独授权。WebPush 不含 iOS Web Push 的安装前置校验（PWA 已就绪）。 |
+| CLI 通道覆盖 | 已完成 | `send_cli_message` 与 H5 通道同等触发推送——OpenClaw/Codex 等 Agent 直发的消息也能通知到人（蓝图运营阶段③差异化卖点的前置）。Gateway **334/334**（+1：`push_delivery_covers_cli_agent_channel`）。 |
+| 推送范围决策 | 已记录 | 仅私聊参与者触发推送；公共房间消息不推送（全城广播=轰炸），等真实用户信号再设计提及/订阅机制。已写入蓝图 WebPush 小节。 |
 
 ## 2026-09-05 发布预演：新 SHA 制品已生成并验收（DEPLOYMENT §1 本地门禁，无生产写入）
 
