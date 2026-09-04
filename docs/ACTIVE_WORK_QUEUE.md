@@ -4,7 +4,7 @@ Last updated: 2026-09-04
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
-## 2026-09-04 可选加固执行：empty-note 视觉统一（已完成）+ DMARC/SPF（待用户 DNS 操作）
+## 2026-09-04 可选加固执行：empty-note 视觉统一（已完成）+ DMARC/SPF（已完成）
 
 | 项目 | 状态 | 说明 |
 | --- | --- | --- |
@@ -14,8 +14,9 @@ Last updated: 2026-09-04
 | 真实浏览器验证 | 已通过 | headless Chromium 在 index/creative/unified 三页注入探针：计算样式与合同一致（居中/深底/`#3a2f28` 边框/12px 圆角），0 未捕获错误。 |
 | CI 红修复 | 已完成 | 复盘发现上一提交 `91c3bc9` 的 CI `rust-smoke` 失败：`examples/native_waku_lab.rs` E0382（match move 后复用 `output`）；按编译器建议改为 `Ok(ref json)` 借用。本地 `cargo clippy -p transport-waku --features native-waku-rest -- -D warnings`、feature 单测 10/10、`cargo fmt --check` 全绿。该 example 仍属未验收 WIP，本次只修复阻塞 CI 的编译错误，不计为 P5.1 验收通过。 |
 | 部署状态 | 未部署 | 纯 web 静态变更，随下一发布批次上线；未 SSH、未打包、未动生产。 |
-| DMARC/SPF 现状取证 | 已复核 | 今日 DoH 实测：`resend._domainkey.chat.ajw.cn` DKIM 在位；`chat.ajw.cn` 无 SPF TXT、无 MX；`_dmarc.chat.ajw.cn` 与 `_dmarc.ajw.cn` 均无 DMARC。蓝图 8-01“SPF 已写入 Verified”与当前公网事实不符，按实测修正。 |
-| 待用户 DNS 操作 | 两条记录 | ① `chat.ajw.cn` TXT `v=spf1 include:send.resend.com ~all`（`send.resend.com` 实测发布 `v=spf1 include:amazonses.com ~all`）；② `_dmarc.chat.ajw.cn` TXT `v=DMARC1; p=quarantine;`（可选追加 `rua=mailto:<报告收件邮箱>`）。本机无 Cloudflare dns:write 凭据（wrangler OAuth 已过期且仅 `zone:read` 范围），需在 Cloudflare 控制台为 ajw.cn 区域添加。 |
+| DMARC/SPF 现状取证 | 已复核并修正 | 取证两步走：①起初只查 `chat.ajw.cn` 顶点，误判"SPF 缺失"；②复核 Resend 实际布局后确认信封域 SPF 一直在正确位置 `send.chat.ajw.cn`（`v=spf1 include:amazonses.com ~all`），DKIM `resend._domainkey.chat.ajw.cn` 在位，真正缺的只有 DMARC（顶点与区域级均无）。 |
+| DNS 记录落地 | 已完成 | 经用户授权的 Cloudflare 控制台自动化创建最小权限令牌（仅 ajw.cn 区域 DNS 编辑）后通过 API 添加：① `_dmarc.chat.ajw.cn` TXT `v=DMARC1; p=quarantine;`；② `chat.ajw.cn` TXT `v=spf1 include:send.chat.ajw.cn ~all`（严格 SPF 对齐辅助）。Google/Cloudflare 双 DoH 复核均已生效。 |
+| 一次性令牌生命周期 | 已收口 | 令牌 `lobster-dmarc-spf` 创建→使用→已在控制台删除；删除后 API verify 返回 Invalid API Token，确认失效。令牌值未写入仓库/文档/Atlas。 |
 
 ## 2026-09-04 项目复盘与推进计划（停摆 15 天后的恢复评估）
 

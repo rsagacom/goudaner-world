@@ -389,12 +389,12 @@
 - **公开仓库脱敏**：生产验收文档不再记录真实测试邮箱和居民标识；未写入 Token、验证码、API key 或凭据值
 - **本地验证基线**：Rust workspace、clippy、CLI、认证、居民主链、Web 1412、双浏览器、TUI、provider federation、备份单测和 panic scan 全绿；本阶段未重新部署生产
 
-### 可选加固：empty-note 视觉统一 + DMARC/SPF 取证（2026-09-04）
+### 可选加固：empty-note 视觉统一 + DMARC/SPF（2026-09-04，均已完成）
 
 - **empty-note 统一（已完成）**：`.empty-note` 唯一真源从 `styles.chat.css` 移到所有 app.js 页面（index/admin/creative/unified）共同加载的 `styles.creative.css`；规则为 `.empty-note:not(.timeline-empty-card)` 深色小卡片（`rgba(22,16,12,.55)` 底 + `#3a2f28` 边框 + 居中 12px 圆角），修复 creative/unified 页面空态此前完全无样式的问题；时间线空态卡片经 `:not()` 排除，合同不变。
 - **缓存纪律**：`styles.chat.css` / `styles.creative.css` 的 `?v=` 统一升为 `20260904-empty-note-unify`（5 页共 7 处引用 + 4 处测试钉住同步）。
 - **防回归**：新增 `test/empty-note-unify.test.mjs` 4 用例；Web 单测 **1423/1423**、layout、frontend realness 全绿；headless Chromium 三页探针计算样式与合同一致、0 未捕获错误。未部署生产，随下一发布批次上线。
-- **DMARC/SPF 公网取证（按实测修正）**：DoH 实测 `resend._domainkey.chat.ajw.cn` DKIM 在位；`chat.ajw.cn` 无 SPF TXT、无 MX；`_dmarc.chat.ajw.cn` 与 `_dmarc.ajw.cn` 均无 DMARC。8-01 记录的“SPF 已写入 Verified”与当前公网不符。待用户在 Cloudflare 添加：`chat.ajw.cn` TXT `v=spf1 include:send.resend.com ~all` 与 `_dmarc.chat.ajw.cn` TXT `v=DMARC1; p=quarantine;`。
+- **DMARC/SPF（已落地）**：取证修正——Resend 信封域 SPF 一直在正确位置 `send.chat.ajw.cn`（`include:amazonses.com`），DKIM 在位，真正缺的只有 DMARC。经用户授权用最小权限一次性令牌（仅 ajw.cn DNS 编辑，用后即删）添加：`_dmarc.chat.ajw.cn` TXT `v=DMARC1; p=quarantine;` 与 `chat.ajw.cn` TXT `v=spf1 include:send.chat.ajw.cn ~all`（严格对齐辅助）；Google/Cloudflare 双 DoH 复核生效，令牌已删除并验证失效。
 
 ### 真实进度（2026-08-13）
 
@@ -425,9 +425,9 @@
 
 1. **单城集中式 IM 已完成面保持**：P0/P1/P2/P4 全部收口并生产验证；日常按 release gate + 备份 timer 维持
 2. **P5 跨城/MLS 加密**：PRODUCT_CHARTER 后置项，是“完全落地”路线上的下一个主战场；P5.0 已审批，P5.1 暂停在 adapter 审查/节点构建之前，下一动作按上方暂停交接恢复隔离双节点 lab，而不是修改生产协议
-3. **可选加固（不阻塞）**：DMARC/SPF TXT（Cloudflare，2026-09-04 已取证并给出记录值，待用户 DNS 操作）、empty-note 视觉统一（✅ 2026-09-04 完成）
+3. **可选加固（不阻塞）**：均已完成——DMARC/SPF TXT 已添加并生效（2026-09-04）、empty-note 视觉统一已完成（2026-09-04）。当前无剩余低价值加固项。
 
-（已完成的候选：生产环境复验 2026-08-01；P1 空间交互 polish、备份脚本化/定期化 2026-08-02。）
+（已完成的候选：生产环境复验 2026-08-01；P1 空间交互 polish、备份脚本化/定期化 2026-08-02；DMARC/SPF TXT、empty-note 视觉统一 2026-09-04。）
 
 剩余 app.js 候选 3/4/5（消息 payload 已做；房间状态/连接/同步文案、shellMode 视图状态文案）收益小（各 15-28 行）且多耦合运行时状态或 DOM，边际递减。
 
