@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    panic::{self, AssertUnwindSafe},
     path::PathBuf,
     sync::{Arc, Condvar, Mutex, MutexGuard},
     time::Instant,
@@ -20,7 +21,7 @@ use crypto_mls::{
     SecureSessionStorageKey, SkeletonSecureSessionManager,
 };
 use serde::{Deserialize, Serialize};
-use tiny_http::Server;
+use tiny_http::{Response, Server, StatusCode};
 use transport_waku::{
     EncodedFrame, HttpWakuGatewayClient, InMemoryWakuLightNode, TopicSubscription,
     WakuConnectionState, WakuEndpointConfig, WakuGatewayRequest, WakuGatewayResponse,
@@ -55,9 +56,9 @@ mod transport_runtime;
 
 use federation_read::GatewayFederationReadPlan;
 use gateway_models::*;
-use http_router::dispatch_http_request;
+use http_router::{HttpResponse, dispatch_http_request};
 use http_support::{
-    ResponseHeaderExt, cors_headers_header, cors_methods_header, cors_origin_header,
+    ResponseHeaderExt, cors_headers_header, cors_methods_header, cors_origin_header, json_header,
     parse_cli_address, parse_cli_args, security_headers,
 };
 
@@ -156,8 +157,9 @@ fn main() -> Result<(), String> {
         let notifier = Arc::clone(&notifier);
         let listen_addr = listen_addr.clone();
         std::thread::spawn(move || {
-            let mut response =
-                dispatch_http_request(&runtime, &notifier, &listen_addr, &mut request);
+            let mut response = panic_guard_response(|| {
+                dispatch_http_request(&runtime, &notifier, &listen_addr, &mut request)
+            });
 
             response = response
                 .with_optional_header(cors_origin_header())
@@ -174,6 +176,68 @@ fn main() -> Result<(), String> {
     Ok(())
 }
 
+/// 单个请求 handler panic 时兜底返回 500，避免 panic 传播到线程边界；
+/// 配合各 `with_runtime` 的锁投毒恢复，单个请求故障不再拖垮整个网关。
+fn panic_guard_response(dispatch: impl FnOnce() -> HttpResponse) -> HttpResponse {
+    match panic::catch_unwind(AssertUnwindSafe(dispatch)) {
+        Ok(response) => response,
+        Err(payload) => {
+            eprintln!(
+                "error: request handler panicked: {}",
+                panic_payload_message(&payload)
+            );
+            Response::from_string(
+                serde_json::to_string(&WakuGatewayResponse::Error {
+                    message: "internal gateway error".into(),
+                })
+                .unwrap_or_else(|_| "{\"error\":true}".into()),
+            )
+            .with_status_code(StatusCode(500))
+            .with_optional_header(json_header())
+        }
+    }
+}
+
+fn panic_payload_message(payload: &Box<dyn std::any::Any + Send>) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        (*message).to_string()
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else {
+        "unknown panic payload".into()
+    }
+}
+
+#[cfg(test)]
+mod panic_guard_tests {
+    use super::{panic_guard_response, panic_payload_message};
+    use crate::http_router::HttpResponse;
+    use tiny_http::{Response, StatusCode};
+
+    fn ok_response() -> HttpResponse {
+        Response::from_string("ok").with_status_code(StatusCode(200))
+    }
+
+    #[test]
+    fn panic_guard_passes_through_normal_response() {
+        let response = panic_guard_response(ok_response);
+        assert_eq!(response.status_code(), StatusCode(200));
+    }
+
+    #[test]
+    fn panic_guard_converts_panic_into_500() {
+        let response = panic_guard_response(|| panic!("boom"));
+        assert_eq!(response.status_code(), StatusCode(500));
+    }
+
+    #[test]
+    fn panic_payload_message_extracts_str_and_string() {
+        let payload: Box<dyn std::any::Any + Send> = Box::new("boom");
+        assert_eq!(panic_payload_message(&payload), "boom");
+        let payload: Box<dyn std::any::Any + Send> = Box::new("boom".to_string());
+        assert_eq!(panic_payload_message(&payload), "boom");
+    }
+}
 #[cfg(test)]
 mod gateway_test_support;
 #[cfg(test)]

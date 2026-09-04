@@ -14,19 +14,13 @@ use crate::{
 
 type HttpResponse = Response<std::io::Cursor<Vec<u8>>>;
 
-fn runtime_unavailable_response() -> HttpResponse {
-    Response::from_string(r#"{"error":"gateway runtime unavailable"}"#)
-        .with_status_code(StatusCode(500))
-        .with_optional_header(json_header())
-}
-
 fn with_runtime<T>(
     runtime: &Arc<Mutex<GatewayRuntime>>,
     action: impl FnOnce(&mut GatewayRuntime) -> T,
 ) -> Result<T, HttpResponse> {
     match runtime.lock() {
         Ok(mut runtime) => Ok(action(&mut runtime)),
-        Err(_) => Err(runtime_unavailable_response()),
+        Err(poisoned) => Ok(action(&mut poisoned.into_inner())),
     }
 }
 

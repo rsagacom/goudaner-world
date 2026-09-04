@@ -77,7 +77,7 @@ fn runtime_publishes_and_polls_frames() {
 }
 
 #[test]
-fn admin_devices_returns_500_when_runtime_lock_poisoned() {
+fn admin_devices_recovers_when_runtime_lock_poisoned() {
     let temp = tempdir().expect("temp dir");
     let runtime = Arc::new(Mutex::new(
         GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime"),
@@ -89,11 +89,15 @@ fn admin_devices_returns_500_when_runtime_lock_poisoned() {
     }));
 
     assert!(result.is_ok(), "device list route should not panic");
-    assert_eq!(result.unwrap().status_code(), StatusCode(500));
+    assert_eq!(
+        result.unwrap().status_code(),
+        StatusCode(200),
+        "poisoned lock should recover and serve the device list"
+    );
 }
 
 #[test]
-fn auth_session_returns_500_when_runtime_lock_poisoned() {
+fn auth_session_returns_401_for_invalid_token_when_runtime_lock_poisoned() {
     let temp = tempdir().expect("temp dir");
     let runtime = Arc::new(Mutex::new(
         GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime"),
@@ -108,11 +112,15 @@ fn auth_session_returns_500_when_runtime_lock_poisoned() {
     }));
 
     assert!(result.is_ok(), "auth session route should not panic");
-    assert_eq!(result.unwrap().status_code(), StatusCode(500));
+    assert_eq!(
+        result.unwrap().status_code(),
+        StatusCode(401),
+        "poisoned lock should recover and run normal token validation"
+    );
 }
 
 #[test]
-fn create_city_returns_500_when_runtime_lock_poisoned() {
+fn create_city_requires_bearer_when_runtime_lock_poisoned() {
     let temp = tempdir().expect("temp dir");
     let runtime = Arc::new(Mutex::new(
         GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime"),
@@ -126,7 +134,11 @@ fn create_city_returns_500_when_runtime_lock_poisoned() {
     }));
 
     assert!(result.is_ok(), "create city route should not panic");
-    assert_eq!(result.unwrap().status_code(), StatusCode(500));
+    assert_eq!(
+        result.unwrap().status_code(),
+        StatusCode(400),
+        "poisoned lock should recover and run normal payload validation"
+    );
 }
 
 #[test]
@@ -135,12 +147,12 @@ fn city_write_routes_do_not_depend_on_runtime_lock_expect() {
 
     assert!(
         !source.contains("gateway runtime mutex poisoned"),
-        "city write routes should return JSON 500 when runtime lock is poisoned"
+        "city write routes should recover from a poisoned runtime lock without unwrap"
     );
 }
 
 #[test]
-fn publish_world_notice_returns_500_when_runtime_lock_poisoned() {
+fn publish_world_notice_requires_bearer_when_runtime_lock_poisoned() {
     let temp = tempdir().expect("temp dir");
     let runtime = Arc::new(Mutex::new(
         GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime"),
@@ -161,7 +173,11 @@ fn publish_world_notice_returns_500_when_runtime_lock_poisoned() {
         result.is_ok(),
         "publish world notice route should not panic"
     );
-    assert_eq!(result.unwrap().status_code(), StatusCode(500));
+    assert_eq!(
+        result.unwrap().status_code(),
+        StatusCode(200),
+        "poisoned lock should recover and publish the notice (dev bypass in tests)"
+    );
 }
 
 #[test]
@@ -170,12 +186,12 @@ fn governance_write_routes_do_not_depend_on_runtime_lock_expect() {
 
     assert!(
         !source.contains("gateway runtime mutex poisoned"),
-        "governance write routes should return JSON 500 when runtime lock is poisoned"
+        "governance write routes should recover from a poisoned runtime lock without unwrap"
     );
 }
 
 #[test]
-fn provider_status_returns_500_when_runtime_lock_poisoned() {
+fn provider_status_recovers_when_runtime_lock_poisoned() {
     let temp = tempdir().expect("temp dir");
     let runtime = Arc::new(Mutex::new(
         GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime"),
@@ -187,7 +203,11 @@ fn provider_status_returns_500_when_runtime_lock_poisoned() {
     }));
 
     assert!(result.is_ok(), "provider status route should not panic");
-    assert_eq!(result.unwrap().status_code(), StatusCode(500));
+    assert_eq!(
+        result.unwrap().status_code(),
+        StatusCode(200),
+        "poisoned lock should recover and serve provider status"
+    );
 }
 
 #[test]
@@ -196,12 +216,12 @@ fn read_routes_do_not_depend_on_runtime_lock_expect() {
 
     assert!(
         !source.contains("gateway runtime mutex poisoned"),
-        "read routes should return JSON 500 when runtime lock is poisoned"
+        "read routes should recover from a poisoned runtime lock without unwrap"
     );
 }
 
 #[test]
-fn provider_disconnect_returns_500_when_runtime_lock_poisoned() {
+fn provider_disconnect_recovers_when_runtime_lock_poisoned() {
     let temp = tempdir().expect("temp dir");
     let runtime = Arc::new(Mutex::new(
         GatewayRuntime::open(temp.path().join("gateway"), 64, None).expect("runtime"),
@@ -213,7 +233,11 @@ fn provider_disconnect_returns_500_when_runtime_lock_poisoned() {
     }));
 
     assert!(result.is_ok(), "provider disconnect route should not panic");
-    assert_eq!(result.unwrap().status_code(), StatusCode(500));
+    assert_eq!(
+        result.unwrap().status_code(),
+        StatusCode(200),
+        "poisoned lock should recover and complete the disconnect"
+    );
 }
 
 #[test]
@@ -222,7 +246,7 @@ fn write_routes_do_not_depend_on_runtime_lock_expect() {
 
     assert!(
         !source.contains("expect(\"gateway runtime mutex"),
-        "write routes should return JSON 500 when runtime lock is poisoned"
+        "write routes should recover from a poisoned runtime lock without unwrap"
     );
 }
 

@@ -32,24 +32,13 @@ fn unauthorized(message: String) -> HttpResponse {
     .with_optional_header(json_header())
 }
 
-fn runtime_unavailable() -> HttpResponse {
-    Response::from_string(
-        serde_json::to_string(&WakuGatewayResponse::Error {
-            message: "gateway runtime unavailable".into(),
-        })
-        .unwrap_or_else(|_| "{\"error\":true}".into()),
-    )
-    .with_status_code(StatusCode(500))
-    .with_optional_header(json_header())
-}
-
 fn with_runtime<T>(
     runtime: &Arc<Mutex<GatewayRuntime>>,
     action: impl FnOnce(&mut GatewayRuntime) -> T,
 ) -> Result<T, HttpResponse> {
     match runtime.lock() {
         Ok(mut runtime) => Ok(action(&mut runtime)),
-        Err(_) => Err(runtime_unavailable()),
+        Err(poisoned) => Ok(action(&mut poisoned.into_inner())),
     }
 }
 
@@ -83,7 +72,9 @@ fn resolve_admin_session(
     runtime: &Arc<Mutex<GatewayRuntime>>,
     request: &tiny_http::Request,
 ) -> Result<Option<AuthSession>, HttpResponse> {
-    let runtime = runtime.lock().map_err(|_| runtime_unavailable())?;
+    let runtime = runtime
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let token = authorization_bearer_token(request);
     if runtime.dev_auth_bypass_enabled() && token.is_none() {
         return Ok(None);
@@ -117,7 +108,7 @@ pub(crate) fn require_admin_capability(
     let resident_id = session.resident_id.0;
     let runtime = match runtime.lock() {
         Ok(runtime) => runtime,
-        Err(_) => return Some(runtime_unavailable()),
+        Err(poisoned) => poisoned.into_inner(),
     };
     if !runtime.resident_has_capability(&resident_id, capability) {
         return Some(unauthorized(format!(
@@ -154,7 +145,7 @@ pub(crate) fn require_admin_actor_capability(
     }
     let runtime = match runtime.lock() {
         Ok(runtime) => runtime,
-        Err(_) => return Some(runtime_unavailable()),
+        Err(poisoned) => poisoned.into_inner(),
     };
     if !runtime.resident_has_capability(actor_id, capability) {
         return Some(unauthorized(format!(
@@ -217,7 +208,7 @@ pub(crate) fn require_cli_sender_auth(
     if token.is_none() {
         let bypass = match runtime.lock() {
             Ok(runtime) => runtime.dev_auth_bypass_enabled(),
-            Err(_) => return Some(runtime_unavailable()),
+            Err(poisoned) => poisoned.into_inner().dev_auth_bypass_enabled(),
         };
         if bypass {
             return None;
@@ -232,7 +223,7 @@ pub(crate) fn require_cli_sender_auth(
     if sender.starts_with("agent:") {
         let valid = match runtime.lock() {
             Ok(runtime) => runtime.validate_agent_token(sender, &token),
-            Err(_) => return Some(runtime_unavailable()),
+            Err(poisoned) => poisoned.into_inner().validate_agent_token(sender, &token),
         };
         if !valid {
             return Some(unauthorized(format!("invalid sidecar token for {sender}")));
@@ -710,7 +701,7 @@ fn require_federation_auth(
     let token = authorization_bearer_token(request);
     let runtime = match runtime.lock() {
         Ok(runtime) => runtime,
-        Err(_) => return Some(runtime_unavailable()),
+        Err(poisoned) => poisoned.into_inner(),
     };
     if runtime.dev_auth_bypass_enabled() && token.is_none() {
         return None;

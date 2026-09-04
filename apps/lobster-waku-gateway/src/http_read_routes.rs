@@ -21,24 +21,13 @@ use crate::{
 
 pub(crate) type HttpResponse = Response<Cursor<Vec<u8>>>;
 
-fn runtime_unavailable() -> HttpResponse {
-    Response::from_string(
-        serde_json::to_string(&WakuGatewayResponse::Error {
-            message: "gateway runtime unavailable".into(),
-        })
-        .unwrap_or_else(|_| "{\"error\":true}".into()),
-    )
-    .with_status_code(StatusCode(500))
-    .with_optional_header(json_header())
-}
-
 fn with_runtime<T>(
     runtime: &Arc<Mutex<GatewayRuntime>>,
     action: impl FnOnce(&mut GatewayRuntime) -> T,
 ) -> Result<T, HttpResponse> {
     match runtime.lock() {
         Ok(mut runtime) => Ok(action(&mut runtime)),
-        Err(_) => Err(runtime_unavailable()),
+        Err(poisoned) => Ok(action(&mut poisoned.into_inner())),
     }
 }
 
