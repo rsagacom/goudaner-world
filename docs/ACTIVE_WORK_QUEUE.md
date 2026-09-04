@@ -4,6 +4,16 @@ Last updated: 2026-09-04
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
+## 2026-09-04 暂停收尾：GitHub 同步完成，lab Nim 2.2.6 就绪（节点构建仍暂停）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| GitHub 同步 | 已完成 | VPN 恢复后 `main` fast-forward 推送 `e2f4fc7..7a358b8`（`9aca689` P5.1 接线 + `7a358b8` 暂停交接文档）；推送前确认 origin 严格落后（rev-list 0/2）且工作树干净；CI run `33877122445` 全绿（3m18s）。 |
+| 恢复入口①前半（装 Nim 2.2.6） | 已完成 | cachyos-ai 实验室已装 Nim 2.2.6：官方源 `nim-lang.org/download/nim-2.2.6-linux_x64.tar.xz`（国内镜像逐家复核无 Nim 发行版：华为云为 SPA 假 200、tuna 403、ustc/nju/aliyun/腾讯 404，门禁结论 OVERSEAS_FALLBACK 已入档 Atlas）；sha256 `38b8407f87d78bd207390051e4c76f38a45d0a26983cb262017c899b56ad8d06` 两次独立下载一致且 `xz -t` 通过，解压至 `~/.nim/nim-2.2.6`，`nim --version` 实测 `Nim Compiler Version 2.2.6 [Linux: amd64]`。注意：该下载源响应不稳，曾截断出坏包（sha256 `1535465f…`、尺寸漂移），重下必须 sha256+`xz -t` 双验证。 |
+| lab 脚本固化 | 已完成 | `scripts-retry-nimble-setup.sh` PATH 已从 `nim-2.2.4` 切至 `nim-2.2.6`；安装 tar 包已清理，无遗留进程。 |
+| 下一步 | 待继续 | 恢复入口①后半：在 lab 重跑 `scripts-retry-nimble-setup.sh`，验证 lock 解析在 2.2.6 下通过（lock 钉 nim 2.2.4 vs `ffi@53515de` 要求 >=2.2.6 的矛盾是否消除）；之后入口②③④⑤⑥顺序不变，任一步失败停在该步。 |
+| 边界 | 保持 | 生产未触碰；本轮按用户命令暂停收尾，Atlas task `task-20260904-132849-d7b944` 已写 checkpoint 并 finish、租约全部释放。 |
+
 ## 2026-09-04 P5.1 恢复：adapter 接线完成，节点构建暂停于 nim 版本矛盾
 
 | 项目 | 状态 | 说明 |

@@ -423,6 +423,12 @@
 | P4 TUI/CLI parity | 100% | CLI/TUI、居民主链、terminal 与 provider federation 已纳入完整 release gate；2026-08-02 完整门禁复验通过 |
 | P5 跨城/加密 | 22% | P5.0 Proposal 已批准，P5.1 有未验收 adapter/build WIP；真实双节点 transport、RFC 9420 MLS、H5/TUI 互操作和生产 canary 均未通过 |
 
+### 2026-09-04 暂停收尾：GitHub 同步与 lab Nim 2.2.6 就绪
+
+- GitHub `main` 已同步至 `7a358b8`（P5.1 接线 `9aca689` + 暂停交接文档），CI run `33877122445` 全绿；生产锚点不变（`6c0dc6a`）。
+- cachyos-ai 实验室已装 Nim 2.2.6（官方源 nim-lang.org，sha256+`xz -t` 双验证；国内镜像复核无 Nim 发行版，OVERSEAS_FALLBACK 门禁已入档 Atlas）；`scripts-retry-nimble-setup.sh` PATH 已切换至 2.2.6。
+- P5.1 节点构建仍暂停：下一动作为在 lab 重跑 nimble setup 验证 lock 解析（lock 钉 nim 2.2.4 vs `ffi@53515de` 要求 >=2.2.6 的矛盾），通过后按 `docs/ACTIVE_WORK_QUEUE.md` 最新区块入口②-⑥推进。
+
 ### 关键发现：6-26~28 WIP 曾未提交
 
 进入时工作树遗留 6-26~28 三天密集开发的 3628 行 WIP（私宅访问确权+好友关系流+前端纯状态下沉），测试全绿却从未 commit。本轮首要动作是锁定这批 WIP（commit `298758e`），消除最大风险。codex 日记与 CC 转录显示 7 月精力在 WVI 等其他项目，IM 处于停摆状态。
@@ -430,7 +436,7 @@
 ### 下一步候选（按优先级）
 
 1. **单城集中式 IM 已完成面保持**：P0/P1/P2/P4 全部收口并生产验证；日常按 release gate + 备份 timer 维持
-2. **P5 跨城/MLS 加密**：PRODUCT_CHARTER 后置项，是“完全落地”路线上的下一个主战场；P5.0 已审批，P5.1 暂停在 adapter 审查/节点构建之前，下一动作按上方暂停交接恢复隔离双节点 lab，而不是修改生产协议
+2. **P5 跨城/MLS 加密**：PRODUCT_CHARTER 后置项，是“完全落地”路线上的下一个主战场；P5.0 已审批，P5.1 接线已推送（`9aca689`，CI 绿），节点构建暂停在 nimble 解析验证之前（lab Nim 2.2.6 已就绪），下一动作按 ACTIVE_WORK_QUEUE 最新暂停区块恢复隔离双节点 lab，而不是修改生产协议
 3. **可选加固（不阻塞）**：均已完成——DMARC/SPF TXT 已添加并生效（2026-09-04）、empty-note 视觉统一已完成（2026-09-04）。当前无剩余低价值加固项。
 
 （已完成的候选：生产环境复验 2026-08-01；P1 空间交互 polish、备份脚本化/定期化 2026-08-02；DMARC/SPF TXT、empty-note 视觉统一 2026-09-04。）
