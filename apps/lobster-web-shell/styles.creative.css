@@ -2027,3 +2027,21 @@ body[data-room-ownership="visitor"] .creative-hud-ownership-badge--visitor {
     height: 36px;
   }
 }
+
+/* 2026-09-04 empty-note 视觉统一：房间/居民/世界/治理列表空态统一为深色小卡片。
+   所有加载 app.js 的页面（index/admin/creative/unified）都引用本文件，
+   因此这里是 .empty-note 的唯一真源；此前仅 styles.chat.css 定义，
+   creative/unified 页面的空态实际完全无样式。timeline-empty-card 经 :not()
+   排除，保留自身卡片样式合同。 */
+.empty-note:not(.timeline-empty-card) {
+  margin: 10px 12px;
+  padding: 10px 14px;
+  list-style: none;
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: center;
+  color: rgba(232, 222, 210, 0.62);
+  background: rgba(22, 16, 12, 0.55);
+  border: 1px solid #3a2f28;
+  border-radius: 12px;
+}

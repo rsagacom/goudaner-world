@@ -389,6 +389,13 @@
 - **公开仓库脱敏**：生产验收文档不再记录真实测试邮箱和居民标识；未写入 Token、验证码、API key 或凭据值
 - **本地验证基线**：Rust workspace、clippy、CLI、认证、居民主链、Web 1412、双浏览器、TUI、provider federation、备份单测和 panic scan 全绿；本阶段未重新部署生产
 
+### 可选加固：empty-note 视觉统一 + DMARC/SPF 取证（2026-09-04）
+
+- **empty-note 统一（已完成）**：`.empty-note` 唯一真源从 `styles.chat.css` 移到所有 app.js 页面（index/admin/creative/unified）共同加载的 `styles.creative.css`；规则为 `.empty-note:not(.timeline-empty-card)` 深色小卡片（`rgba(22,16,12,.55)` 底 + `#3a2f28` 边框 + 居中 12px 圆角），修复 creative/unified 页面空态此前完全无样式的问题；时间线空态卡片经 `:not()` 排除，合同不变。
+- **缓存纪律**：`styles.chat.css` / `styles.creative.css` 的 `?v=` 统一升为 `20260904-empty-note-unify`（5 页共 7 处引用 + 4 处测试钉住同步）。
+- **防回归**：新增 `test/empty-note-unify.test.mjs` 4 用例；Web 单测 **1423/1423**、layout、frontend realness 全绿；headless Chromium 三页探针计算样式与合同一致、0 未捕获错误。未部署生产，随下一发布批次上线。
+- **DMARC/SPF 公网取证（按实测修正）**：DoH 实测 `resend._domainkey.chat.ajw.cn` DKIM 在位；`chat.ajw.cn` 无 SPF TXT、无 MX；`_dmarc.chat.ajw.cn` 与 `_dmarc.ajw.cn` 均无 DMARC。8-01 记录的“SPF 已写入 Verified”与当前公网不符。待用户在 Cloudflare 添加：`chat.ajw.cn` TXT `v=spf1 include:send.resend.com ~all` 与 `_dmarc.chat.ajw.cn` TXT `v=DMARC1; p=quarantine;`。
+
 ### 真实进度（2026-08-13）
 
 ### P5.1 暂停交接（2026-08-13）
@@ -404,7 +411,7 @@
 | 模块 | 估算 | 说明 |
 |------|------:|------|
 | P0 单城 IM 闭环 | 100% | 私宅确权、好友流、认证、消息与双浏览器 smoke 已验证；生产主机/域名/邮件链路 2026-08-01 全部复验通过（真实 OTP 双邮箱投递、双居民私聊 8/8） |
-| P1 空间交互 | 98% | 16:9 坐标画布 + 场景编辑器 UX/移动端触控/空态卡片/cqh 基准和个人房间场景房主权限已收口；剩余仅 empty-note 视觉统一（低价值，已降级） |
+| P1 空间交互 | 100% | 16:9 坐标画布 + 场景编辑器 UX/移动端触控/空态卡片/cqh 基准和个人房间场景房主权限已收口；empty-note 视觉统一 2026-09-04 完成（见上方条目） |
 | P2 后台运维 | 100% | admin-ds 写操作护栏和注册账号审计投影完成；LOBSTER_SUPER_ADMINS 补齐后 ban/unban 恢复演练与审计留痕 2026-08-01 生产实操通过；备份/恢复演练通过；备份 2026-08-02 起脚本化+每日 timer |
 | P3 技术债 | ~95% | app.js 当前 7524 行；admin-ds 热点编辑器 2026-08-02 去重合一；本轮补齐 Gateway shell fail-closed 与合法空投影语义；剩余候选 3/4/5 各 15-28 行且耦合运行时状态，蓝图维持"不做机械搬运"结论 |
 | P4 TUI/CLI parity | 100% | CLI/TUI、居民主链、terminal 与 provider federation 已纳入完整 release gate；2026-08-02 完整门禁复验通过 |
@@ -418,7 +425,7 @@
 
 1. **单城集中式 IM 已完成面保持**：P0/P1/P2/P4 全部收口并生产验证；日常按 release gate + 备份 timer 维持
 2. **P5 跨城/MLS 加密**：PRODUCT_CHARTER 后置项，是“完全落地”路线上的下一个主战场；P5.0 已审批，P5.1 暂停在 adapter 审查/节点构建之前，下一动作按上方暂停交接恢复隔离双节点 lab，而不是修改生产协议
-3. **可选加固（不阻塞）**：DMARC TXT（Cloudflare）、empty-note 视觉统一（低价值，已降级）
+3. **可选加固（不阻塞）**：DMARC/SPF TXT（Cloudflare，2026-09-04 已取证并给出记录值，待用户 DNS 操作）、empty-note 视觉统一（✅ 2026-09-04 完成）
 
 （已完成的候选：生产环境复验 2026-08-01；P1 空间交互 polish、备份脚本化/定期化 2026-08-02。）
 

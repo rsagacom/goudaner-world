@@ -1,8 +1,47 @@
 # lobster-chat Active Work Queue
 
-Last updated: 2026-08-13
+Last updated: 2026-09-04
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
+
+## 2026-09-04 可选加固执行：empty-note 视觉统一（已完成）+ DMARC/SPF（待用户 DNS 操作）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| empty-note 统一 | 已完成 | `.empty-note` 唯一真源从 `styles.chat.css` 移到所有 app.js 页面（index/admin/creative/unified）共同加载的 `styles.creative.css`；规则为 `.empty-note:not(.timeline-empty-card)` 深色小卡片（`rgba(22,16,12,.55)` 底 + `#3a2f28` 边框 + 居中 12px 圆角），修复 creative/unified 页面空态此前完全无样式的问题；时间线空态卡片经 `:not()` 排除，合同不变。 |
+| 缓存纪律 | 已执行 | `styles.chat.css` 与 `styles.creative.css` 的 `?v=` 统一升为 `20260904-empty-note-unify`（index/admin/creative/admin-ds/unified 共 7 处引用 + 4 处测试钉住同步）。 |
+| 防回归 | 全绿 | 新增 `test/empty-note-unify.test.mjs` 4 用例；Web 单测 **1423/1423**、layout、frontend realness 通过。 |
+| 真实浏览器验证 | 已通过 | headless Chromium 在 index/creative/unified 三页注入探针：计算样式与合同一致（居中/深底/`#3a2f28` 边框/12px 圆角），0 未捕获错误。 |
+| 部署状态 | 未部署 | 纯 web 静态变更，随下一发布批次上线；未 SSH、未打包、未动生产。 |
+| DMARC/SPF 现状取证 | 已复核 | 今日 DoH 实测：`resend._domainkey.chat.ajw.cn` DKIM 在位；`chat.ajw.cn` 无 SPF TXT、无 MX；`_dmarc.chat.ajw.cn` 与 `_dmarc.ajw.cn` 均无 DMARC。蓝图 8-01“SPF 已写入 Verified”与当前公网事实不符，按实测修正。 |
+| 待用户 DNS 操作 | 两条记录 | ① `chat.ajw.cn` TXT `v=spf1 include:send.resend.com ~all`（`send.resend.com` 实测发布 `v=spf1 include:amazonses.com ~all`）；② `_dmarc.chat.ajw.cn` TXT `v=DMARC1; p=quarantine;`（可选追加 `rua=mailto:<报告收件邮箱>`）。本机无 Cloudflare dns:write 凭据（wrangler OAuth 已过期且仅 `zone:read` 范围），需在 Cloudflare 控制台为 ajw.cn 区域添加。 |
+
+## 2026-09-04 项目复盘与推进计划（停摆 15 天后的恢复评估）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 复盘触发 | 已完成 | 距最后提交 `91c3bc9`（2026-08-20）已 15 天无活动；本次为只读复盘 + 推进计划登记，未修改任何代码。 |
+| 生产只读复核 | 健康 | `https://chat.ajw.cn/health` 返回 200；`/v1/version` 返回 JSON 且 `git_sha=6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d`；`release-manifest.json` 为 `application/json`。与 2026-08-13 生产切换锚点完全一致，未写入生产。 |
+| 阶段完成度 | 复核确认 | 沿用 2026-08-13 口径：P0 100% / P1 98% / P2 100% / P3 ~95% / P4 100% / P5 22%；未发现回退证据。 |
+| 分支与债务 | 已收口 | 4 个本地功能分支（`feat/cli-im-commands`、`feat/ui-refresh-20260728`、`refactor/appjs-techdebt-20260710`、`refactor/web-shell-module-extraction`）均无未并入 main 的提交；工作树干净（0 未提交文件）。 |
+| P5.1 代码现状 | 已提交但未接线 | `crates/transport-waku/src/native_rest.rs`（1939 行）与 `examples/native_waku_lab.rs`（357 行）已随 `91c3bc9` 提交，但 `lib.rs` 尚未声明该模块，代码不参与编译；`native-waku-rest` feature 默认关闭。按暂停交接合同，仍计为未验收 WIP，不得宣称 native Waku 已落地。 |
+| 发布制品 | 在位 | 外盘保留 `lobster-chat-release-6c0dc6a-run31640540602`（当前生产锚点）等制品目录；回滚有物可用。 |
+
+### 推进计划（2026-09-04）
+
+按「先保生产、再续 P5.1、低价值项不插队」排列：
+
+1. **P0 维持（常态）**：单城生产保持现状。每日备份 timer、release gate、公网只读 smoke 不变；任何源码改动必须重新走完整 release gate 并以新 SHA 发布，不复用旧制品。
+2. **P5.1 恢复（下一主战场，待用户明确继续命令）**：按 2026-08-13 暂停交接的固定顺序执行：
+   1) 审查并接线 `native_rest`（`lib.rs` 声明模块 + feature gate）；
+   2) `cargo test` / clippy 的 feature / default / workspace 三档门禁；
+   3) 安全恢复官方节点构建（固定 master `23b0d31e848812ad54f5d5f390854cb8dd26fe89`；禁止 `--noSSLCheck`；上次失败点为 Nimble 拉取 `nim-stew` 时 GitHub TLS EOF）；
+   4) loopback-only A/B 双节点，双向各 100 条投递验收；
+   5) sidecar 重启 + Store 恢复、去重、资源与日志脱敏检查；
+   6) 更新 ADR/蓝图/本队列，脱敏提交、推送并等待 CI。
+   授权边界不变：Proposal `proposal.38c8236eb16492f31a94` 只覆盖隔离实验；生产部署、P5.2 标准 MLS、协议切换仍需各自单独授权。
+3. **可选加固（低价值，单独排期，不插入主链）**：DMARC TXT（Cloudflare）、empty-note 视觉统一。
+4. **明确不做**：继续机械拆 `app.js`（候选 3/4/5 各 15-28 行且耦合运行时状态，边际递减）；把现有 HTTP federation / 自研 AES-GCM skeleton 包装成 native Waku / RFC 9420 MLS 对外宣称。
 
 ## 2026-08-13 P5.1 原生 Waku lab 暂停交接
 
