@@ -411,11 +411,13 @@ json_assert "$(cat "$blocked_file")" "blocked-response"
 echo "== webpush endpoints (direct) =="
 vapid_file="$STATE_ROOT/vapid-key.json"
 curl -fsS "$GATEWAY_URL/v1/push/vapid-public-key" >"$vapid_file"
-json_assert "$(cat "$vapid_file")" "vapid-key"
-grep -q '"public_key"' "$vapid_file" || {
-  echo "vapid key payload missing public_key" >&2
-  exit 1
-}
+python3 -c '
+import json, sys
+payload = json.load(open(sys.argv[1]))
+assert payload.get("ok") is True, "vapid key payload ok flag missing"
+public_key = payload.get("public_key", "")
+assert len(public_key) >= 80, "vapid public_key must be a 65-byte base64url point"
+' "$vapid_file"
 # dev bypass 下订阅写操作仍必须拒绝匿名调用（401）
 push_code="$(
   curl -sS -o "$STATE_ROOT/push-401.json" -w '%{http_code}' \
@@ -428,7 +430,10 @@ if [[ "$push_code" != "401" ]]; then
   cat "$STATE_ROOT/push-401.json" >&2
   exit 1
 fi
-json_assert "$(cat "$STATE_ROOT/push-401.json")" "push-401-response"
+grep -q '"error"' "$STATE_ROOT/push-401.json" || {
+  echo "anonymous push subscribe 401 body missing error field" >&2
+  exit 1
+}
 
 echo "== shell direct HTTP smoke passed =="
 echo "gateway: $GATEWAY_URL"
