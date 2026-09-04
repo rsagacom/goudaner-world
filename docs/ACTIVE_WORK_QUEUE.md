@@ -4,7 +4,28 @@ Last updated: 2026-09-05
 
 > 说明：下方按日期排列的记录保留当时的交接背景；如与本页最新日期区块冲突，以最新区块和 `docs/DEPLOYMENT.md` 为准。
 
-## 2026-09-05 图片消息收口：合同下沉 + TUI 降级 + 发送压缩 + 看原图灯箱（本地全绿，未部署）
+## 2026-09-05 R2 增量写第一步：timeline append-only journal（本地全绿，未部署）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 帧格式与模块 | 已完成 | 新 `crates/chat-storage/src/timeline_journal.rs`：帧 = `[len: u32 LE][crc32: u32 LE][postcard(TimelineEntry)]`（手工帧头定长、撕裂尾可检测）；追加 = OpenOptions append + write_all + sync_all（首帧创建后 fsync 父目录），把"每条消息 O(整个 timeline) 的全量重写 IO"降为 O(帧)。零新依赖（CRC32 手写 IEEE 实现）。 |
+| 接入点 | 已完成 | `FileTimelineStore::append_message`：内存 append → journal 追加 → `persist_conversations`；任一步失败回滚内存 pop 并把 journal 截回追加前长度（此前帧不丢）。journal 满 `JOURNAL_COMPACT_THRESHOLD`(128) 帧自动压实进快照。edit/recall/archive 保持快照重写（低频操作）并在写后删除 journal，使快照成为唯一权威。 |
+| 加载与修复 | 已完成 | `load_timeline` = 快照（当前/三代 legacy 编解码）+ journal 重放，按 `message_id` 去重（崩溃窗口"快照已写、journal 未删"不会产生重复）；撕裂尾/CRC 损坏帧在加载时截断修复，仅丢弃坏帧之后的内容；纯 journal（尚无快照）的会话也能恢复。 |
+| 兼容边界 | 不变 | `TimelineStore` trait、postcard 快照格式、`<id>.postcard` 文件布局零迁移；旧数据（无 journal）读取路径不变；Gateway/TUI/CLI 无感知。 |
+| 防回归 | 全绿 | chat-storage **26/26**（+8：journal-only 重开、阈值压实、撕裂尾修复、坏帧截停、edit/recall 折叠快照、崩溃窗口去重、archive 清 journal）；workspace 全测试绿（Gateway 330、chat-core 24、TUI 236 等）；clippy `-D warnings`、fmt、panic 扫描干净。 |
+| 下一步（本项未完） | 登记 | 后续可做：压实阈值按字节而非帧数、journal 只读巡检工具、Gateway 层面追加路径压测（`recent_messages` 仍是内存全量克隆，属 R1 范畴不混入）。生产部署随下一发布批次，需单独授权。 |
+
+## 2026-09-05 PWA manifest 最小版 + 加桌引导（899cb48 已推送，未部署）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| manifest | 已完成 | 新 `manifest.webmanifest`：standalone、`#1a120e` 暗色 theme/background、`start_url=./index.html`；图标为纯 Node(zlib) 生成的 16×16 像素画龙虾（dark-on-dark 规范）192/512 any + 512 maskable（80% 安全区），`scripts/generate-pwa-icons.mjs` 确定性可重生成。零新依赖、无 service worker（推送等 WebPush 独立批次）。 |
+| 页面接线 | 已完成 | index/creative 注入 manifest/theme-color/apple-touch-icon/iOS meta（apple-mobile-web-app-capable、black-translucent、标题"狗蛋儿"）。 |
+| 加桌引导 | 已完成 | 新 `shell-install-hint.js`：`installHintState` 决策纯函数（已安装/已关闭→隐藏；beforeinstallprompt→"安装"按钮点击才 prompt()；iOS-like→"分享→添加到主屏幕"指引，含 iPadOS 13+ 桌面 UA 触屏识别；其余桌面保持克制不提示）+ fake-dom 可测 chip；localStorage 一次性关闭（`lobster-install-hint-dismissed`）；仅聊天页（#timeline）接线。 |
+| 防回归 | 全绿 | 新 `test/pwa-install.test.mjs` 8 用例（manifest 合同/PNG 实际尺寸 IHDR/决策矩阵/DOM 行为/页面钉）；Web **1445/1445**、layout、realness、真实双浏览器 smoke 全绿。 |
+| 升版 | 已执行 | app.js 与 styles.creative.css `?v=` 升 `20260905-pwa-install`（styles.chat.css 本批未动保持 `20260905-image-polish`），测试钉同步。 |
+
+## 2026-09-05 图片消息收口：合同下沉 + TUI 降级 + 发送压缩 + 看原图灯箱（352d9b8+d85e311 已推送，未部署）
 
 | 项目 | 状态 | 说明 |
 | --- | --- | --- |

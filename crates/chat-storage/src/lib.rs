@@ -13,6 +13,8 @@ use chat_core::{
 };
 use serde::{Deserialize, Serialize};
 
+mod timeline_journal;
+
 pub type StorageResult<T> = Result<T, String>;
 
 static ATOMIC_WRITE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -309,6 +311,9 @@ impl ArchiveStore for InMemoryTimelineStore {
 pub struct FileTimelineStore {
     root_dir: PathBuf,
     inner: InMemoryTimelineStore,
+    /// Frames accumulated in the per-conversation journal since its snapshot
+    /// was last rewritten. Authoritative for compaction timing.
+    journal_frame_counts: HashMap<ConversationId, usize>,
 }
 
 impl FileTimelineStore {
@@ -323,6 +328,7 @@ impl FileTimelineStore {
         let mut store = Self {
             root_dir,
             inner: InMemoryTimelineStore::new(archive_policy),
+            journal_frame_counts: HashMap::new(),
         };
         store.load_from_disk()?;
         Ok(store)
@@ -534,33 +540,75 @@ impl FileTimelineStore {
         }
     }
 
-    fn load_timeline(&self, conversation_id: &ConversationId) -> StorageResult<Vec<TimelineEntry>> {
+    fn load_timeline(
+        &mut self,
+        conversation_id: &ConversationId,
+    ) -> StorageResult<Vec<TimelineEntry>> {
         let path = self.timeline_path(conversation_id);
-        if !path.exists() {
-            return Ok(Vec::new());
+        // A conversation may legitimately have a journal but no snapshot yet
+        // (nothing compacted since creation) — fall through and replay it.
+        let snapshot: Vec<TimelineEntry> = if !path.exists() {
+            Vec::new()
+        } else {
+            let bytes = fs::read(&path)
+                .map_err(|error| format!("read timeline snapshot failed: {error}"))?;
+            if bytes.is_empty() {
+                Vec::new()
+            } else {
+                self.decode_timeline_snapshot(&bytes, &path)?
+            }
+        };
+        self.merge_journal(conversation_id, snapshot)
+    }
+
+    /// Decode a snapshot in the current or any legacy codec; unrecoverable
+    /// payloads are quarantined and treated as empty (existing contract).
+    fn decode_timeline_snapshot(
+        &self,
+        bytes: &[u8],
+        path: &Path,
+    ) -> StorageResult<Vec<TimelineEntry>> {
+        type LegacyDecoder = fn(&[u8]) -> Result<Vec<TimelineEntry>, postcard::Error>;
+        if let Ok(entries) = postcard::from_bytes(bytes) {
+            return Ok(entries);
         }
-        let bytes =
-            fs::read(&path).map_err(|error| format!("read timeline snapshot failed: {error}"))?;
-        if bytes.is_empty() {
-            return Ok(Vec::new());
-        }
-        match postcard::from_bytes(&bytes) {
-            Ok(entries) => Ok(entries),
-            Err(current_error) => {
-                if let Ok(legacy) = postcard::from_bytes::<Vec<LegacyTimelineEntryV3>>(&bytes) {
-                    return Ok(legacy.into_iter().map(TimelineEntry::from).collect());
-                }
-                if let Ok(legacy) = postcard::from_bytes::<Vec<LegacyTimelineEntryV2>>(&bytes) {
-                    return Ok(legacy.into_iter().map(TimelineEntry::from).collect());
-                }
-                if let Ok(legacy) = postcard::from_bytes::<Vec<LegacyTimelineEntryV1>>(&bytes) {
-                    return Ok(legacy.into_iter().map(TimelineEntry::from).collect());
-                }
-                let decode_error = current_error.to_string();
-                self.quarantine_corrupt_snapshot(&path, "timeline snapshot", &decode_error)?;
-                Ok(Vec::new())
+        let legacy_candidates: [LegacyDecoder; 3] = [
+            |bytes| {
+                postcard::from_bytes::<Vec<LegacyTimelineEntryV3>>(bytes)
+                    .map(|items| items.into_iter().map(TimelineEntry::from).collect())
+            },
+            |bytes| {
+                postcard::from_bytes::<Vec<LegacyTimelineEntryV2>>(bytes)
+                    .map(|items| items.into_iter().map(TimelineEntry::from).collect())
+            },
+            |bytes| {
+                postcard::from_bytes::<Vec<LegacyTimelineEntryV1>>(bytes)
+                    .map(|items| items.into_iter().map(TimelineEntry::from).collect())
+            },
+        ];
+        for candidate in legacy_candidates {
+            if let Ok(entries) = candidate(bytes) {
+                return Ok(entries);
             }
         }
+        let decode_error = "unknown timeline snapshot codec".to_string();
+        self.quarantine_corrupt_snapshot(path, "timeline snapshot", &decode_error)?;
+        Ok(Vec::new())
+    }
+
+    /// Fold the journal into snapshot entries (deduped by message id), record
+    /// the surviving frame count, and repair any torn journal tail on disk.
+    fn merge_journal(
+        &mut self,
+        conversation_id: &ConversationId,
+        snapshot: Vec<TimelineEntry>,
+    ) -> StorageResult<Vec<TimelineEntry>> {
+        let journal = timeline_journal::journal_path(&self.root_dir, conversation_id);
+        let entries = timeline_journal::load_with_journal(&journal, snapshot)?;
+        let frames = timeline_journal::journal_frame_count(&journal);
+        self.journal_frame_counts
+            .insert(conversation_id.clone(), frames);
+        Ok(entries)
     }
 
     fn persist_conversations(&self) -> StorageResult<()> {
@@ -572,7 +620,9 @@ impl FileTimelineStore {
         Ok(())
     }
 
-    fn persist_timeline(&self, conversation_id: &ConversationId) -> StorageResult<()> {
+    /// Rewrite the snapshot as the single authority and drop the journal.
+    /// Used by mutating paths (edit/recall/archive) and journal compaction.
+    fn persist_timeline(&mut self, conversation_id: &ConversationId) -> StorageResult<()> {
         let entries = self
             .inner
             .timelines
@@ -583,12 +633,19 @@ impl FileTimelineStore {
             .map_err(|error| format!("encode timeline snapshot failed: {error}"))?;
         atomic_write(&self.timeline_path(conversation_id), &bytes)
             .map_err(|error| format!("write timeline snapshot failed: {error}"))?;
+        timeline_journal::journal_remove(&timeline_journal::journal_path(
+            &self.root_dir,
+            conversation_id,
+        ))?;
+        self.journal_frame_counts.remove(conversation_id);
         Ok(())
     }
 
-    fn persist_all_timelines(&self) -> StorageResult<()> {
-        for conversation_id in self.inner.conversations.keys() {
-            self.persist_timeline(conversation_id)?;
+    fn persist_all_timelines(&mut self) -> StorageResult<()> {
+        let conversation_ids: Vec<ConversationId> =
+            self.inner.conversations.keys().cloned().collect();
+        for conversation_id in conversation_ids {
+            self.persist_timeline(&conversation_id)?;
         }
         Ok(())
     }
@@ -603,18 +660,54 @@ impl TimelineStore for FileTimelineStore {
     fn append_message(&mut self, message: MessageEnvelope) -> StorageResult<()> {
         let conversation_id = message.conversation_id.clone();
         self.inner.append_message(message)?;
-        // Atomicity: if either persist step fails, remove the in-memory message
-        // to keep RAM and disk consistent (avoid silent data divergence)
-        if let Err(e) = self
-            .persist_conversations()
-            .and_then(|_| self.persist_timeline(&conversation_id))
-        {
+        // Durability: journal the appended entry (O(frame) IO) instead of
+        // rewriting the whole timeline snapshot. Atomicity: if either persist
+        // step fails, roll the journal back to its pre-append length and remove
+        // the in-memory message to keep RAM and disk consistent (avoid silent
+        // data divergence).
+        let journal_path = timeline_journal::journal_path(&self.root_dir, &conversation_id);
+        let journal_pre_len = std::fs::metadata(&journal_path)
+            .map(|meta| meta.len())
+            .unwrap_or(0);
+        let frames_before = *self
+            .journal_frame_counts
+            .entry(conversation_id.clone())
+            .or_insert(timeline_journal::journal_frame_count(&journal_path));
+        let appended = self
+            .inner
+            .timelines
+            .get(&conversation_id)
+            .and_then(|entries| entries.last())
+            .cloned();
+        let journal_result = match &appended {
+            Some(entry) => timeline_journal::journal_append(&journal_path, entry),
+            None => Ok(()),
+        };
+        if let Err(e) = journal_result.and_then(|_| self.persist_conversations()) {
             // Undo the in-memory append to keep state consistent with disk
             let timeline = self.inner.timelines.get_mut(&conversation_id);
             if let Some(entries) = timeline {
                 entries.pop();
             }
+            // Roll the journal back to its intact pre-append prefix so the
+            // frames of earlier messages stay durable.
+            if let Ok(file) = std::fs::OpenOptions::new().write(true).open(&journal_path) {
+                let _ = file.set_len(journal_pre_len);
+                let _ = file.sync_all();
+            }
+            self.journal_frame_counts
+                .insert(conversation_id, frames_before);
             return Err(format!("append message persist failed, rolled back: {e}"));
+        }
+        // Compaction: fold the journal into the snapshot once it grows past
+        // the threshold so replay cost stays bounded.
+        let frames = self
+            .journal_frame_counts
+            .entry(conversation_id.clone())
+            .or_insert(frames_before);
+        *frames += 1;
+        if *frames >= timeline_journal::JOURNAL_COMPACT_THRESHOLD {
+            self.persist_timeline(&conversation_id)?;
         }
         Ok(())
     }
@@ -1095,5 +1188,224 @@ mod tests {
         let s2 = FileTimelineStore::open(dir.path().join("s2"), ArchivePolicy::default()).unwrap();
         assert!(s1.active_conversations().is_empty());
         assert!(s2.active_conversations().is_empty());
+    }
+
+    // ---- R2 append-only journal ----
+
+    fn journal_path_for(root: &Path, id: &ConversationId) -> PathBuf {
+        timeline_journal::journal_path(root, id)
+    }
+
+    #[test]
+    fn journal_only_timeline_survives_reopen_without_snapshot_rewrite() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("store");
+        let conversation_id = ConversationId("dm:alice:bob".into());
+
+        let (snapshot_before, journal_before) = {
+            let mut store = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+            store.upsert_conversation(sample_conversation()).unwrap();
+            store.append_message(sample_message(10)).unwrap();
+            store.append_message(sample_message(20)).unwrap();
+            let snapshot_bytes =
+                fs::read(store.timeline_path(&conversation_id)).unwrap_or_default();
+            let journal_bytes = fs::read(journal_path_for(&root, &conversation_id)).unwrap();
+            (snapshot_bytes, journal_bytes)
+        };
+        // 关键合同：追加不再重写快照（快照保持不存在），数据在 journal 里
+        assert!(
+            snapshot_before.is_empty(),
+            "snapshot must not be rewritten per append"
+        );
+        assert!(!journal_before.is_empty());
+
+        let restored = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+        let entries = restored.recent_messages(&conversation_id, 10);
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].envelope.timestamp_ms, 10);
+        assert_eq!(entries[1].envelope.timestamp_ms, 20);
+    }
+
+    #[test]
+    fn journal_compacts_into_snapshot_at_threshold() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("store");
+        let conversation_id = ConversationId("dm:alice:bob".into());
+        let mut store = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+        store.upsert_conversation(sample_conversation()).unwrap();
+        for index in 0..timeline_journal::JOURNAL_COMPACT_THRESHOLD as i64 {
+            store.append_message(sample_message(1_000 + index)).unwrap();
+        }
+
+        let journal = journal_path_for(&root, &conversation_id);
+        assert!(
+            !journal.exists(),
+            "journal must fold into snapshot at threshold"
+        );
+        assert!(store.timeline_path(&conversation_id).exists());
+        assert_eq!(
+            store.recent_messages(&conversation_id, 1_000).len(),
+            timeline_journal::JOURNAL_COMPACT_THRESHOLD
+        );
+
+        drop(store);
+        let restored = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+        assert_eq!(
+            restored.recent_messages(&conversation_id, 1_000).len(),
+            timeline_journal::JOURNAL_COMPACT_THRESHOLD
+        );
+    }
+
+    #[test]
+    fn torn_journal_tail_is_repaired_and_good_frames_survive() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("store");
+        let conversation_id = ConversationId("dm:alice:bob".into());
+        {
+            let mut store = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+            store.upsert_conversation(sample_conversation()).unwrap();
+            for timestamp in [10, 20, 30] {
+                store.append_message(sample_message(timestamp)).unwrap();
+            }
+        }
+        let journal = journal_path_for(&root, &conversation_id);
+        let intact = fs::read(&journal).unwrap();
+        // 模拟追加中途断电：尾部多出半帧
+        let mut torn = intact.clone();
+        torn.extend_from_slice(&[0x2a, 0x00, 0x00]);
+        fs::write(&journal, &torn).unwrap();
+
+        let restored = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+        assert_eq!(restored.recent_messages(&conversation_id, 10).len(), 3);
+        assert_eq!(
+            fs::read(&journal).unwrap(),
+            intact,
+            "repair must truncate back to the intact prefix"
+        );
+    }
+
+    #[test]
+    fn corrupted_frame_stops_replay_at_last_good_frame() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("store");
+        let conversation_id = ConversationId("dm:alice:bob".into());
+        {
+            let mut store = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+            store.upsert_conversation(sample_conversation()).unwrap();
+            for timestamp in [10, 20, 30] {
+                store.append_message(sample_message(timestamp)).unwrap();
+            }
+        }
+        let journal = journal_path_for(&root, &conversation_id);
+        let mut bytes = fs::read(&journal).unwrap();
+        // 翻转最后一帧 payload 的一个字节（CRC 不再匹配）
+        let last = bytes.len() - 1;
+        bytes[last] ^= 0xff;
+        fs::write(&journal, &bytes).unwrap();
+
+        let restored = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+        let entries = restored.recent_messages(&conversation_id, 10);
+        assert_eq!(
+            entries.len(),
+            2,
+            "only frames before the corrupt one survive"
+        );
+        assert_eq!(entries[1].envelope.timestamp_ms, 20);
+    }
+
+    #[test]
+    fn edit_message_folds_journal_into_snapshot() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("store");
+        let conversation_id = ConversationId("dm:alice:bob".into());
+        let mut store = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+        store.upsert_conversation(sample_conversation()).unwrap();
+        store.append_message(sample_message(10)).unwrap();
+        store
+            .edit_message(
+                &conversation_id,
+                &MessageId("m-10".into()),
+                IdentityId("alice".into()),
+                "编辑后".into(),
+                99,
+            )
+            .unwrap();
+
+        assert!(!journal_path_for(&root, &conversation_id).exists());
+        drop(store);
+        let restored = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+        let entries = restored.recent_messages(&conversation_id, 10);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].envelope.body.plain_text, "编辑后");
+        assert_eq!(entries[0].edited_at_ms, Some(99));
+    }
+
+    #[test]
+    fn recall_message_folds_journal_into_snapshot() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("store");
+        let conversation_id = ConversationId("dm:alice:bob".into());
+        let mut store = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+        store.upsert_conversation(sample_conversation()).unwrap();
+        store.append_message(sample_message(10)).unwrap();
+        store.append_message(sample_message(20)).unwrap();
+        store
+            .recall_message(
+                &conversation_id,
+                &MessageId("m-20".into()),
+                IdentityId("alice".into()),
+                999,
+            )
+            .unwrap();
+
+        assert!(!journal_path_for(&root, &conversation_id).exists());
+        drop(store);
+        let restored = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+        let entries = restored.recent_messages(&conversation_id, 10);
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[1].recalled_at_ms, Some(999));
+    }
+
+    #[test]
+    fn duplicated_journal_frames_after_crash_are_deduped() {
+        // 崩溃窗口：新快照已写入、journal 尚未删除 —— 重放不得产生重复消息
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("store");
+        let conversation_id = ConversationId("dm:alice:bob".into());
+        let mut store = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+        store.upsert_conversation(sample_conversation()).unwrap();
+        store.append_message(sample_message(10)).unwrap();
+        store.append_message(sample_message(20)).unwrap();
+        // 手工把当前内存里的 entries 写成快照，同时保留 journal（模拟该窗口）
+        let entries = store.export_messages(&conversation_id);
+        let bytes = postcard::to_allocvec(&entries).unwrap();
+        atomic_write(&store.timeline_path(&conversation_id), &bytes).unwrap();
+
+        let restored = FileTimelineStore::open(&root, ArchivePolicy::default()).unwrap();
+        let messages = restored.recent_messages(&conversation_id, 10);
+        assert_eq!(
+            messages.len(),
+            2,
+            "snapshot+journal duplicates must collapse"
+        );
+        assert_eq!(messages[0].envelope.message_id.0, "m-10");
+        assert_eq!(messages[1].envelope.message_id.0, "m-20");
+    }
+
+    #[test]
+    fn archive_expired_messages_truncates_journals() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("store");
+        let conversation_id = ConversationId("dm:alice:bob".into());
+        let mut store = FileTimelineStore::open(&root, archive_policy()).unwrap();
+        store.upsert_conversation(sample_conversation()).unwrap();
+        store.append_message(sample_message(0)).unwrap();
+        assert!(journal_path_for(&root, &conversation_id).exists());
+
+        store.archive_expired_messages(4_000_000).unwrap();
+        assert!(!journal_path_for(&root, &conversation_id).exists());
+        drop(store);
+        let restored = FileTimelineStore::open(&root, archive_policy()).unwrap();
+        assert_eq!(restored.archived_count(&conversation_id), 1);
     }
 }

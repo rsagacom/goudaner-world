@@ -402,6 +402,12 @@
 - **第 3 步节点构建暂停**，根因链四条（均非 adapter 代码问题）：cachyos-ai 直连 github 传输层不稳（已启用 ghfast.top 重写，lock sha1 兜底完整性）；`packages_official.json` 曾截断 2290/2918（已补全）；pkgcache 曾被污染（已清空）；**当前阻塞：lock 钉 `nim 2.2.4` 但同钉的 `ffi@53515de` 要求 `nim >= 2.2.6`，nimble 0.22.3 解析矛盾**（上游 CI 同参数理论应过，未复现）。
 - **lab 环境已固化**（cachyos-ai `/mnt/gaosu_sata/labs/lobster-chat-p5-waku/`）：固定源码已验证、最小 lobster 工作区、cargo/rustup 工具链、retry 脚本、lab example 构建成功（rsproxy 镜像仅入实验室 CARGO_HOME）。恢复顺序与详细环境见 `docs/ACTIVE_WORK_QUEUE.md` 顶部 2026-09-04 P5.1 区块。
 
+### R2 增量写第一步 + PWA 最小版（2026-09-05）
+
+- **R2 append-only journal（`crates/chat-storage/src/timeline_journal.rs`）**：追加从"每条消息全量重写 `<id>.postcard`"降为 O(帧) 的 CRC 帧追加；帧 = 手工定长头 `[len u32 LE][crc32 u32 LE]` + postcard 条目。满 128 帧自动压实进快照；edit/recall/archive 仍走快照重写（低频）并删 journal 保快照唯一权威。加载 = 快照（含三代 legacy）+ journal 重放，`message_id` 去重覆盖"快照已写、journal 未删"崩溃窗口；撕裂尾/坏帧加载时截断修复。追加失败回滚 = 内存 pop + journal 截回追加前长度，此前帧保持持久。**Trait、postcard 格式、文件布局零迁移**，Gateway/TUI/CLI 无感知。chat-storage **26/26**（+8 用例）。零新依赖。
+- **PWA 最小版（`899cb48`）**：manifest.webmanifest（standalone + 暗色）+ 纯 Node zlib 生成的像素龙虾图标（192/512 any、512 maskable 80% 安全区、`scripts/generate-pwa-icons.mjs` 可确定性重生成）+ index/creative 页面接线 + `shell-install-hint.js` 加桌引导（决策纯函数 + fake-dom 可测 chip；beforeinstallprompt/iOS 分支、一次性关闭、桌面克制不提示）。无 service worker——推送属 WebPush 独立批次，且 Rust web-push 依赖需用户批准（reuse prompt 已发起，见优先序表序 2）。Web **1445/1445**。
+- **部署边界**：R2 与 PWA 均仅本地验证，未 SSH、未部署生产。
+
 ### 图片消息收口：附件合同下沉 + TUI 降级 + 发送压缩 + 看原图（2026-09-05）
 
 - **合同下沉**：`attachment://<id>` 引用解析（`validate_attachment_id` / `split_attachment_text` / `attachment_reference` / `attachment_display_text`）从 Gateway `attachment_runtime.rs` 上移到 `chat-core`，Gateway 与 TUI 共用单一合同，Gateway 侧删本地重复实现；chat-core **24** 单测（+4）。
@@ -451,11 +457,11 @@ Rust 55,355 行 + 前端源码 ~37,000 行 + 2,187 测试全绿 + 可追溯生�
 
 | 序 | 事项 | 理由 | 量级 | 状态 |
 |----|------|------|------|------|
-| 1 | 图片消息链路（上传端点+气泡渲染） | 运营第一缺口；M2 消息引擎从 90% 补到 97% | 1-2 周 | 🟢 本地收口 2026-09-05（`74a33ca` 切片 + 合同下沉/TUI 降级/发送压缩/看原图灯箱）；待做：生产发布 |
-| 2 | WebPush 通知（Gateway 事件订阅 + Push API） | IM 留存底线，无推送勿谈运营 | 1 周 | 未开始 |
+| 1 | 图片消息链路（上传端点+气泡渲染） | 运营第一缺口；M2 消息引擎从 90% 补到 97% | 1-2 周 | 🟢 本地收口 2026-09-05（`74a33ca` 切片 + 合同下沉/TUI 降级/发送压缩/看原图灯箱，见进度日志）；待做：生产发布 |
+| 2 | WebPush 通知（Gateway 事件订阅 + Push API） | IM 留存底线，无推送勿谈运营 | 1 周 | ⏸ 未开始——Rust 侧需引入 web-push/p256 类依赖，已按门禁发起 `atlasctl reuse prompt --capability webpush-gateway-notifications`，等用户裁决后才能进入调研/选型 |
 | 3 | R3 panic 隔离 | release 移除 panic=abort + 请求边界 catch_unwind 500 兜底 + 锁投毒恢复 | 1-2 天 | ✅ 2026-09-04 完成 |
-| 4 | R2 增量写（timeline 改 append-only 帧流） | 消息量增长前修，全量重写 IO 是首个性能悬崖 | 3-5 天 | 未开始 |
-| 5 | PWA manifest 最小版 + 加桌引导 | 移动端安装入口 | 1 天 | 未开始 |
+| 4 | R2 增量写（timeline 改 append-only 帧流） | 消息量增长前修，全量重写 IO 是首个性能悬崖 | 3-5 天 | 🟡 第一步完成 2026-09-05：journal 帧流 + 阈值压实 + 撕裂尾修复落地 chat-storage（26 测试，trait/格式零迁移）；待做：字节级压实阈值、压测、生产发布 |
+| 5 | PWA manifest 最小版 + 加桌引导 | 移动端安装入口 | 1 天 | ✅ 2026-09-05 完成（manifest+像素图标+iOS/Android 引导 chip，无 service worker）；生产发布随下一批次 |
 | 6 | R1 锁拆分（读路径快照化） | 等 >5 并发用户再做不迟 | 后置 | 未开始 |
 | 7 | P5.1 lab 恢复 | 按既有暂停合同走背景节奏，不设 deadline，不顺手改生产 | 按队列 | 暂停中 |
 
