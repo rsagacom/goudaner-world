@@ -177,6 +177,22 @@ echo "== protected route without bearer =="
 assert_status "401" "GET" "$BASE_URL/v1/admin/summary"
 assert_status "401" "POST" "$BASE_URL/v1/auth/logout"
 
+echo "== webpush endpoints =="
+# 公钥端点公开可读（公钥非秘密），响应必须是合法 JSON 且带 public_key
+vapid_status="$(fetch_head_status "$BASE_URL/v1/push/vapid-public-key")"
+[[ "$vapid_status" == "200" ]] || {
+  echo "vapid public key endpoint returned $vapid_status (expected 200)" >&2
+  exit 1
+}
+fetch_body "$BASE_URL/v1/push/vapid-public-key" "$BODY_FILE"
+grep -q '"public_key"' "$BODY_FILE" || {
+  echo "vapid public key payload missing public_key" >&2
+  exit 1
+}
+# 订阅/退订未授权必须 401（防匿名写订阅垃圾）
+assert_status "401" "POST" "$BASE_URL/v1/push/subscribe"
+assert_status "401" "POST" "$BASE_URL/v1/push/unsubscribe"
+
 echo "== anonymous shell state privacy =="
 fetch_body "$BASE_URL/v1/shell/state" "$BODY_FILE"
 if grep -Eq '"id"[[:space:]]*:[[:space:]]*"dm:' "$BODY_FILE"; then
