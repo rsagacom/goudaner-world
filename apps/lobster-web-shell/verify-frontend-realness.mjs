@@ -290,6 +290,17 @@ async function verifyPushToggleDormant(page, baseUrl) {
   assert(swBody.includes('addEventListener("push"'), "sw.js must listen for push");
   const iconResponse = await page.request.get(`${baseUrl}/assets/icons/icon-192.png`);
   assert(iconResponse.status() === 200, "PWA icon must be served");
+
+  // 优雅降级：授予通知权限后程序化点击开关（无可达网关）——
+  // 订阅链路必须在"网关未连接"处优雅失败：按钮回落休眠、无未捕获异常。
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.context().grantPermissions(["notifications"], { origin: baseUrl });
+  await page.$eval("[data-push-toggle]", (el) => el.click());
+  await page.waitForTimeout(600);
+  const stillHidden = await page.$eval("[data-push-toggle]", (el) => el.hidden);
+  assert(stillHidden === true, "push toggle must fall back to dormant when the push service is unreachable");
+  assert(errors.length === 0, `push degrade must not throw uncaught errors: ${errors.join(" | ")}`);
 }
 
 async function verifyNoJavascriptErrors(page, baseUrl) {
@@ -511,7 +522,7 @@ try {
   await verifySceneEditorDayNight(page, baseUrl);
   await verifySceneEditorHotspotList(page, baseUrl);
   await verifySceneEditorUndoRedo(page, baseUrl);
-  console.log("frontend realness: composer, hotspot labels, shared scene rails, day/night backgrounds, formal admin, fixed hotspot sizes (64x34), zero uncaught JS errors, scene-editor owner-only access, mobile relationship actions, mobile touch, day/night preview, hotspot list and undo/redo, push toggle dormant passed");
+  console.log("frontend realness: composer, hotspot labels, shared scene rails, day/night backgrounds, formal admin, fixed hotspot sizes (64x34), zero uncaught JS errors, scene-editor owner-only access, mobile relationship actions, mobile touch, day/night preview, hotspot list and undo/redo, push toggle dormant and graceful degrade passed");
 } finally {
   await browser.close();
   await close(server);

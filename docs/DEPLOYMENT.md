@@ -317,7 +317,34 @@ sudo systemctl start lobster-waku-gateway
 
 出站公网 IP 不证明入站流量会到达此主机。相关案例与区域网络注意事项见 [DEPLOYMENT_PITFALLS_AND_HARDENING.md](DEPLOYMENT_PITFALLS_AND_HARDENING.md)。
 
-## 10. 明确后置范围
+## 10. WebPush 运维注意事项（2026-09-05 新增）
+
+推送全链路（RFC 8291 加密 + RFC 8292 VAPID）自 710bdf4 起进入生产构建。运维要点：
+
+### 10.1 状态文件（必须纳入备份/恢复）
+
+| 文件 | 内容 | 丢失后果 |
+|------|------|----------|
+| `/var/lib/lobster-chat/push-subscriptions.json` | 居民浏览器推送订阅（endpoint + p256dh/auth 密钥） | 订阅丢失 = 所有用户必须重新点击开启推送 |
+| `/var/lib/lobster-chat/vapid-signing-key.json` | VAPID ES256 私钥（PKCS8，0600） | 私钥变更 = 浏览器视为不同应用服务器，**所有既有订阅全部失效**，需全员重新授权 |
+
+- `scripts/backup-state.sh` 的全目录 tar 天然覆盖两者，且有"存在即必须在档"的 fail-closed 校验（单测 `test_backup_state_unit.py`）。
+- **恢复时两个文件必须与 `auth-state.json` 同批还原**；只还原一半会造成订阅与密钥不匹配。
+- 不要轮换 VAPID 私钥（除非密钥泄露）；轮换 = 全员重新订阅。
+
+### 10.2 端点与安全合同
+
+- `GET /v1/push/vapid-public-key` 公开可读（公钥非秘密）；`POST /v1/push/subscribe|unsubscribe` 要求居民 Bearer。
+- 订阅端点 URL 生产合同必须 HTTPS（loopback HTTP 仅 dev/test）；订阅时即做一次真实 ECDH 试算，非法密钥 fail-closed 拒绝。
+- 推送服务返回 404/410 时订阅自动剪除（下次投递时落盘）；网络失败仅记日志不重试。
+
+### 10.3 范围与平台
+
+- 推送范围 = 仅私聊（dm:/个人房间参与者）；公共房间消息不推送（避免全城轰炸）。
+- **iOS Safari 必须先"添加到主屏幕"（A2HS）才有 Web Push 能力**（iOS 16.4+，从主屏幕图标启动后生效）——H5 的加桌引导（PWA manifest）是其前置。
+- 端到端验收（真实 FCM/APNs 投递）需生产 HTTPS 环境完成，见 §7 验收清单的延伸。
+
+## 11. 明确后置范围
 
 - 原生 Waku relay 跨城互联
 - 真实 MLS 群组加密

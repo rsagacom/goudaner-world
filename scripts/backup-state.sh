@@ -58,6 +58,16 @@ trap - EXIT
 archive_listing="$(tar -tzf "$ARCHIVE")" || fail "archive failed listing: $ARCHIVE"
 grep -q "timelines/" <<<"$archive_listing" || fail "archive missing timelines/: $ARCHIVE"
 tar -tzf "$ARCHIVE" > /dev/null || fail "archive failed integrity read: $ARCHIVE"
+
+# 关键状态文件在档校验（2026-09-05 WebPush）：存在即必须在档，防止存储布局
+# 变更后备份静默缺失（push 订阅丢失=用户全部重订；VAPID 私钥丢失=所有
+# 浏览器订阅失效必须重新授权）。
+for critical in auth-state.json push-subscriptions.json vapid-signing-key.json; do
+  if [[ -f "$STATE_DIR/$critical" ]]; then
+    grep -q "$critical" <<<"$archive_listing" \
+      || fail "archive missing critical state file: $critical"
+  fi
+done
 size="$(du -h "$ARCHIVE" | cut -f1)"
 log "archive verified ($size)"
 

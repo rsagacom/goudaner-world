@@ -26,6 +26,16 @@ Last updated: 2026-09-05
 | 本批次内容（相对生产锚点 6c0dc6a） | 汇总 | 图片消息全链路、R3 panic 隔离收口、R2 append-only journal、PWA manifest+加桌、WebPush 推送全链路、H5 图片压缩/看原图/TUI 降级显示、会话失效闭环等（详见 DEPLOYMENT 之外的本队列 2026-09-05 各区块）。 |
 | 下一步 | 等授权 | 用户授权后按 DEPLOYMENT §2 只读预检 → §3 备份+安装 → §4 公网追溯（EXPECT_RELEASE_GIT_SHA=e9ca3be…）→ §5 真实 OTP/双居民验收 → §6 回滚判定。目标机 x86_64，使用 x86_64 制品。 |
 
+## 2026-09-05 WebPush 运维加固：备份覆盖校验 + 优雅降级探针 + DEPLOYMENT §10（本地全绿，未部署）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 备份覆盖审计 | 已完成 | `backup-state.sh` 全目录 tar 天然覆盖 `push-subscriptions.json` 与 `vapid-signing-key.json`；但事后校验只查 `timelines/`——已加"关键状态文件存在即必须在档"的 fail-closed 校验（auth-state/push-subscriptions/vapid-signing-key 三文件，缺任一即 fail），防存储布局变更后备份静默缺失。 |
+| 单测 | 已完成 | `test_backup_state_unit.py` 4 用例：原 SIGPIPE 回归 + WebPush 文件在档 + **PATH 注入 tar 包装器的 fail-closed 测试**（打包瞬间抽走订阅文件，断言脚本报 `archive missing critical state file` 且关键文件被还原）+ 未启用推送时不误报。 |
+| 优雅降级探针 | 已完成 | realness 新增：授予权限后程序化点击推送钮（无可达网关）——订阅链路必须在"网关未连接"处优雅失败，按钮回落休眠、零未捕获异常；同时断言 sw.js/图标同源可取且注册 push 监听。 |
+| 运维文档 | 已完成 | DEPLOYMENT.md 新增 §10：两个状态文件清单与丢失后果、备份/恢复要求（与 auth-state 同批还原、VAPID 私钥不轮换）、端点安全合同、仅私聊推送范围、iOS A2HS 前置（16.4+）；原 §10 顺延为 §11。 |
+| 验证基线 | 全绿 | 备份单测 4/4；Web 1452/1452 + layout + realness（含新探针）；脚本语法/panic 扫描/fmt 干净。 |
+
 ## 2026-09-05 R2 增量写第一步：timeline append-only journal（本地全绿，未部署）
 
 | 项目 | 状态 | 说明 |
