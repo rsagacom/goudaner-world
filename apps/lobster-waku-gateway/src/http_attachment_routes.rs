@@ -90,11 +90,14 @@ pub(crate) fn handle_get_shell_attachment(
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     match runtime.load_image_attachment(attachment_id) {
         Some((bytes, mime_type)) => {
-            let content_type = Header::from_bytes("Content-Type", mime_type.as_bytes())
-                .unwrap_or_else(|_| {
-                    Header::from_bytes("Content-Type", &b"application/octet-stream"[..])
-                        .expect("static fallback header")
-                });
+            let content_type = match Header::from_bytes("Content-Type", mime_type.as_bytes())
+                .or_else(|_| Header::from_bytes("Content-Type", &b"application/octet-stream"[..]))
+            {
+                Ok(header) => header,
+                Err(_) => {
+                    return attachment_error(StatusCode(500), "attachment header unavailable");
+                }
+            };
             Response::from_data(bytes)
                 .with_status_code(StatusCode(200))
                 .with_header(content_type)

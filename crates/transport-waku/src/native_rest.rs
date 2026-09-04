@@ -1408,7 +1408,8 @@ fn percent_encode(value: &str) -> String {
             encoded.push(char::from(byte));
         } else {
             use fmt::Write as _;
-            write!(&mut encoded, "%{byte:02X}").expect("writing to a String cannot fail");
+            // `write!` into a `String` is infallible; drop the `fmt::Error`.
+            let _ = write!(&mut encoded, "%{byte:02X}");
         }
     }
     encoded
@@ -1444,7 +1445,8 @@ fn sha256_hex(value: &[u8]) -> String {
     let mut encoded = String::with_capacity(64);
     for byte in digest {
         use fmt::Write as _;
-        write!(&mut encoded, "{byte:02x}").expect("writing to a String cannot fail");
+        // `write!` into a `String` is infallible; drop the `fmt::Error`.
+        let _ = write!(&mut encoded, "{byte:02x}");
     }
     encoded
 }
