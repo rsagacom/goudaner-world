@@ -21,10 +21,10 @@ Last updated: 2026-09-05
 
 | 项目 | 状态 | 说明 |
 | --- | --- | --- |
-| 发布锚点（候选） | 已就绪 | 最新候选发布 SHA `710bdf459258d6c5f60787b8a3d85f26e42d5926`（release run 33915810037，verify/aarch64/x86_64 三 job 绿；含 CLI 通道推送覆盖）；制品目录 `/Volumes/AJW-Data/Projects/lobster-chat-release-710bdf4-run33915810037`（双架构）。注：`05e4e69` 的制品已被 710bdf4 取代（后者多了 CLI 推送覆盖的 Gateway 变更）。 |
+| 发布锚点（候选） | 已就绪 | 最终候选发布 SHA `e9ca3be21d52e9d282fecf0dca17c6e2ab3678e7`（release run 33918895526，verify/aarch64/x86_64 三 job 绿；包含 CLI 通道推送覆盖、Gateway append 压测与 H5 推送休眠探针）；制品目录 `/Volumes/AJW-Data/Projects/lobster-chat-release-e9ca3be-run33918895526`（双架构）。历史：`05e4e69`→`710bdf4`→`e9ca3be` 逐次取代。 |
 | §1 本地门禁 | 已通过 | 双架构 `sha256sum -c SHA256SUMS` 全 OK；`release-manifest.json.git_sha` 与 HEAD 精确一致；`file` 确认 x86-64 / ARM aarch64 ELF；source 包扫描无 .env/私钥/凭据类文件。 |
 | 本批次内容（相对生产锚点 6c0dc6a） | 汇总 | 图片消息全链路、R3 panic 隔离收口、R2 append-only journal、PWA manifest+加桌、WebPush 推送全链路、H5 图片压缩/看原图/TUI 降级显示、会话失效闭环等（详见 DEPLOYMENT 之外的本队列 2026-09-05 各区块）。 |
-| 下一步 | 等授权 | 用户授权后按 DEPLOYMENT §2 只读预检 → §3 备份+安装 → §4 公网追溯（EXPECT_RELEASE_GIT_SHA=710bdf4…）→ §5 真实 OTP/双居民验收 → §6 回滚判定。目标机 x86_64，使用 x86_64 制品。 |
+| 下一步 | 等授权 | 用户授权后按 DEPLOYMENT §2 只读预检 → §3 备份+安装 → §4 公网追溯（EXPECT_RELEASE_GIT_SHA=e9ca3be…）→ §5 真实 OTP/双居民验收 → §6 回滚判定。目标机 x86_64，使用 x86_64 制品。 |
 
 ## 2026-09-05 R2 增量写第一步：timeline append-only journal（本地全绿，未部署）
 
