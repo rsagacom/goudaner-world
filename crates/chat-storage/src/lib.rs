@@ -15,6 +15,9 @@ use serde::{Deserialize, Serialize};
 
 mod timeline_journal;
 
+#[cfg(test)]
+mod bench_journal;
+
 pub type StorageResult<T> = Result<T, String>;
 
 static ATOMIC_WRITE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
