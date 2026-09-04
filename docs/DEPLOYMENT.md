@@ -261,6 +261,18 @@ curl -fsS https://chat.example.com/v1/provider
 - 人为制造一次网络失败，确认失败气泡可重发且最终没有重复 committed copy
 - 刷新页面和重启 Gateway 后确认消息、注册、已读和会话仍可恢复
 
+### 本批次新增验收（adf0f34：图片消息 / R2 journal / PWA / WebPush）
+
+- **图片消息**：住宅页与主城页各发送一张图片（含 caption 与无 caption 两种），双端气泡渲染、点击看原图（灯箱）、撤回后双端投影不再显示图片；TUI `tail`/`export` 显示 `[图片] …` 降级文案而非 `attachment://` 原文；发送一张 2MB 以上的手机照片，确认上传成功（客户端已压缩至预算内，Gateway 5MB 上限仅兜底）。
+- **推送通知（Android/桌面 Chrome + iOS 真机）**：
+  - 常规链路：甲私聊发消息给已订阅的乙，乙锁屏收到通知，点击聚焦/打开页面；
+  - 图片消息推送的通知文案为 `[图片] …`（不含原图）；
+  - 退订路径：乙在页面关闭推送开关后，甲再发消息乙不再收到通知；
+  - iOS：从主屏幕图标启动后重复上述链路（未加桌时不得出现推送入口）。
+- **PWA/加桌**：`manifest.webmanifest`、图标 192/512 可达；Android Chrome 出现安装入口、iOS 出现 A2HS 引导且一次性关闭后不再出现。
+- **备份覆盖**：`backup-state.sh` 产生的最新档案包含 `push-subscriptions.json`、`vapid-signing-key.json`、`attachments/` 与 `timelines/`（在档校验已在脚本内 fail-closed）。
+- **R2 journal**：重启 Gateway 后（快照+journal 重放）历史消息完整；`timelines/` 下存在 `<id>.journal` 属正常形态。
+
 ### 运维能力
 
 - admin-ds 能读取居民、房间、审计日志和配置

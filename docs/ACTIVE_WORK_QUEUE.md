@@ -27,6 +27,16 @@ Last updated: 2026-09-05
 | 本批次内容（相对生产锚点 6c0dc6a） | 汇总 | 图片消息全链路、R3 panic 隔离收口、R2 append-only journal、PWA manifest+加桌、WebPush 推送全链路、H5 图片压缩/看原图/TUI 降级显示、会话失效闭环等（详见 DEPLOYMENT 之外的本队列 2026-09-05 各区块）。 |
 | 下一步 | 等授权 | 用户授权后按 DEPLOYMENT §2 只读预检 → §3 备份+安装 → §4 公网追溯（EXPECT_RELEASE_GIT_SHA=adf0f34…）→ §5 真实 OTP/双居民验收（含推送/加桌引导真机项）→ §6 回滚判定。目标机 x86_64，使用 x86_64 制品。 |
 
+## 2026-09-05 交接摘要（截至 07:00，供 09:00 后续接）
+
+| 事项 | 状态 | 入口 |
+| --- | --- | --- |
+| 生产发布 | **等授权** | 候选锚点 `adf0f34`（制品双架构验收于 `/Volumes/AJW-Data/Projects/lobster-chat-release-adf0f34-run33926904264`）；授权后按 DEPLOYMENT §2 只读预检 → §3 备份安装 → §4 公网追溯（`EXPECT_RELEASE_GIT_SHA=adf0f34…`）→ §5 验收（本批次新增项见 §7"本批次新增验收"）→ §6 回滚判定。 |
+| P5.1 lab | 等命令 | 暂停合同不变：恢复入口①后半 = cachyos-ai `/mnt/gaosu_sata/labs/lobster-chat-p5-waku/` 重跑 `scripts-retry-nimble-setup.sh`（Nim 2.2.6 已就绪）。 |
+| WebPush 真实端到端 | 等生产 | 本地已覆盖：加密互操作（WebCrypto 解密回环 + RFC 向量）、订阅持久化、公网/直连合同、优雅降级探针；剩余 FCM/APNs 真实投递 + iOS A2HS 真机项属生产 HTTPS 验收（DEPLOYMENT §10）。 |
+| R1 锁拆分 | 后置 | 等 >5 并发用户信号。 |
+| 今晚提交索引 | 19 笔 | `352d9b8`(panic收口) `d85e311`(图片收口) `899cb48`(PWA) `87ea7b1`(R2) `ea070da`(R2-2) `331ef7a`(压测) `60be272`/`c2d75c8`/`5df508e`(docs) `1b96c6c`(运维加固) `f8a5ee0`(公网合同) `7526edf`(合同扩面) `7d600d2`(Gateway压测) `05e4e69`(WebPush) `7716311`(降级占位) `adf0f34`(英文文档) `41cc246`前序——CI 全绿。 |
+
 ## 2026-09-05 WebPush 运维加固：备份覆盖校验 + 优雅降级探针 + DEPLOYMENT §10（本地全绿，未部署）
 
 | 项目 | 状态 | 说明 |
