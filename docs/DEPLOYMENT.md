@@ -2,21 +2,20 @@
 
 本文是当前单城集中式 IM 的生产部署真值。跨城 Waku relay、MLS 和链上锚定仍按 `PRODUCT_CHARTER.md` 后置，不阻塞单城上线。
 
-## 1. 当前发布基线（2026-08-13）
+## 1. 当前发布基线（2026-09-05）
 
-- Gateway：323 tests / 0 failed / clippy 0 warning
-- Web Shell：1419 tests / 0 failed，layout 与 frontend realness 通过
-- TUI：235 tests / 0 failed；Gateway 配置下启动读取 `conversation_shell`/`scene_render`
-- CLI：148 tests / 0 failed（119 unit + 24 integration + 5 额外测试）
-- 支撑 crates：`crypto-mls` 24、`ai-sidecar` 7、`chat-core` 20、`chat-storage` 18 tests，均 0 failed
-- 完整门禁：`RUN_PREFLIGHT=0 INCLUDE_PROVIDER_FEDERATION=1 scripts/smoke-release-gate.sh`
-- 当前可部署安全修复制品：release run `31640540602` 产出的 `6c0dc6a5c5429b54f15bc0c7c403e0e393f0488d`；该 run 的 verify、x86_64、aarch64 三个 job 均通过
-- 当前制品目录：`/Volumes/AJW-Data/Projects/lobster-chat-release-6c0dc6a-run31640540602`；两个 target 的 `SHA256SUMS`、manifest、ELF 架构和脱敏边界均已独立复核
-- 当前生产状态（2026-08-13）：已在 AWS 北京 `aws-beijing`（实际架构 `x86_64`）部署上述 release；公网 `/v1/version` 与 `/release-manifest.json` 均精确指向该 Git SHA
-- 当前生产备份：`/srv/backups/lobster-chat-state-20260813-005851.tar.gz`；备份包含 `timelines/`，归档完整性已验证
-- 当前生产验收：真实邮件 OTP、双居民公共房间/私聊 API+SSE 矩阵、编辑/撤回、搜索、logout、Gateway 重启后 session/消息恢复、公网 smoke 均通过；未记录邮箱、token、challenge 或验证码值
-- 当前 Nginx：IM 站点显式使用正式域名，`nginx -t` 无 duplicate `server_name _` warning；变更前配置备份为 `/srv/backups/lobster-chat-nginx-20260813-0948.conf`
-- H5 主入口：`index.html`（主城群聊）、`creative.html`（住宅/私聊）、`admin-ds.html`（管理后台）
+| 项目 | 值 |
+| --- | --- |
+| 生产 `git_sha` | `adf0f3406c326ac8b29be8d0d43f1ac21c5868d4` |
+| release run | 33926904264（workflow_dispatch，verify/aarch64/x86_64 三 job 绿） |
+| 制品目录（本地） | `/Volumes/AJW-Data/Projects/lobster-chat-release-adf0f34-run33926904264` |
+| 目标机 | aws-beijing（x86_64），NGINX_SERVER_NAME=chat.ajw.cn |
+| 切换方式 | 备份 `/srv/backups/lobster-chat-state-20260905-002912.tar.gz` → `install-server.sh`（manifest 校验）→ 公网追溯/安全边界全过 |
+| 回滚锚点 | 主机 `/opt/lobster-chat/bin/lobster-waku-gateway.bak-6c0dc6a` + 上述状态备份；外盘留有 6c0dc6a 制品 |
+| 本批新增 | 图片消息、R2 journal 增量写、PWA manifest+加桌、WebPush 推送全链路（含 CLI/Agent 通道）、附件降级占位、登出退订 |
+| 待办 | §5 真实 OTP/双居民验收（含推送/加桌真机项，需用户配合收码） |
+
+本批次新增功能清单与验收要点见 §7「本批次新增验收」；WebPush 运维见 §10。
 
 ## 2. 支持环境
 

@@ -179,12 +179,12 @@ assert_status "401" "POST" "$BASE_URL/v1/auth/logout"
 
 echo "== webpush endpoints =="
 # 公钥端点公开可读（公钥非秘密），响应必须是合法 JSON 且带 public_key
-vapid_status="$(fetch_head_status "$BASE_URL/v1/push/vapid-public-key")"
+# 网关路由只注册 GET（tiny_http 对 HEAD 返回 404），用 GET 探测
+vapid_status="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' "$BASE_URL/v1/push/vapid-public-key")"
 [[ "$vapid_status" == "200" ]] || {
   echo "vapid public key endpoint returned $vapid_status (expected 200)" >&2
   exit 1
 }
-fetch_body "$BASE_URL/v1/push/vapid-public-key" "$BODY_FILE"
 grep -q '"public_key"' "$BODY_FILE" || {
   echo "vapid public key payload missing public_key" >&2
   exit 1
