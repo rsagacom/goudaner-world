@@ -397,6 +397,17 @@ server {
         add_header Cache-Control "no-cache";
         try_files \$uri \$uri/ /index.html;
     }
+
+    # PWA manifest:WebKit/iOS 严格校验 MIME,不能落到 default_type
+    location = /manifest.webmanifest {
+        default_type application/manifest+json;
+        add_header Cache-Control "no-cache";
+    }
+
+    # Service worker 必须不缓存(版本由文件内容决定)
+    location = /sw.js {
+        add_header Cache-Control "no-cache";
+    }
 }
 EOF
 
