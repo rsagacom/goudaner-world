@@ -27,6 +27,17 @@ Last updated: 2026-09-05
 | 本批次内容（相对生产锚点 6c0dc6a） | 汇总 | 图片消息全链路、R3 panic 隔离收口、R2 append-only journal、PWA manifest+加桌、WebPush 推送全链路、H5 图片压缩/看原图/TUI 降级显示、会话失效闭环等（详见 DEPLOYMENT 之外的本队列 2026-09-05 各区块）。 |
 | 下一步 | 等授权 | 用户授权后按 DEPLOYMENT §2 只读预检 → §3 备份+安装 → §4 公网追溯（EXPECT_RELEASE_GIT_SHA=adf0f34…）→ §5 真实 OTP/双居民验收（含推送/加桌引导真机项）→ §6 回滚判定。目标机 x86_64，使用 x86_64 制品。 |
 
+## 2026-09-05 生产部署 adf0f34 执行完毕 + 美术资产 CF 缓存加速（98c381a）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 生产切换 | 已完成 | 用户授权后按 DEPLOYMENT §2-§4 执行：预检过、备份 `lobster-chat-state-20260905-002912.tar.gz` + 二进制 `.bak-6c0dc6a`、install-server（manifest 校验）成功；`production-readiness CHECK_PUBLIC=1` 与公网 smoke 全过，chat.ajw.cn 运行 `adf0f34`。 |
+| 部署后实测 | 已完成 | R2 journal 形态正确；生产备份确认 VAPID 密钥入档；12h journal 零 panic/ERROR；headless 实测生产页新 UI（推送钮/加桌 chip/manifest/sw/附件按钮全在位，headless denied→休眠属正确合同）。 |
+| nginx MIME 修复 | 已完成 | `/manifest.webmanifest` → `application/manifest+json`（WebKit 严格校验）、`/sw.js` no-cache；avif 显式 `image/avif`。 |
+| 美术资产 CF 缓存 | 已完成（差面板一步） | 源站对图片/字体发 `public, max-age=2592000, immutable`（30 天）；边缘缓存本就在工作（cf-cache-status HIT）。**浏览器侧仍显示 14400 = CF 面板 Browser Cache TTL 全局覆盖**（蓝图 ?v= 铁律根源）——需用户在 CF 面板 Caching → Browser Cache TTL 改 "Respect Existing Headers"（免费可改）即自动透出 30 天头。附件能力 URL 确认 DYNAMIC 不缓存（隐私边界）。 |
+| Agent 通道上线 | 已完成 | `LOBSTER_AGENT_TOKENS=agent:openclaw=…` 已写入 root-only env 并重启；匿名/错 token 401 验证通过；token 已交付用户。 |
+| §5 真人验收 | 待用户 | 双居民 OTP 链路 + 推送真机项（iOS 先 A2HS）。 |
+
 ## 2026-09-05 交接摘要（截至 07:00，供 09:00 后续接）
 
 | 事项 | 状态 | 入口 |
