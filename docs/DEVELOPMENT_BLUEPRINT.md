@@ -129,7 +129,7 @@
 - **导航**:桌面左 rail 深色卡片项、active 冷青左条;移动端(≤820px)三页一律隐藏左栏,由底部 Tab Bar(住宅/主城/世界/我的)承担导航
 - **消息气泡**:dark-on-dark `rgba(22,16,12,.88)` + `#3a2f28` 边框,自己=冷青描边;编辑/撤回等动作不常驻气泡,长按/右键呼出底部动作面板(`shell-message-action-sheet.js`)
 - **微信受限场景**:`100dvh`、`overscroll-behavior: none`(防下拉误刷新)、safe-area 垫高、composer 抬升至 Tab Bar 之上
-- **缓存纪律**:改 CSS/JS 必须同步升版 HTML 引用 `?v=`(CF 边缘强制 max-age=14400 覆盖源站 no-cache,不升版客户端拿不到新样式)
+- **缓存纪律(2026-09-06 更新)**:CF 面板 Browser Cache TTL 已改回 **Respect Existing Headers**(2026-09-06 经 CF 面板操作),源站头如实透出——代码类(js/css/html)源站发 no-cache 仍必须升版 `?v=`;美术资产/字体由 nginx 发 `public, max-age=2592000, immutable`(30 天,avif 单列 image/avif),**改图必须改文件名**否则回访最多 30 天看到旧图;附件 `/v1/shell/attachment/*` 无扩展名,CF 不缓存(DYNAMIC),隐私边界保持
 
 ## 六、存储
 

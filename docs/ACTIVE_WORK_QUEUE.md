@@ -38,6 +38,16 @@ Last updated: 2026-09-05
 | Agent 通道上线 | 已完成 | `LOBSTER_AGENT_TOKENS=agent:openclaw=…` 已写入 root-only env 并重启；匿名/错 token 401 验证通过；token 已交付用户。 |
 | §5 真人验收 | 待用户 | 双居民 OTP 链路 + 推送真机项（iOS 先 A2HS）。 |
 
+## 2026-09-06 CF 缓存加速收口：Browser Cache TTL 改 Respect Existing Headers（已完成）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 面板设置 | 已完成 | 经 computer-use 接管 Safari 在 CF 面板操作：ajw.cn → Caching → 配置 → 浏览器缓存 TTL **4 小时 → 遵循现有标头**，下拉选择即自动保存。 |
+| 缓存清除 | 已执行 | 面板"清除所有内容"清空旧边缘条目（旧条目带 14400 头，不清则最长 4 小时后才刷新）。 |
+| 公网验证 | 全过 | 资产：`cache-control: public, max-age=2592000, immutable` + `cf-cache-status: MISS→HIT`（30 天边缘+浏览器缓存生效）；avif `image/avif`；代码仍 no-cache（?v= 纪律不变）；附件 DYNAMIC 隐私边界不变。 |
+| 源站前提 | 前批已就位 | nginx 30 天 immutable 块 + avif MIME（98c381a）。**注意**：改像素图必须改文件名，否则回访最多 30 天看到旧图。 |
+| 效果 | 量化 | 回访用户 30 天内场景图/图标零下载（此前每 4 小时重拉 ~250KB）；海外访问直接命中边缘，大陆用户收益为浏览器本地缓存。 |
+
 ## 2026-09-05 交接摘要（截至 07:00，供 09:00 后续接）
 
 | 事项 | 状态 | 入口 |
