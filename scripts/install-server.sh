@@ -398,6 +398,18 @@ server {
         try_files \$uri \$uri/ /index.html;
     }
 
+    # 美术资产/字体不可变:长缓存交给浏览器与 CF 边缘(30 天)。
+    # 改图请改文件名,否则回访用户最多 30 天内看到旧图。
+    # avif 单列:老 mime.types 没有它,需显式给 image/avif。
+    location ~* \.avif$ {
+        default_type image/avif;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+    }
+
+    location ~* \.(?:png|jpe?g|webp|gif|svg|ico|woff2?)$ {
+        add_header Cache-Control "public, max-age=2592000, immutable";
+    }
+
     # PWA manifest:WebKit/iOS 严格校验 MIME,不能落到 default_type
     location = /manifest.webmanifest {
         default_type application/manifest+json;
